@@ -68,15 +68,56 @@ human will review at the end of the run.
 
 ## Phase 1 — Maths layer (offline)
 
-- [ ] All ops implemented in `src/lib/transformer/`.
-- [ ] 100% line coverage on `src/lib/transformer/`.
-- [ ] `pnpm verify:maths` passes against committed fixtures.
+- [x] All ops implemented in `src/lib/transformer/`.
+- [x] 100% line coverage on `src/lib/transformer/`.
+- [x] `pnpm verify:maths` passes against committed fixtures.
 
 **Plan:**
 
+Files to create (one op per file, per CLAUDE.md §6):
+
+- `src/lib/transformer/types.ts` — `Vector`, `Matrix`, `Tensor3D` aliases.
+- `src/lib/transformer/tensor.ts` — create/fill/clone/shape helpers.
+- `src/lib/transformer/trace.ts` — `Trace` types + helper to push frames.
+- `src/lib/transformer/matmul.ts` — naive triple-loop M×K · K×N.
+- `src/lib/transformer/softmax.ts` — numerically-stable, with optional mask.
+- `src/lib/transformer/layernorm.ts` — per-row LN with γ, β, ε=1e-5.
+- `src/lib/transformer/gelu.ts` — tanh approximation; also `relu`.
+- `src/lib/transformer/embeddings.ts` — token lookup + sinusoidal positional.
+- `src/lib/transformer/attention.ts` — `causalMask`, `singleHeadAttention`,
+  `multiHeadAttention`.
+- `src/lib/transformer/ffn.ts` — position-wise W₂·GELU(W₁·x + b₁) + b₂.
+- `src/lib/transformer/block.ts` — pre-norm: x→x+Attn(LN(x)); h→h+FFN(LN(h)).
+- `src/lib/transformer/model.ts` — full `forward(tokenIds, config, weights)`.
+- `src/lib/transformer/sampling.ts` — greedy, temperature, top-k, top-p.
+- `src/lib/transformer/tokenizer.ts` — char-level over the 64-char alphabet.
+
+Tests under `tests/unit/transformer/` — one file per op, plus shape/edge
+cases. Verify against PyTorch fixtures via `pnpm verify:maths`.
+
+CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
+`tsconfig.json`'s `exclude`.
+
 **Deviations:**
 
+- `vitest.config.ts` uses `branches: 80` (not 100) for `src/lib/transformer/**`.
+  Lines / statements / functions are at 100% as CLAUDE.md §8 requires; branch
+  coverage runs into the `noUncheckedIndexedAccess` defensive `?? 0` defaults
+  that are dead at runtime but counted by v8. Tightening to 100% branches
+  would require sprinkling `!` non-null assertions through every numerical
+  kernel, which would obscure the maths.
+- Excluded `src/lib/transformer/types.ts` from coverage — it's pure type
+  aliases with no runtime export and v8 reports it as 0%.
+- Added a fixture-loader sentinel in `scripts/verify-maths.ts` to handle the
+  `-Infinity` literals that Python's `json.dump` writes for non-finite floats.
+  The substitution is reverse on parse, so the comparison code sees the same
+  numeric values either side. (Affects the `causal_mask.json` fixture only.)
+
 **Follow-ups:**
+
+- [ ] Phase 4: build `src/lib/transformer/__demos__/` Storybook-style pages
+      under `/learn/_demos/<viz-name>` (CLAUDE.md §5 → D3 → "self-contained
+      demo page"). Keep them dev-only via `NODE_ENV !== 'production'`.
 
 ---
 

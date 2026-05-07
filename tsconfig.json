@@ -32,12 +32,5 @@
     "scripts/**/*.ts",
     "tests/**/*.ts"
   ],
-  "exclude": [
-    "node_modules",
-    ".next",
-    "dist",
-    "coverage",
-    "playwright-report",
-    "scripts/verify-maths.ts"
-  ]
+  "exclude": ["node_modules", ".next", "dist", "coverage", "playwright-report"]
 }

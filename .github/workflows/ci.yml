@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 # Jobs are added phase-by-phase as their prerequisites land:
-#   - Phase 1 adds the `verify-maths` job (needs src/lib/transformer/* and fixtures).
-#   - Phase 2/3 adds the `e2e-tests` job (needs Drizzle schema + auth + pages).
+#   - Phase 1 added `verify-maths` (needs src/lib/transformer/* and fixtures).
+#   - Phase 2/3 will add `e2e-tests` (needs Drizzle schema + auth + pages).
 
 jobs:
   lint-and-typecheck:
@@ -58,3 +58,20 @@ jobs:
           name: coverage
           path: coverage/
           retention-days: 7
+
+  verify-maths:
+    name: Verify maths against PyTorch fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm version comes from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm verify:maths
