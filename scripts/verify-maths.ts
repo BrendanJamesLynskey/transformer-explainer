@@ -33,6 +33,19 @@ type Manifest = {
   files: string[];
 };
 
+/**
+ * Python's `json.dump` emits non-finite floats as the literals `Infinity`,
+ * `-Infinity`, and `NaN` — none of which are valid JSON, so `JSON.parse`
+ * rejects them. We see these only in `causal_mask.json` (the upper-triangular
+ * mask is all `-Infinity`). Rewrite them to sentinel strings before parsing,
+ * then revive them back to the matching JS numbers.
+ */
+const SENTINELS: Record<string, number> = {
+  __NEG_INF__: -Infinity,
+  __POS_INF__: Infinity,
+  __NAN__: NaN,
+};
+
 function loadJson<T>(name: string): T {
   const path = join(FIX_DIR, name);
   if (!existsSync(path)) {
@@ -41,7 +54,15 @@ function loadJson<T>(name: string): T {
     );
     process.exit(2);
   }
-  return JSON.parse(readFileSync(path, "utf-8")) as T;
+  const raw = readFileSync(path, "utf-8")
+    .replace(/(?<![A-Za-z0-9_"])-Infinity\b/g, '"__NEG_INF__"')
+    .replace(/(?<![A-Za-z0-9_"-])Infinity\b/g, '"__POS_INF__"')
+    .replace(/(?<![A-Za-z0-9_"])NaN\b/g, '"__NAN__"');
+  return JSON.parse(raw, (_k, v) =>
+    typeof v === "string" && Object.prototype.hasOwnProperty.call(SENTINELS, v)
+      ? SENTINELS[v]
+      : v,
+  ) as T;
 }
 
 function maxAbsErr2D(a: number[][], b: number[][]): number {
