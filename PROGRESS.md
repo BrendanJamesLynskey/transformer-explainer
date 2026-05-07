@@ -21,9 +21,9 @@ human will review at the end of the run.
 
 ## Phase 0 — Foundations
 
-- [ ] Skeleton boots; `pnpm dev`, `pnpm lint`, `pnpm typecheck`, `pnpm test`
+- [x] Skeleton boots; `pnpm dev`, `pnpm lint`, `pnpm typecheck`, `pnpm test`
       all clean.
-- [ ] CI green on first PR.
+- [x] CI green on first PR.
 
 **Plan:**
 

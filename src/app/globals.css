@@ -1,0 +1,36 @@
+/*
+ * Global styles.
+ *
+ * Per CLAUDE.md §5 (CSS): Tailwind utilities inline; repeated patterns are
+ * defined once here as @layer components. This file is kept deliberately
+ * minimal in Phase 0 — phase-specific component classes (matrix cells, etc.)
+ * are added when they're first needed.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Match the system colour scheme by default; the user can override via
+   * `next-themes` once the theme toggle ships in Phase 3. */
+  :root {
+    color-scheme: light dark;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100;
+  }
+}
+
+@layer components {
+  /* The default focus ring used by every interactive widget — keyboard users
+   * always get a visible focus indicator (SPEC §11). */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-950;
+  }
+}
