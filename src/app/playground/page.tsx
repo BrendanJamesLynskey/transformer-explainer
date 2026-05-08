@@ -14,7 +14,9 @@ import { EmbeddingWidget } from "@/components/interactive/EmbeddingWidget";
 import { FFNWidget } from "@/components/interactive/FFNWidget";
 import { PlaygroundPresets } from "@/components/interactive/PlaygroundPresets";
 import { SamplingWidget } from "@/components/interactive/SamplingWidget";
+import { SaveExperiment } from "@/components/interactive/SaveExperiment";
 import { StackingWidget } from "@/components/interactive/StackingWidget";
+import { getSession } from "@/lib/auth";
 
 export const metadata = {
   title: "Playground",
@@ -22,7 +24,8 @@ export const metadata = {
     "Type tokens, watch every operation execute, and sample the next token end-to-end.",
 };
 
-export default function PlaygroundPage(): JSX.Element {
+export default async function PlaygroundPage(): Promise<JSX.Element> {
+  const session = await getSession();
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
       <p className="font-mono text-xs uppercase tracking-widest text-accent">
@@ -37,6 +40,7 @@ export default function PlaygroundPage(): JSX.Element {
       </p>
 
       <PlaygroundPresets />
+      <SaveExperiment signedIn={!!session?.user} />
 
       <Section title="1 · Embeddings">
         <EmbeddingWidget />

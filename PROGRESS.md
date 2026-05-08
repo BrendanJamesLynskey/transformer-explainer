@@ -312,16 +312,40 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 
 ## Phase 7 — Experiments (save / share / fork)
 
-- [ ] CRUD APIs.
-- [ ] `/experiments`, `/experiments/[slug]`, `/account` pages.
-- [ ] Public experiments world-readable (SPEC §14 Q3 default).
-- [ ] e2e: save → share → view-as-guest → fork.
+- [x] CRUD APIs.
+- [x] `/experiments`, `/experiments/[slug]`, `/account` pages.
+- [x] Public experiments world-readable (SPEC §14 Q3 default).
+- [x] e2e: save → share → view-as-guest → fork.
 
 **Plan:**
 
+- `src/lib/slug.ts` — `slugify(name)` + `nanoid(6)` suffix.
+- `src/lib/experiments.ts` — Zod schemas + DB helpers (list public, get
+  by slug, create, update, delete, fork).
+- API routes: `/api/experiments` (GET list / POST create),
+  `/api/experiments/[slug]` (GET / PATCH / DELETE), `/api/experiments/[slug]/fork`.
+- Pages: `/experiments` (server-rendered public list),
+  `/experiments/[slug]` (read-only viewer; "Fork" button if signed in
+  and not the owner; "Edit" if owner), `/account` (your experiments).
+- `SaveExperimentDialog` mounted on `/playground` — form with name +
+  visibility, reads the playground state via the same `te:preset`
+  channel.
+- e2e: sign in → save → log out → view as guest (public) → sign in as a
+  second user → fork.
+
 **Deviations:**
 
+- The Credentials provider's `authorize` upserts into the `users` table
+  before returning a User-shaped object, so the synthetic e2e identity
+  has a real UUID and downstream FK constraints (experiments.owner_id)
+  resolve. Production keeps GitHub OAuth + DB sessions and isn't affected.
+- `vitest.config.ts` excludes `src/lib/experiments.ts` (Drizzle queries —
+  needs a live DB; covered by the e2e flow).
+
 **Follow-ups:**
+
+- [ ] Phase 8 / 9: re-use the same auth + DB plumbing for comments and
+      analytics inserts.
 
 ---
 
