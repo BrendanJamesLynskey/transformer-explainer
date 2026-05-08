@@ -105,6 +105,9 @@ jobs:
       MAX_D_MODEL: 64
       MAX_BLOCKS: 4
       E2E_TEST_AUTH: "true"
+      # Auth.js v5 rejects unknown hosts in production builds; the e2e build
+      # uses `pnpm build && pnpm start` and therefore must opt in.
+      AUTH_TRUST_HOST: "true"
       CI: "true"
     steps:
       - uses: actions/checkout@v4
