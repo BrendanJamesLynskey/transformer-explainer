@@ -61,4 +61,39 @@ test.describe("learn", () => {
     // The visible token row should reflect the typed input.
     await expect(page.getByText(/^a$/).first()).toBeVisible();
   });
+
+  test("attention page exposes head selector and hover-row highlight", async ({
+    page,
+  }) => {
+    await page.goto("/learn/03-attention");
+
+    await expect(
+      page.getByRole("heading", { name: /^Attention$/ }),
+    ).toBeVisible();
+
+    // Wait for the live trace to land — the panel headers are static, but
+    // the matrices only render once /api/compute/attention responds.
+    await expect(
+      page.getByRole("heading", { name: /softmax weights/i }),
+    ).toBeVisible();
+    const matrices = page.locator("svg").filter({ has: page.locator("rect") });
+    await expect(matrices.first()).toBeVisible({ timeout: 10_000 });
+
+    // Multi-head selector renders both heads and toggles the pressed state.
+    const head0 = page.getByRole("button", { name: /^0$/ });
+    const head1 = page.getByRole("button", { name: /^1$/ });
+    await expect(head0).toHaveAttribute("aria-pressed", "true");
+    await head1.click();
+    await expect(head1).toHaveAttribute("aria-pressed", "true");
+    await expect(head0).toHaveAttribute("aria-pressed", "false");
+
+    // Hovering the first row of the scores matrix surfaces the
+    // "attends to" strip below the panels.
+    const scoresPanel = page
+      .getByRole("heading", { name: /Q\s*·\s*Kᵀ/ })
+      .locator("xpath=ancestor::div[1]");
+    const firstRow = scoresPanel.locator("svg g").nth(0);
+    await firstRow.hover();
+    await expect(page.getByText(/attends to:/i)).toBeVisible();
+  });
 });

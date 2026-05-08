@@ -218,15 +218,34 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 
 ## Phase 4 — Attention
 
-- [ ] Attention widget with Q/K/V, scores, mask, weights, output.
-- [ ] Multi-head selector.
-- [ ] Hover-row → highlight keys.
-- [ ] Reproduces `attention.json` fixture exactly.
-- [ ] e2e covers it.
+- [x] Attention widget with Q/K/V, scores, mask, weights, output.
+- [x] Multi-head selector.
+- [x] Hover-row → highlight keys.
+- [x] Reproduces `attention.json` fixture exactly.
+- [x] e2e covers it.
 
 **Plan:**
 
+- `src/app/api/compute/attention/route.ts` — POST { text, seed } → tokenise,
+  init weights, LayerNorm, run `multiHeadAttention` with a trace, return
+  Q / K / V (sliced per head) + scores + weights + mask overlay.
+- `src/components/viz/AttentionMatrix.tsx` — square `[S × S]` heatmap that
+  also accepts an active-row index for hover highlighting.
+- `src/components/interactive/AttentionWidget.tsx` — text input + head
+  selector + four panels (scores, mask, weights, output). The hover-row
+  state lifts into the widget and is forwarded to every per-head matrix.
+- `content/decoder/03-attention.mdx` — Concept / Maths / Code layers around
+  the widget.
+- Extend `tests/e2e/learn.spec.ts` (or add `attention.spec.ts`) to cover
+  navigating to /learn/03-attention, switching heads, and hovering a row.
+
 **Deviations:**
+
+- The "reproduces `attention.json` fixture exactly" acceptance bullet is met
+  by the `verify-maths` job, not a new test in the widget. The endpoint and
+  the visualisation call the _same_ `multiHeadAttention` function the
+  fixture-driven verification already gates. Re-asserting it from inside
+  the widget would just be re-running the same comparison through HTTP.
 
 **Follow-ups:**
 
