@@ -9,6 +9,9 @@ import { auth, isAdmin } from "@/lib/auth";
 import { renderCommentHtml, update, updateCommentSchema } from "@/lib/comments";
 
 export const runtime = "nodejs";
+// See note in /api/sections/[slug]/comments/route.ts — jsdom (via
+// isomorphic-dompurify) breaks Next's build-time route data collection.
+export const dynamic = "force-dynamic";
 
 export async function PATCH(
   req: Request,

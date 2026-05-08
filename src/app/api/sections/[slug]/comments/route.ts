@@ -18,6 +18,10 @@ import {
 import { isValidSlug } from "@/lib/mdx/sections";
 
 export const runtime = "nodejs";
+// `isomorphic-dompurify` initialises jsdom at import time. Skip Next's
+// build-time route data collection (which evaluates the module in a
+// stripped environment that breaks jsdom's stylesheet lookup).
+export const dynamic = "force-dynamic";
 
 export async function GET(
   _req: Request,
