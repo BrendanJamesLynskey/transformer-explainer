@@ -24,9 +24,18 @@ function makePool() {
       "db: DATABASE_URL is not set. Add it to .env.local or your deployment env.",
     );
   }
-  // sslmode=require lives in the URL for Neon; we set it explicitly here too
-  // so a misconfigured URL still works.
-  return postgres(env.DATABASE_URL, { ssl: "require", max: 5 });
+  // Neon (and most managed Postgres) require TLS; local containers (CI,
+  // `docker run postgres`) typically don't speak TLS at all. Sniff the host
+  // to decide so a single client config works everywhere.
+  const url = new URL(env.DATABASE_URL);
+  const isLocal =
+    url.hostname === "localhost" ||
+    url.hostname === "127.0.0.1" ||
+    url.hostname.endsWith(".internal");
+  return postgres(env.DATABASE_URL, {
+    ssl: isLocal ? false : "require",
+    max: 5,
+  });
 }
 
 const pool: ReturnType<typeof postgres> = globalThis.__pg_pool__ ?? makePool();
