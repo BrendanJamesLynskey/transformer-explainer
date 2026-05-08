@@ -40,8 +40,10 @@ export default defineConfig({
         "src/lib/mdx/sections.ts",
         "src/lib/mdx/components.ts",
         // Drizzle queries. Need a live DB to exercise; covered by the
-        // experiments e2e flow.
+        // e2e flows. (Phase 8 added comments + progress.)
         "src/lib/experiments.ts",
+        "src/lib/comments.ts",
+        "src/lib/progress.ts",
       ],
       thresholds: {
         // CLAUDE.md §8 mandates 100% line coverage for src/lib/transformer/.

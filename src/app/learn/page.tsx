@@ -6,7 +6,12 @@
  */
 import Link from "next/link";
 
+import { getSession } from "@/lib/auth";
 import { SECTIONS, readSectionMdx } from "@/lib/mdx/sections";
+import { listForUser } from "@/lib/progress";
+
+// Reads the current session + the user's progress on every request.
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Learn",
@@ -22,6 +27,12 @@ export default async function LearnIndex(): Promise<JSX.Element> {
       ready: (await readSectionMdx(s.slug)) !== null,
     })),
   );
+
+  const session = await getSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id ?? null;
+  const progressMap = userId
+    ? new Map((await listForUser(userId)).map((p) => [p.sectionSlug, p.status]))
+    : new Map<string, string>();
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
@@ -62,6 +73,23 @@ export default async function LearnIndex(): Promise<JSX.Element> {
                   </span>
                 </span>
               )}
+              {(() => {
+                const pStatus = progressMap.get(s.slug);
+                if (!pStatus || pStatus === "not_started") return null;
+                const label =
+                  pStatus === "completed" ? "✓ done" : "in progress";
+                const cls =
+                  pStatus === "completed"
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
+                    : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200";
+                return (
+                  <span
+                    className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wide ${cls}`}
+                  >
+                    {label}
+                  </span>
+                );
+              })()}
             </div>
             <p className="mt-1 pl-9 text-sm text-neutral-600 dark:text-neutral-400">
               {s.summary}

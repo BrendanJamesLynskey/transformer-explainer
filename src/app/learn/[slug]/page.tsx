@@ -10,7 +10,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
 
+import { CommentSection } from "@/components/interactive/CommentSection";
 import { LayerToggle } from "@/components/interactive/LayerToggle";
+import { ProgressTracker } from "@/components/interactive/ProgressTracker";
+import { getSession } from "@/lib/auth";
 import { mdxComponents } from "@/lib/mdx/components";
 import {
   SECTIONS,
@@ -49,6 +52,9 @@ export default async function SectionPage({
   const idx = SECTIONS.findIndex((s) => s.slug === params.slug);
   const prev = idx > 0 ? SECTIONS[idx - 1] : null;
   const next = idx < SECTIONS.length - 1 ? SECTIONS[idx + 1] : null;
+
+  const session = await getSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id ?? null;
 
   return (
     <article className="mx-auto max-w-3xl px-6 py-10">
@@ -94,6 +100,13 @@ export default async function SectionPage({
           <span aria-hidden />
         )}
       </nav>
+
+      <CommentSection
+        sectionSlug={params.slug}
+        signedIn={userId !== null}
+        currentUserId={userId}
+      />
+      <ProgressTracker sectionSlug={params.slug} signedIn={userId !== null} />
     </article>
   );
 }
