@@ -33,4 +33,17 @@
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-950;
   }
+
+  /* Three-layer toggle visibility (SPEC §6.1). The `<LayerToggle>` client
+   * component writes `data-layer-{kind}="on|off"` onto `<html>`; the
+   * matching `<Layer kind="…">` blocks fade out via the rules below. */
+  html[data-layer-concept="off"] .te-layer[data-layer="concept"] {
+    display: none;
+  }
+  html[data-layer-maths="off"] .te-layer[data-layer="maths"] {
+    display: none;
+  }
+  html[data-layer-code="off"] .te-layer[data-layer="code"] {
+    display: none;
+  }
 }

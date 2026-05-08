@@ -1,0 +1,78 @@
+<Layer kind="concept">
+
+A **Transformer decoder** is a function that takes a sequence of tokens and
+turns each one into a probability distribution over the next token. Stack
+enough of them, train on enough text, and you get GPT.
+
+For us, the model is small on purpose: a handful of attention heads, a
+couple of blocks, a 64-character alphabet. You can fit the whole thing on a
+screen and watch every multiplication.
+
+The pipeline you'll meet across the next six sections:
+
+1. **Token + positional embeddings** turn each character into a vector.
+2. **Masked self-attention** lets each position look back at the earlier
+   ones (never forwards — that's the "decoder" / causal part).
+3. **A feed-forward network** processes each position independently.
+4. **Residual connections + LayerNorm** keep training stable.
+5. **Stacking** does steps 2–4 over and over again.
+6. **Sampling** picks the next token from the final logits.
+
+The point of this site is that you don't have to take any of that on
+trust. Every operation has a widget you can poke at.
+
+</Layer>
+
+<Layer kind="maths">
+
+The decoder defines a function `f : Z^S → R^(S×V)`, where `S` is the
+sequence length and `V` is the vocabulary size. For each position `i`,
+`f(x)_i` is a vector of unnormalised log-probabilities — "logits" — over the
+next-token distribution.
+
+Internally, `f` is built from `N` identical blocks, each composed of a
+masked multi-head self-attention sub-layer and a position-wise
+feed-forward sub-layer, both wrapped in a residual connection and a
+LayerNorm:
+
+```
+Block(x) = x + Attn(LN_1(x))      // residual around attention
+Block(h) = h + FFN(LN_2(h))       // residual around ffn
+```
+
+The pre-norm placement — LayerNorm _before_ each sub-layer — is the choice
+GPT-2 made. It trains more stably than the original post-norm in
+"Attention is all you need".
+
+</Layer>
+
+<Layer kind="code">
+
+The TypeScript that actually runs:
+
+```ts
+// src/lib/transformer/model.ts (simplified)
+export function forwardTyped(tokenIds, config, weights) {
+  const tokEmb = tokenEmbedding(tokenIds, weights.tok_emb);
+  const posEmb = positionalEncoding(config.seq_len, config.d_model);
+  let x = addMat(tokEmb, posEmb);
+
+  for (let i = 0; i < config.n_blocks; i++) {
+    x = block(x, weights.blocks[i]!, config.n_heads);
+  }
+
+  const xFinal = layernormRows(
+    x,
+    weights.ln_final.gamma,
+    weights.ln_final.beta,
+  );
+  const logits = matmul(xFinal, transpose(weights.tok_emb)); // tied head
+  return { tokEmb, posEmb, xFinal, logits };
+}
+```
+
+Each helper (`tokenEmbedding`, `block`, `layernormRows`, `matmul`,
+`transpose`) lives in its own file under `src/lib/transformer/`. Read them
+in the order the function calls them and the whole model fits in a sitting.
+
+</Layer>

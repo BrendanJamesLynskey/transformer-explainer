@@ -1,0 +1,82 @@
+<Layer kind="concept">
+
+The decoder doesn't know about characters or words — it knows about
+**vectors**. Two steps turn your input into vectors it can work with:
+
+1. **Tokenise**: chop the input string into tokens (here, individual
+   characters from a 64-character alphabet) and map each one to an integer
+   id.
+2. **Embed**: look up each id in a table of vectors. The table is one of
+   the things the model learns. Each token gets the same vector every time
+   it appears — that vector _is_ what the model knows about that token.
+
+There's still a problem: attention treats positions symmetrically by
+default, so "ab" and "ba" would look the same. To fix that we add a
+**positional encoding** to each row — a deterministic pattern that tells
+the model "this is position 0 / 1 / …". The original Transformer used a
+fixed sinusoidal pattern; we do the same here.
+
+Try changing the input below. Watch the rows shift around (each row is
+one token's vector) and the positional pattern stay still (it depends on
+position only, not on what you typed).
+
+</Layer>
+
+<EmbeddingWidget />
+
+<Layer kind="maths">
+
+Let `E` be the embedding table — a `V × d` matrix, with `V` rows (one per
+token) and `d` columns (the model dimension). For an input sequence of
+token ids `x = (x_1, …, x_S)`, the lookup gives one row per position:
+
+```
+Emb(x)_i = E[x_i]      ∈ R^d
+```
+
+The sinusoidal positional encoding (Vaswani et al. 2017, §3.5) is the
+matrix `PE` of shape `S × d` with entries
+
+```
+PE[pos, 2i]   = sin(pos / 10000^(2i / d))
+PE[pos, 2i+1] = cos(pos / 10000^(2i / d))
+```
+
+The block-0 input is the elementwise sum of the two: `X = E[x] + PE`.
+
+</Layer>
+
+<Layer kind="code">
+
+```ts
+// src/lib/transformer/embeddings.ts (excerpt)
+export function tokenEmbedding(ids: number[], embedding: Matrix): Matrix {
+  return ids.map((id) =>
+    id < 0 || id >= embedding.length
+      ? new Array(embedding[0]?.length ?? 0).fill(0)
+      : embedding[id]!.slice(),
+  );
+}
+
+export function positionalEncoding(seqLen: number, dModel: number): Matrix {
+  const halfD = Math.floor(dModel / 2);
+  const factor = -Math.log(10000) / dModel;
+  const div = Array.from({ length: halfD }, (_, i) => Math.exp(2 * i * factor));
+
+  const out: Matrix = [];
+  for (let pos = 0; pos < seqLen; pos++) {
+    const row = new Array(dModel).fill(0);
+    for (let i = 0; i < halfD; i++) {
+      row[2 * i] = Math.sin(pos * div[i]!);
+      if (2 * i + 1 < dModel) row[2 * i + 1] = Math.cos(pos * div[i]!);
+    }
+    out.push(row);
+  }
+  return out;
+}
+```
+
+The token-embedding lookup is one line; the positional encoding is twelve.
+That's the whole "input layer" of the Transformer.
+
+</Layer>
