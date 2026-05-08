@@ -485,7 +485,7 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 **Deviations:**
 
 - No on-page motion-reduction toggle. The `@media
-  (prefers-reduced-motion: reduce)` rule honours the OS setting and
+(prefers-reduced-motion: reduce)` rule honours the OS setting and
   modern browsers expose this via system settings. A manual toggle
   would mostly duplicate that, so it stays in v2.
 - Lighthouse ≥ 90 not formally checked. axe-core covers the a11y axis
