@@ -18,9 +18,7 @@ describe("renderCommentHtml", () => {
   it("strips inline event handler attributes from raw HTML", () => {
     // Even if Markdown-as-HTML somehow lets a tag through, DOMPurify must
     // drop onclick/onload/onerror.
-    const html = renderCommentHtml(
-      '<img src="x" onerror="alert(1)" />',
-    );
+    const html = renderCommentHtml('<img src="x" onerror="alert(1)" />');
     expect(html).not.toMatch(/onerror=/i);
   });
 

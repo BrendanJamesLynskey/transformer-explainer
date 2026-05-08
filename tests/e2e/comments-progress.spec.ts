@@ -32,7 +32,8 @@ test.describe("comments + progress", () => {
     // Wait for the ProgressTracker's first POST to /api/progress so the
     // in_progress upsert lands before we navigate away.
     const progressDone = page.waitForResponse(
-      (r) => r.url().includes("/api/progress") && r.request().method() === "POST",
+      (r) =>
+        r.url().includes("/api/progress") && r.request().method() === "POST",
     );
     await page.goto(`/learn/${section}`);
     await progressDone;
@@ -48,8 +49,8 @@ test.describe("comments + progress", () => {
     // Either "in progress" or "✓ done" is acceptable — short sections can
     // complete on first visit (scroll past 80% + interaction).
     await page.goto("/learn");
-    await expect(
-      page.getByText(/in progress|✓ done/i).first(),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/in progress|✓ done/i).first()).toBeVisible({
+      timeout: 5_000,
+    });
   });
 });
