@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 
 import { BarChart } from "@/components/viz/BarChart";
+import { usePreset } from "./usePreset";
 
 type FFNResponse = {
   ok: true;
@@ -54,6 +55,8 @@ export function FFNWidget(): JSX.Element {
   const [position, setPosition] = useState(0);
   const [data, setData] = useState<FFNResponse["data"] | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  usePreset(setText, setSeed);
 
   useEffect(() => {
     let cancelled = false;

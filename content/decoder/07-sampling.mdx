@@ -1,0 +1,81 @@
+<Layer kind="concept">
+
+The decoder gives you **logits** — one number per token in the
+vocabulary, for each position. The number at position `i`, vocab id `v`
+is "how plausible is it that the next token after position `i` is `v`?".
+
+But logits aren't a token. To turn logits into a _next token_, we need
+a sampling rule. There are four standard ones:
+
+- **Greedy** — pick the highest-logit token. Deterministic, often dull.
+- **Temperature τ** — divide logits by τ before softmax. Low τ sharpens
+  the distribution (closer to greedy); high τ flattens it (closer to
+  uniform).
+- **Top-k** — keep only the top `k` logits, drop the rest, then sample
+  from the survivors. Cuts off the long tail of unlikely options.
+- **Top-p (nucleus)** — keep the smallest set of tokens whose cumulative
+  probability exceeds `p`. Adapts the cutoff to the local distribution.
+
+Most production decoders use top-p with τ ≈ 0.7. Try it below — type a
+prompt, pick a mode, hit "sample" repeatedly to generate one character
+at a time.
+
+</Layer>
+
+<SamplingWidget />
+
+<Layer kind="maths">
+
+For logits `ℓ ∈ R^V`, the softmax probability of token `v` under
+temperature `τ` is
+
+```
+p(v) = exp(ℓ_v / τ) / Σ_u exp(ℓ_u / τ)
+```
+
+Top-k zeroes the bottom `V − k` entries before softmax. Top-p sorts
+tokens by probability, keeps the smallest prefix whose cumulative mass
+exceeds `p`, and zeroes the rest.
+
+After masking, the sampler draws `u ~ Uniform[0, 1)` and walks the
+cumulative distribution: it returns the smallest `i` such that
+`Σ_{j ≤ i} p(j) > u`.
+
+</Layer>
+
+<Layer kind="code">
+
+```ts
+// src/lib/transformer/sampling.ts (excerpt)
+export function sample(logits: Vector, mode: SampleMode, rng = Math.random) {
+  switch (mode.kind) {
+    case "greedy":
+      return argmax(logits);
+    case "temperature":
+      return sampleFromProbs(
+        softmax(applyTemperature(logits, mode.temperature)),
+        rng,
+      );
+    case "top-k": {
+      const masked = topKMask(
+        applyTemperature(logits, mode.temperature ?? 1),
+        mode.k,
+      );
+      return sampleFromProbs(softmax(masked), rng);
+    }
+    case "top-p": {
+      const masked = topPMask(
+        applyTemperature(logits, mode.temperature ?? 1),
+        mode.p,
+      );
+      return sampleFromProbs(softmax(masked), rng);
+    }
+  }
+}
+```
+
+`/api/compute/sample` calls this directly. The widget passes the final
+position's logits, your chosen mode and parameters, and gets back a
+single token id.
+
+</Layer>
