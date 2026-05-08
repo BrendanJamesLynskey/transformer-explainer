@@ -49,8 +49,10 @@ test.describe("admin", () => {
     const row = json.data.funnel.find((r) => r.sectionSlug === "02-embeddings");
     expect(row?.views ?? 0).toBeGreaterThan(0);
 
-    // Dashboard renders the section funnel card.
-    await page.goto("/admin");
+    // Dashboard renders the section funnel card. `domcontentloaded` is enough
+    // — we don't need every keep-alive `/api/events` to settle before
+    // asserting on the SSR HTML.
+    await page.goto("/admin", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("dau-card")).toBeVisible();
     await expect(page.getByTestId("funnel-card")).toBeVisible();
     await expect(page.getByText("02-embeddings").first()).toBeVisible();

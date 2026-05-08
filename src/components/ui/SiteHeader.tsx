@@ -48,6 +48,12 @@ export async function SiteHeader(): Promise<JSX.Element> {
           >
             Playground
           </Link>
+          <Link
+            href="/about"
+            className="focus-ring rounded px-2 py-1 text-neutral-700 hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-white"
+          >
+            About
+          </Link>
           {admin && (
             <Link
               href="/admin"
