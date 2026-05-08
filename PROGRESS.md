@@ -400,16 +400,57 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 
 ## Phase 9 — Analytics + admin dashboard
 
-- [ ] Event ingestion endpoint.
-- [ ] `/admin` gated by `ADMIN_GITHUB_LOGINS`.
-- [ ] DAU/WAU sparklines, per-section funnel, drop-off, top experiments,
+- [x] Event ingestion endpoint.
+- [x] `/admin` gated by `ADMIN_GITHUB_LOGINS`.
+- [x] DAU/WAU sparklines, per-section funnel, drop-off, top experiments,
       recent comments.
 
 **Plan:**
 
+- `src/lib/analytics.ts` — Zod schema for event ingestion, `recordEvents`
+  insert helper, plus pure-SQL aggregate readers used by the admin page:
+  - `dailyActiveUsers(days)` — distinct (userId|sessionId) per UTC day.
+  - `sectionFunnel()` — for each section: page views, % who interacted,
+    % who reached the bottom (uses `progress` rows as the completion
+    signal so we don't double-count the same user across visits).
+  - `topExperiments(limit)` — by view count (events.kind = 'exp_view').
+  - `recentComments(limit)` — joined with users for display name.
+- API:
+  - `POST /api/events` — accepts a batch (≤50). User id from session if
+    signed in; sessionId mandatory (client uses a `localStorage` UUID).
+    Per-IP rate-limit via tiny in-memory token bucket (Vercel free-tier
+    instances are stateless but it stops a burst from one tab).
+  - `GET /api/admin/metrics` — admin-only (403 otherwise); returns the
+    aggregates above as JSON. Mainly for the e2e test — the page itself
+    queries the helpers directly.
+- `src/app/admin/page.tsx` — server component. `notFound()` on non-admin
+  (avoids leaking that the route exists). Renders four sections:
+  Sparkline, SectionFunnel, TopExperiments, RecentComments.
+- Tiny client widget `src/components/interactive/EventTracker.tsx` —
+  generates / persists an anon session id, beacons `page_view` on mount
+  plus `widget_interact` on the same delegated click/input listeners
+  used by ProgressTracker. Mounts on every learn / playground page.
+- Charts: keep them dependency-free SVG — a 60-day sparkline and a stacked
+  bar for the funnel. Reuses BarChart.tsx where it fits.
+
 **Deviations:**
 
+- Pure pieces (Zod schema, `EVENT_KIND`, `rateLimitOk`) ended up split into
+  `src/lib/analytics-shared.ts`, with `src/lib/analytics.ts` re-exporting
+  them. Reason: `analytics.ts` imports the Drizzle client (top of file →
+  reads env), which throws under `pnpm test` where DATABASE_URL is unset.
+  The split mirrors the `comments.ts` / `comments-render.ts` pattern.
+- Non-admins get `notFound()` (404) on `/admin` rather than 403 so the
+  route doesn't leak its existence. The API endpoint still returns 403,
+  which is the more useful signal for callers.
+- `EventTracker` carries an optional `pageKind` prop because the
+  experiments page wants `exp_view` instead of `page_view` on mount —
+  needed for the `topExperiments` aggregate to find anything.
+
 **Follow-ups:**
+
+- [ ] Phase 10: a small dev panel that surfaces /admin metrics inline on
+      `/playground` would help during the README screenshot capture.
 
 ---
 

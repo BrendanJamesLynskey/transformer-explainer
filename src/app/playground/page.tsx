@@ -11,6 +11,7 @@
  */
 import { AttentionWidget } from "@/components/interactive/AttentionWidget";
 import { EmbeddingWidget } from "@/components/interactive/EmbeddingWidget";
+import { EventTracker } from "@/components/interactive/EventTracker";
 import { FFNWidget } from "@/components/interactive/FFNWidget";
 import { PlaygroundPresets } from "@/components/interactive/PlaygroundPresets";
 import { SamplingWidget } from "@/components/interactive/SamplingWidget";
@@ -57,6 +58,7 @@ export default async function PlaygroundPage(): Promise<JSX.Element> {
       <Section title="5 · Sampling">
         <SamplingWidget />
       </Section>
+      <EventTracker sectionSlug="playground" />
     </main>
   );
 }
