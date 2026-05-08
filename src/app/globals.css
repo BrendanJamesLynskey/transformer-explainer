@@ -47,3 +47,19 @@
     display: none;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  /* SPEC §11 — honour the OS setting. We collapse animations and CSS
+   * transitions to ~0; D3 viz components also pick this up via the
+   * matchMedia query (see useReducedMotion). Smooth scrolling is dropped
+   * too — the comments + progress trackers fire on scroll, but the user
+   * controls the trigger, not us. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
