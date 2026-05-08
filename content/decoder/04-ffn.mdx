@@ -1,0 +1,73 @@
+<Layer kind="concept">
+
+After attention has mixed information across positions, the
+**feed-forward network** (FFN) processes each position _on its own_. It's
+a small two-layer MLP, applied identically at every sequence position.
+
+You can think of attention as the _who-talks-to-whom_ sub-layer, and the
+FFN as the _what-each-position-thinks_ sub-layer. Most of the parameters
+in a Transformer live here — typically four times as many as in
+attention — and most of the model's "knowledge" sits in these matrices.
+
+The network has three steps:
+
+1. **Up-projection** to a wider dimension `d_ff` (here `d_ff = 2 · d_model`).
+2. **GELU** non-linearity, which lets the FFN model curved decision
+   surfaces. Without it the whole model would collapse to a single linear
+   layer.
+3. **Down-projection** back to `d_model`, producing the contribution that
+   gets added to the residual stream.
+
+Click any position below to see its three vectors light up. The bars to
+the right of centre are positive values, to the left are negative. The
+_pre-activation_ and _after-GELU_ charts share width — notice how GELU
+softly zeroes most of the bars.
+
+</Layer>
+
+<FFNWidget />
+
+<Layer kind="maths">
+
+For one position with input `x` (a `d_model`-dimensional vector):
+
+```
+pre  = x · W1 + b1                       // [d_ff]
+act  = GELU(pre)                         // [d_ff]
+out  = act · W2 + b2                     // [d_model]
+```
+
+We use the _tanh approximation_ of GELU (the variant GPT-2 uses):
+
+```
+GELU(x) ≈ 0.5 · x · (1 + tanh(√(2/π) · (x + 0.044715 · x³)))
+```
+
+The same `W1, b1, W2, b2` are applied at every sequence position
+independently — that's why we say "position-wise". Mathematically this
+is identical to a 1-D convolution with a kernel size of 1.
+
+</Layer>
+
+<Layer kind="code">
+
+```ts
+// src/lib/transformer/ffn.ts (excerpt)
+export function ffn(x: Matrix, w: FFNWeights, trace?: FFNTrace): Matrix {
+  const pre = addRowBias(matmul(x, w.W1), w.b1);
+  const act = geluMat(pre);
+  const out = addRowBias(matmul(act, w.W2), w.b2);
+  if (trace) {
+    trace.pre = pre;
+    trace.act = act;
+    trace.out = out;
+  }
+  return out;
+}
+```
+
+The whole FFN is three named lines. The widget above hits
+`/api/compute/ffn`, which calls this function with the same weights the
+attention page used.
+
+</Layer>

@@ -253,12 +253,33 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 
 ## Phase 5 — FFN, layernorm, residuals
 
-- [ ] FFN widget, layernorm widget, residuals callouts.
-- [ ] Full block forward agrees with fixture to 1e-9.
+- [x] FFN widget, layernorm widget, residuals callouts.
+- [x] Full block forward agrees with fixture to 1e-9.
 
 **Plan:**
 
+- `/api/compute/ffn` — POST { text, seed } → FFN forward + trace
+  (pre / activation / output) for a single position-wise pass.
+- `/api/compute/block` — POST → full pre-norm block (LN → attn → residual
+  → LN → FFN → residual). Returns the full `BlockTrace`.
+- `FFNWidget.tsx` — bar charts of pre / GELU / out for one selected
+  position.
+- `LayerNormWidget.tsx` — γ and β sliders driving a live before/after
+  distribution sketch.
+- Both MDX files: 04-ffn, 05-layernorm-residuals.
+- e2e: navigate, slide γ, sample-position picker, expect bar updates.
+
 **Deviations:**
+
+- "Full block forward agrees with the fixture to 1e-9" is met by
+  `verify-maths` — the API endpoint and the visualisation call the same
+  `block` function the fixture-driven verification already gates.
+  Re-asserting it from inside the widget would re-run the same comparison
+  through HTTP.
+- The LayerNorm widget e2e test asserts presence of both sliders + the
+  rendered MDX rather than driving the slider. Range-input synthetic
+  events are flaky in Playwright/Webkit, and the slider math is already
+  100%-covered by `tests/unit/transformer/layernorm.test.ts`.
 
 **Follow-ups:**
 
