@@ -351,15 +351,50 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 
 ## Phase 8 — Comments + progress
 
-- [ ] Comments per section, threaded one level, sanitised Markdown.
-- [ ] Per-user progress auto-tracking via scroll + interaction events.
-- [ ] `/learn` index and `/account` reflect status.
+- [x] Comments per section, threaded one level, sanitised Markdown.
+- [x] Per-user progress auto-tracking via scroll + interaction events.
+- [x] `/learn` index and `/account` reflect status.
 
 **Plan:**
 
+- Comments data layer in `src/lib/comments.ts` (Zod create/update schemas,
+  one-level threading enforced via `isReplyOfReply`).
+- HTML rendering split into `src/lib/comments-render.ts` so `marked` +
+  `isomorphic-dompurify` are unit-testable without pulling Drizzle.
+- Progress data layer in `src/lib/progress.ts` with monotonic upsert: a SQL
+  `CASE` clause in `onConflictDoUpdate` prevents `completed → in_progress`
+  regression from a returning visit firing `markInProgress` again.
+- API routes:
+  - `GET/POST /api/sections/[slug]/comments` — list (visible only) + create
+    (auth, validates body, rejects reply-of-reply).
+  - `PATCH /api/comments/[id]` — owner edits body, admin can hide.
+  - `GET/POST /api/progress` — list user's map, upsert one section.
+- Client components:
+  - `CommentSection.tsx` — threaded list, reply form, sanitised HTML rendered
+    via `dangerouslySetInnerHTML` from server-sanitised payload.
+  - `ProgressTracker.tsx` — fires `in_progress` on mount; on 80% scroll +
+    interaction (input/click) escalates to `completed`.
+- `/learn` page reads `listForUser` server-side and shows a per-section
+  badge ("✓ done" / "in progress").
+- `/account` page lists comments + experiments owned by the signed-in user.
+
 **Deviations:**
 
+- `/learn/page.tsx` marked `export const dynamic = "force-dynamic"`. The
+  badge has to reflect the most recent progress upsert, but App Router
+  static-optimises listing pages by default, so the freshly-written row
+  was being shadowed by a stale render. Forcing dynamic is the cheapest
+  fix and the route is auth-gated/personalised anyway.
+- E2e assertion accepts both "in progress" and "✓ done": short sections
+  (e.g. `01-overview`) can hit `pct >= 0.8` immediately, in which case the
+  ProgressTracker rightly escalates straight to `completed`. Insisting on
+  `in_progress` would have made the test brittle to copy length.
+
 **Follow-ups:**
+
+- [ ] Phase 9: surface comment / progress events in the analytics stream so
+      the admin dashboard can show recent comments + per-section funnel
+      drop-off.
 
 ---
 
