@@ -11,6 +11,7 @@ import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
 
 import { CommentSection } from "@/components/interactive/CommentSection";
+import { EventTracker } from "@/components/interactive/EventTracker";
 import { LayerToggle } from "@/components/interactive/LayerToggle";
 import { ProgressTracker } from "@/components/interactive/ProgressTracker";
 import { getSession } from "@/lib/auth";
@@ -107,6 +108,7 @@ export default async function SectionPage({
         currentUserId={userId}
       />
       <ProgressTracker sectionSlug={params.slug} signedIn={userId !== null} />
+      <EventTracker sectionSlug={params.slug} />
     </article>
   );
 }

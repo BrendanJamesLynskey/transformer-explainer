@@ -9,6 +9,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EventTracker } from "@/components/interactive/EventTracker";
 import { ForkButton } from "@/components/interactive/ForkButton";
 import { auth } from "@/lib/auth";
 import { getBySlug, incrementViews } from "@/lib/experiments";
@@ -96,6 +97,11 @@ export default async function ExperimentPage({
           </span>
         )}
       </div>
+      <EventTracker
+        pageKind="exp_view"
+        meta={{ slug: exp.slug }}
+        sectionSlug={null}
+      />
     </main>
   );
 }
