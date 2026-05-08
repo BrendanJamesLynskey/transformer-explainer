@@ -287,12 +287,22 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 
 ## Phase 6 — Stacking, sampling, playground
 
-- [ ] Stacking widget across N blocks.
-- [ ] Sampling widget (greedy/temperature/top-k/top-p).
-- [ ] `/playground` page with full pipeline + iterative sampling.
-- [ ] "Show me an example" presets (SPEC §14 Q4).
+- [x] Stacking widget across N blocks.
+- [x] Sampling widget (greedy/temperature/top-k/top-p).
+- [x] `/playground` page with full pipeline + iterative sampling.
+- [x] "Show me an example" presets (SPEC §14 Q4).
 
 **Plan:**
+
+- `/api/compute/forward` — full forward; returns per-block `BlockTrace`s
+  - final xFinal + logits.
+- `/api/compute/sample` — POST { logits, mode } → next token id.
+- `StackingWidget` — N attention pattern grids stacked vertically.
+- `SamplingWidget` — logits bar chart, mode picker, "sample" button.
+- `/playground` page — full pipeline + iterative-sample loop +
+  named-seed presets.
+- `content/decoder/06-stacking.mdx`, `content/decoder/07-sampling.mdx`.
+- e2e: visit /playground, sample one token, expect input to extend.
 
 **Deviations:**
 

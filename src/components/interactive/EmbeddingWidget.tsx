@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 
 import { EmbeddingHeatmap } from "@/components/viz/EmbeddingHeatmap";
+import { usePreset } from "./usePreset";
 
 type EmbedResponse = {
   ok: true;
@@ -45,6 +46,8 @@ export function EmbeddingWidget(): JSX.Element {
   const [data, setData] = useState<EmbedResponse["data"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  usePreset(setText, setSeed);
 
   useEffect(() => {
     let cancelled = false;

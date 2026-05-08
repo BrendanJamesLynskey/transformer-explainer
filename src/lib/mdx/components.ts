@@ -12,6 +12,8 @@ import { EmbeddingWidget } from "@/components/interactive/EmbeddingWidget";
 import { FFNWidget } from "@/components/interactive/FFNWidget";
 import { Layer } from "@/components/interactive/Layer";
 import { LayerNormWidget } from "@/components/interactive/LayerNormWidget";
+import { SamplingWidget } from "@/components/interactive/SamplingWidget";
+import { StackingWidget } from "@/components/interactive/StackingWidget";
 
 export const mdxComponents: NonNullable<MDXRemoteProps["components"]> = {
   Layer,
@@ -19,4 +21,6 @@ export const mdxComponents: NonNullable<MDXRemoteProps["components"]> = {
   AttentionWidget,
   FFNWidget,
   LayerNormWidget,
+  StackingWidget,
+  SamplingWidget,
 };

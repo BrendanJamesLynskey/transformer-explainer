@@ -1,0 +1,65 @@
+<Layer kind="concept">
+
+A real Transformer doesn't run one block — it runs **N** of them, with
+the output of block `i` becoming the input of block `i + 1`. GPT-3 has
+96 of these stacked. Each block looks identical from the outside (the
+same dimensions in and out) but learns to specialise.
+
+What changes layer to layer? Two things, mostly:
+
+1. **The information available**. Block 0 sees raw token + position
+   embeddings. By block 5, every position's vector has already been
+   mixed with every previous position's vector five times. Higher blocks
+   get to operate on much richer features.
+2. **The attention pattern**. Empirically, early blocks tend to attend
+   locally (a few tokens back), middle blocks pick up syntactic
+   relationships, and late blocks integrate longer-range semantic
+   structure. With our random toy weights you won't see those clean
+   layers, but you _will_ see distinct patterns block to block.
+
+Below, the same input runs through 1, 2, 3, or 4 blocks. Each grid is
+the head-0 attention pattern for that block. Compare them.
+
+</Layer>
+
+<StackingWidget />
+
+<Layer kind="maths">
+
+If we name a block's transformation `B`, then a stack of `N` blocks is
+just function composition:
+
+```
+forward(x) = B_{N-1}(B_{N-2}(... B_0(x) ...))
+```
+
+…with a final LayerNorm and the output projection at the end. The
+_residual stream_ — the running vector at each position — is the link
+between blocks. Each block reads the stream, computes a contribution
+(via attention and the FFN), and adds the contribution back.
+
+```
+x_0  = E[ids] + PE                  // [S, d_model]
+x_1  = Block_0(x_0)
+x_2  = Block_1(x_1)
+…
+y    = LN(x_N) · Eᵀ                 // tied output head, [S, V]
+```
+
+</Layer>
+
+<Layer kind="code">
+
+```ts
+// src/lib/transformer/model.ts (excerpt)
+let x = addMat(tokEmb, posEmb);
+for (let i = 0; i < config.n_blocks; i++) {
+  x = block(x, weights.blocks[i]!, config.n_heads, traceFor(i));
+}
+const xFinal = layernormRows(x, weights.ln_final.gamma, weights.ln_final.beta);
+const logits = matmul(xFinal, transpose(weights.tok_emb));
+```
+
+A `for` loop and a final tied projection. That's the whole stack.
+
+</Layer>

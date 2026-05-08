@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AttentionMatrix } from "@/components/viz/AttentionMatrix";
 import { EmbeddingHeatmap } from "@/components/viz/EmbeddingHeatmap";
+import { usePreset } from "./usePreset";
 
 type AttnResponse = {
   ok: true;
@@ -70,6 +71,8 @@ export function AttentionWidget(): JSX.Element {
   const [data, setData] = useState<AttnResponse["data"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  usePreset(setText, setSeed);
 
   useEffect(() => {
     let cancelled = false;

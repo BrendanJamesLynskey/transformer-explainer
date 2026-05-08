@@ -11,12 +11,20 @@ test.describe("learn", () => {
       page.getByRole("heading", { name: /the decoder, step by step/i }),
     ).toBeVisible();
 
-    // Phase 3 ships sections 01 and 02; the rest are "coming soon".
-    await expect(page.getByRole("link", { name: /^Overview$/ })).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: /^Embeddings$/ }),
-    ).toBeVisible();
-    await expect(page.getByText("coming soon").first()).toBeVisible();
+    // Sections 01 through 07 should all be shipped and clickable as links.
+    for (const name of [
+      "Overview",
+      "Embeddings",
+      "Attention",
+      "Feed-forward",
+      "LayerNorm & residuals",
+      "Stacking blocks",
+      "Sampling",
+    ]) {
+      await expect(
+        page.getByRole("link", { name: new RegExp(`^${name}$`) }),
+      ).toBeVisible();
+    }
   });
 
   test("section page renders MDX, the layer toggle, and the embedding widget", async ({
@@ -141,5 +149,33 @@ test.describe("learn", () => {
 
     // MDX rendered: the residual-stream paragraph is in the concept layer.
     await expect(page.getByText(/residual stream/i).first()).toBeVisible();
+  });
+
+  test("playground page mounts every widget and the preset strip", async ({
+    page,
+  }) => {
+    await page.goto("/playground");
+
+    await expect(
+      page.getByRole("heading", { name: /end-to-end playground/i }),
+    ).toBeVisible();
+
+    // Preset strip is visible with its three named buttons.
+    await expect(page.getByRole("button", { name: /^Hello$/ })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /^Recent-bias$/ }),
+    ).toBeVisible();
+
+    // Sampling section button is present (one of the harder-to-reach widgets).
+    await expect(
+      page.getByRole("button", { name: /sample the next token/i }),
+    ).toBeVisible();
+
+    // Clicking a preset emits the te:preset event; one of the inputs should
+    // pick up the new text.
+    await page.getByRole("button", { name: /^Recent-bias$/ }).click();
+    await expect(page.getByLabel(/embedding widget input text/i)).toHaveValue(
+      "the cat",
+    );
   });
 });
