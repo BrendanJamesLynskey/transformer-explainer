@@ -173,17 +173,46 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 
 ## Phase 3 — MDX + Overview & Embeddings
 
-- [ ] MDX pipeline working with components map.
-- [ ] `/learn` index and `/learn/[slug]` rendering.
-- [ ] Three-layer toggle (Concept/Maths/Code) functional.
-- [ ] Embedding widget hits `/api/compute/embed` and renders.
-- [ ] e2e: navigate sections, toggle layers, interact with widget.
+- [x] MDX pipeline working with components map.
+- [x] `/learn` index and `/learn/[slug]` rendering.
+- [x] Three-layer toggle (Concept/Maths/Code) functional.
+- [x] Embedding widget hits `/api/compute/embed` and renders.
+- [x] e2e: navigate sections, toggle layers, interact with widget.
 
 **Plan:**
 
+- `src/lib/mdx/{load,components}.ts` — read + serialise MDX, components map.
+- `src/lib/transformer/{random,init}.ts` — seeded RNG + deterministic
+  weight init so the API can compute live embeddings without bundling
+  the PyTorch fixture.
+- `src/app/api/compute/embed/route.ts` — POST { text, seed } → trace.
+- `src/components/interactive/{LayerToggle,Layer,EmbeddingWidget}.tsx`
+  — client widgets. `<Layer>` is a CSS-driven wrapper so MDX renders fully
+  on the server and the toggle just flips data-attrs on the section root.
+- `src/components/viz/EmbeddingHeatmap.tsx` — D3 heatmap.
+- `src/app/learn/{page,[slug]/page}.tsx` and the layout.
+- `content/decoder/{01-overview,02-embeddings}.mdx`.
+- `tests/e2e/learn.spec.ts` — navigate, toggle layers, embed a string.
+
 **Deviations:**
 
+- Section MDX intentionally avoids LaTeX (`$…$`, `\mathbb{}`). MDX without
+  `remark-math` parses `{` as the start of a JSX expression, which made the
+  Maths layer fail to compile. Replaced with code blocks + Unicode for now;
+  Phase 10 can install `remark-math` + KaTeX when the polish pass happens.
+- The seed-driven init (`src/lib/transformer/init.ts`) uses Mulberry32 +
+  Box-Muller rather than matching PyTorch's RNG byte-for-byte. The
+  visualisation only needs _deterministic_ weights, not "the same numbers
+  PyTorch would generate" — verify-maths still uses the PyTorch fixtures
+  for correctness checks.
+- `vitest.config.ts` excludes `src/lib/mdx/{sections,components}.ts` from
+  coverage (FS loader + JSX-component map; covered by the e2e suite).
+
 **Follow-ups:**
+
+- [ ] Phase 10: KaTeX-render the Maths layer once `remark-math` is in.
+- [ ] Phase 4+: per-viz dev-only demos under `/learn/_demos/<viz>`
+      (CLAUDE.md §5 → D3 → Storybook-style demo pages).
 
 ---
 

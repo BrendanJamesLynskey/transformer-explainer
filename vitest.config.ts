@@ -33,6 +33,12 @@ export default defineConfig({
         // are unit-tested directly.
         "src/lib/auth/index.ts",
         "src/lib/auth/config.ts",
+        // MDX wiring: components map and FS loader. Exercised by the
+        // /learn/[slug] e2e test in tests/e2e/learn.spec.ts; unit-testing
+        // would just be re-implementing readFile / mapping a string to a
+        // component reference.
+        "src/lib/mdx/sections.ts",
+        "src/lib/mdx/components.ts",
       ],
       thresholds: {
         // CLAUDE.md §8 mandates 100% line coverage for src/lib/transformer/.
