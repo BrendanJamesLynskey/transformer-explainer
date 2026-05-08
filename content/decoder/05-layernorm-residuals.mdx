@@ -1,0 +1,97 @@
+<Layer kind="concept">
+
+Two ideas glue the rest of the decoder together: **residual connections**
+and **LayerNorm**. They sound prosaic next to attention, but every
+deep-network choice in the last decade has either kept them or
+re-invented them.
+
+**Residual connections** add the input of a sub-layer back to its output:
+
+```
+h = x + Attn(LN(x))
+y = h + FFN(LN(h))
+```
+
+The residual stream is the running "this is what the model believes
+about position `i`" vector. Each sub-layer _contributes_ to it instead of
+_replacing_ it. That's why a Transformer can be 96 layers deep without
+the gradient vanishing — gradients flow straight along the residual path
+and only sample each sub-layer's contribution.
+
+**LayerNorm** keeps the residual stream from blowing up or vanishing.
+For each position, it shifts the vector to have zero mean and rescales
+it to unit variance, then applies a learned scale (γ) and shift (β):
+
+</Layer>
+
+<LayerNormWidget />
+
+<Layer kind="concept">
+
+Drag the sliders. With γ = 1 and β = 0, LayerNorm is doing what its
+description says: it _removes_ the position's overall scale and offset,
+keeping only the _direction_ of the vector. The residual addition then
+re-introduces the scale on top of the normalised contribution.
+
+**Pre-norm vs post-norm**: where you put the LayerNorm matters. The
+original Transformer applied LN _after_ the residual addition
+(post-norm). Modern decoders (GPT-2 onwards) apply LN _before_ each
+sub-layer (pre-norm). Pre-norm trains more stably and is what we use.
+
+</Layer>
+
+<Layer kind="maths">
+
+For an input vector `x` of length `d`:
+
+```
+μ      = mean(x)                                 // scalar
+σ²     = mean((x − μ)²)                          // population variance
+LN(x)  = γ · (x − μ) / √(σ² + ε) + β             // length-d vector
+```
+
+with ε = 1e-5 for numerical stability. γ and β are learned vectors of
+length `d`, applied elementwise.
+
+The pre-norm decoder block is then
+
+```
+h  = x + MultiHeadAttention(LN(x))
+y  = h + FFN(LN(h))
+```
+
+…and stacking blocks just iterates this `N` times.
+
+</Layer>
+
+<Layer kind="code">
+
+```ts
+// src/lib/transformer/layernorm.ts (excerpt)
+export function layernorm(x, gamma, beta, eps = 1e-5) {
+  let mean = 0;
+  for (const v of x) mean += v;
+  mean /= x.length;
+
+  let varSum = 0;
+  for (const v of x) varSum += (v - mean) ** 2;
+  const invStd = 1 / Math.sqrt(varSum / x.length + eps);
+
+  return x.map((v, i) => (v - mean) * invStd * gamma[i]! + beta[i]!);
+}
+```
+
+```ts
+// src/lib/transformer/block.ts (excerpt)
+export function block(x, w, nHeads) {
+  const ln1 = layernormRows(x, w.ln1.gamma, w.ln1.beta);
+  const h = addMat(x, multiHeadAttention(ln1, w.attn, nHeads));
+  const ln2 = layernormRows(h, w.ln2.gamma, w.ln2.beta);
+  return addMat(h, ffn(ln2, w.ffn));
+}
+```
+
+That's the whole decoder block: two normalisations, two sub-layers, two
+residual additions.
+
+</Layer>

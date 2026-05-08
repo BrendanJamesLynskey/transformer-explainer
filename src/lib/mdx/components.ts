@@ -9,10 +9,14 @@ import type { MDXRemoteProps } from "next-mdx-remote/rsc";
 
 import { AttentionWidget } from "@/components/interactive/AttentionWidget";
 import { EmbeddingWidget } from "@/components/interactive/EmbeddingWidget";
+import { FFNWidget } from "@/components/interactive/FFNWidget";
 import { Layer } from "@/components/interactive/Layer";
+import { LayerNormWidget } from "@/components/interactive/LayerNormWidget";
 
 export const mdxComponents: NonNullable<MDXRemoteProps["components"]> = {
   Layer,
   EmbeddingWidget,
   AttentionWidget,
+  FFNWidget,
+  LayerNormWidget,
 };

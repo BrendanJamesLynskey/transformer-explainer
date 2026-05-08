@@ -96,4 +96,50 @@ test.describe("learn", () => {
     await firstRow.hover();
     await expect(page.getByText(/attends to:/i)).toBeVisible();
   });
+
+  test("FFN page renders the position picker and bar charts", async ({
+    page,
+  }) => {
+    await page.goto("/learn/04-ffn");
+
+    await expect(
+      page.getByRole("heading", { name: /^Feed-forward$/i }),
+    ).toBeVisible();
+
+    // Wait for the live trace.
+    await expect(
+      page.getByRole("heading", { name: /Pre-activation/ }),
+    ).toBeVisible();
+    await expect(
+      page
+        .locator("svg")
+        .filter({ has: page.locator("rect") })
+        .first(),
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Position picker exposes one button per token.
+    const buttons = page
+      .getByRole("group", { name: /pick a sequence position/i })
+      .getByRole("button");
+    await expect(buttons.first()).toHaveAttribute("aria-pressed", "true");
+    await buttons.nth(2).click();
+    await expect(buttons.nth(2)).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("LayerNorm page renders both sliders and the explanatory copy", async ({
+    page,
+  }) => {
+    await page.goto("/learn/05-layernorm-residuals");
+
+    await expect(
+      page.getByRole("heading", { name: /^LayerNorm & residuals$/ }),
+    ).toBeVisible();
+
+    // Both sliders are present and accessible.
+    await expect(page.getByLabel(/γ \(scale\)/)).toBeVisible();
+    await expect(page.getByLabel(/β \(shift\)/)).toBeVisible();
+
+    // MDX rendered: the residual-stream paragraph is in the concept layer.
+    await expect(page.getByText(/residual stream/i).first()).toBeVisible();
+  });
 });
