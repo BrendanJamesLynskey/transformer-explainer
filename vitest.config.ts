@@ -17,11 +17,22 @@ export default defineConfig({
       reporter: ["text", "html", "lcov"],
       include: ["src/lib/**/*.ts"],
       exclude: [
-        "src/lib/**/index.ts",
         "src/lib/**/*.test.ts",
         "src/lib/db/migrations/**",
         // Type-only modules: no runtime exports → nothing for v8 to cover.
         "src/lib/transformer/types.ts",
+        // Schema declarations — no logic, just Drizzle table definitions.
+        // Covered indirectly any time the seed/auth code imports it.
+        "src/lib/db/schema.ts",
+        // DB connection wiring — needs a live Postgres to exercise; covered
+        // by the seed script and the e2e suite (Phase 3+).
+        "src/lib/db/client.ts",
+        // Auth.js NextAuth() factory — exercises the providers / adapter,
+        // both of which need a live DB and OAuth round-trip. Pure-logic
+        // helpers (mapGitHubProfile, isAdmin, …) live in helpers.ts and
+        // are unit-tested directly.
+        "src/lib/auth/index.ts",
+        "src/lib/auth/config.ts",
       ],
       thresholds: {
         // CLAUDE.md §8 mandates 100% line coverage for src/lib/transformer/.

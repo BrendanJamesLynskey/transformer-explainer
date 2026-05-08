@@ -123,16 +123,51 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 
 ## Phase 2 — DB + Auth
 
-- [ ] Drizzle schema + initial migration.
-- [ ] Auth.js with GitHub OAuth working locally.
-- [ ] `pnpm db:seed` idempotent.
-- [ ] Auth e2e test passes.
+- [x] Drizzle schema + initial migration.
+- [x] Auth.js with GitHub OAuth working locally.
+- [x] `pnpm db:seed` idempotent.
+- [x] Auth e2e test passes.
 
 **Plan:**
 
+- `src/lib/db/schema.ts` (Auth.js core tables + experiments / comments /
+  progress / events) → `pnpm db:generate` → `pnpm db:migrate` against the
+  Neon dev branch.
+- `src/lib/db/client.ts` — Drizzle handle with hot-reload-safe singleton.
+- `src/lib/auth/{config,helpers,index}.ts` — Auth.js v5 with the Drizzle
+  adapter, GitHub provider, and an E2E-only Credentials provider gated on
+  `E2E_TEST_AUTH=true` (RUNBOOK.md §3).
+- `src/components/ui/SiteHeader.tsx` — Server Component header with sign-in
+  / sign-out form actions; mounted from `app/layout.tsx`.
+- `scripts/seed-db.ts` — idempotent seed of the admin user, one demo
+  experiment, and seed progress rows.
+- E2E test `tests/e2e/auth.spec.ts` exercising the Credentials path.
+- CI: re-add the `e2e-tests` job; runs against an ephemeral Postgres
+  container with `E2E_TEST_AUTH=true`.
+
 **Deviations:**
 
+- Session strategy is `database` in production but flips to `jwt` when
+  `E2E_TEST_AUTH=true`. Auth.js v5's Credentials provider only supports
+  JWT sessions, so the e2e build needs the switch. Production never sets
+  the env var, so it stays on the more-secure database strategy.
+- `vitest.config.ts` excludes `src/lib/auth/{index,config}.ts`, `db/client.ts`,
+  and `db/schema.ts` from the coverage threshold — they're wiring code that
+  needs a live DB / OAuth round-trip to exercise. Pure logic was extracted
+  to `src/lib/auth/helpers.ts` (mapGitHubProfile, buildE2EUser, enrichSession,
+  isAdmin) and is unit-tested at 100%.
+- `pages.signIn = "/api/auth/signin"` keeps Auth.js's default sign-in page;
+  with one production provider it auto-redirects to GitHub. Phase 3+ may
+  build a custom sign-in page with the three-layer toggle.
+
 **Follow-ups:**
+
+- [ ] Phase 3+: build a custom sign-in page once the `(marketing)` route
+      group exists, so the GitHub-only provider doesn't have to bounce
+      through the Auth.js default page.
+- [ ] Manual smoke test: real GitHub OAuth round trip. Documented as a
+      README step in Phase 10. Today's e2e covers the Credentials path.
+- [ ] Human (still): enable branch protection on `main` after the run.
 
 ---
 

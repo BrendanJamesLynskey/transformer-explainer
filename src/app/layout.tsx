@@ -9,6 +9,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { SiteHeader } from "@/components/ui/SiteHeader";
 import { env } from "@/lib/env";
 
 import "./globals.css";
@@ -30,7 +31,10 @@ export default function RootLayout({
 }): JSX.Element {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen font-sans antialiased">{children}</body>
+      <body className="min-h-screen font-sans antialiased">
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   );
 }
