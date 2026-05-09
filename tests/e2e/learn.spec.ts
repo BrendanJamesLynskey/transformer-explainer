@@ -59,12 +59,14 @@ test.describe("learn", () => {
     await input.fill("abc");
 
     // Wait for the response — the heatmap SVG appears once data lands.
+    // Generous timeout because the dev server may be first-compiling
+    // /api/compute/embed on this run.
     await expect(
       page
         .locator("svg")
         .filter({ has: page.locator("rect") })
         .first(),
-    ).toBeVisible({ timeout: 5_000 });
+    ).toBeVisible({ timeout: 10_000 });
 
     // The visible token row should reflect the typed input.
     await expect(page.getByText(/^a$/).first()).toBeVisible();

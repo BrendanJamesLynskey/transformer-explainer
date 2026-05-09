@@ -5,8 +5,10 @@
  * experiment, and a single section-progress row so /learn lights up. Safe
  * to re-run.
  *
- * Run with `pnpm db:seed`. Reads DATABASE_URL from the environment.
+ * Run with `pnpm db:seed`. Reads DATABASE_URL from `.env.local` (or `.env`).
  */
+import "./_load-env"; // must come before any module that reads env
+
 import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";

@@ -15,6 +15,7 @@ import { EventTracker } from "@/components/interactive/EventTracker";
 import { LayerToggle } from "@/components/interactive/LayerToggle";
 import { ProgressTracker } from "@/components/interactive/ProgressTracker";
 import { getSession } from "@/lib/auth";
+import { runOrFallback } from "@/lib/db-fallback";
 import { mdxComponents } from "@/lib/mdx/components";
 import {
   SECTIONS,
@@ -54,7 +55,7 @@ export default async function SectionPage({
   const prev = idx > 0 ? SECTIONS[idx - 1] : null;
   const next = idx < SECTIONS.length - 1 ? SECTIONS[idx + 1] : null;
 
-  const session = await getSession();
+  const session = await runOrFallback("learn:auth", getSession, null);
   const userId = (session?.user as { id?: string } | undefined)?.id ?? null;
 
   return (

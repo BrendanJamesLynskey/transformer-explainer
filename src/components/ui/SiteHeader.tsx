@@ -8,6 +8,7 @@
 import Link from "next/link";
 
 import { getSession, isAdmin, signIn, signOut } from "@/lib/auth";
+import { runOrFallback } from "@/lib/db-fallback";
 
 async function signInAction() {
   "use server";
@@ -20,7 +21,7 @@ async function signOutAction() {
 }
 
 export async function SiteHeader(): Promise<JSX.Element> {
-  const session = await getSession();
+  const session = await runOrFallback("header:auth", getSession, null);
   const user = session?.user;
   const login = (user as { githubLogin?: string | null } | undefined)
     ?.githubLogin;
