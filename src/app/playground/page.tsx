@@ -18,6 +18,7 @@ import { SamplingWidget } from "@/components/interactive/SamplingWidget";
 import { SaveExperiment } from "@/components/interactive/SaveExperiment";
 import { StackingWidget } from "@/components/interactive/StackingWidget";
 import { getSession } from "@/lib/auth";
+import { runOrFallback } from "@/lib/db-fallback";
 
 export const metadata = {
   title: "Playground",
@@ -26,7 +27,7 @@ export const metadata = {
 };
 
 export default async function PlaygroundPage(): Promise<JSX.Element> {
-  const session = await getSession();
+  const session = await runOrFallback("playground:auth", getSession, null);
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
       <p className="font-mono text-xs uppercase tracking-widest text-accent">

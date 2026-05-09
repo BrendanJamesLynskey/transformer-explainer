@@ -62,21 +62,61 @@ another.
   the numerical fixtures — the committed fixtures are enough for normal
   development).
 
-### Quick start
+### Just want to see the explainer? (zero-config)
+
+The compute pipeline and MDX content don't need a database or GitHub OAuth.
+Run:
 
 ```bash
 git clone https://github.com/BrendanJamesLynskey/transformer-explainer
 cd transformer-explainer
 pnpm install
-cp .env.example .env.local            # fill in the values below
-pnpm db:push                          # apply the Drizzle schema
+cp .env.example .env.local            # placeholders are fine for read-only mode
+pnpm dev                              # http://localhost:3000
+```
+
+Open `http://localhost:3000/learn`, walk through the seven sections, and
+play with `/playground`. The DB-backed features (comments, progress,
+saved experiments, admin) will silently no-op until you give them a real
+database — they don't crash the page.
+
+### Full setup (DB + auth)
+
+If you want comments, saved experiments, and `/admin`, you need three
+things — none take more than a couple of minutes:
+
+1. **A Postgres database.** Create a [Neon free-tier
+   branch](https://neon.tech) and copy its connection string. (Local
+   Postgres / Docker also works.)
+2. **An auth secret.** Run `openssl rand -base64 32` and copy the output.
+3. **A GitHub OAuth app.** [Register
+   one](https://github.com/settings/developers) with
+   **Authorization callback URL** =
+   `http://localhost:3000/api/auth/callback/github`. Copy the client id
+   and secret.
+
+Open `.env.local` and replace the placeholders:
+
+```bash
+DATABASE_URL=postgresql://your-real-neon-url
+AUTH_SECRET=<output of openssl rand -base64 32>
+AUTH_GITHUB_ID=<from GitHub OAuth app>
+AUTH_GITHUB_SECRET=<from GitHub OAuth app>
+ADMIN_GITHUB_LOGINS=<your-github-login>
+```
+
+Then push the schema, seed, and start the dev server:
+
+```bash
+pnpm db:push                          # apply the Drizzle schema to your DB
 pnpm db:seed                          # idempotent seed (admin user, demo experiment)
 pnpm dev                              # http://localhost:3000
 ```
 
 ### Environment variables
 
-`.env.local` (never committed) needs:
+`.env.local` is auto-loaded by Next.js, drizzle-kit (via `drizzle.config.ts`),
+and the seed script. Full list:
 
 | Variable               | Notes                                             |
 | ---------------------- | ------------------------------------------------- |
@@ -90,15 +130,9 @@ pnpm dev                              # http://localhost:3000
 | `MAX_D_MODEL`          | `64`                                              |
 | `MAX_BLOCKS`           | `4`                                               |
 
-The full list lives in `.env.example`. Validation is done at boot in
-`src/lib/env.ts` (Zod) — the app fails fast if anything is missing.
-
-### GitHub OAuth app
-
-[Create an OAuth app](https://github.com/settings/developers) with
-**Authorization callback URL** set to
-`http://localhost:3000/api/auth/callback/github` for local dev (and
-`https://your-domain/api/auth/callback/github` for production).
+`src/lib/env.ts` validates with Zod at boot. In production all secrets
+are required; in development they're optional and the app degrades
+gracefully (DB-backed features silently no-op, see `lib/db-fallback.ts`).
 
 ## Deploy to Vercel
 

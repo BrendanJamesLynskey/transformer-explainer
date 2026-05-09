@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { ingestSchema, rateLimitOk, recordEvents } from "@/lib/analytics";
+import { runOrFallback } from "@/lib/db-fallback";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,9 +44,18 @@ export async function POST(req: Request): Promise<Response> {
     );
   }
 
-  const session = await auth();
+  // Auth lookup itself can throw if the DB is unreachable (the adapter
+  // talks to the sessions table). Tolerate that for analytics — anon-mode
+  // is fine on a fresh clone.
+  const session = await runOrFallback("events:auth", () => auth(), null);
   const userId = (session?.user as { id?: string } | undefined)?.id ?? null;
 
-  const written = await recordEvents(userId, parsed.data);
+  // Fire-and-forget: if the DB isn't there we still report success to the
+  // client. Without this the EventTracker beacon spams the console.
+  const written = await runOrFallback(
+    "events:insert",
+    () => recordEvents(userId, parsed.data),
+    0,
+  );
   return NextResponse.json({ ok: true, data: { written } });
 }

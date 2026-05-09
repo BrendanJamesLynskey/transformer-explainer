@@ -15,6 +15,7 @@ import {
   listForSection,
   renderCommentHtml,
 } from "@/lib/comments";
+import { runOrFallback } from "@/lib/db-fallback";
 import { isValidSlug } from "@/lib/mdx/sections";
 
 export const runtime = "nodejs";
@@ -33,7 +34,14 @@ export async function GET(
       { status: 404 },
     );
   }
-  const rows = await listForSection(ctx.params.slug);
+  // Empty list when the DB isn't reachable — the comments UI handles
+  // this gracefully ("Be the first to leave a comment.") and the
+  // explainer pages stay usable on a fresh clone.
+  const rows = await runOrFallback(
+    "comments:list",
+    () => listForSection(ctx.params.slug),
+    [],
+  );
   const data = rows.map((c) => ({
     id: c.id,
     parentId: c.parentId,

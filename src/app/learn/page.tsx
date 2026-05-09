@@ -7,6 +7,7 @@
 import Link from "next/link";
 
 import { getSession } from "@/lib/auth";
+import { runOrFallback } from "@/lib/db-fallback";
 import { SECTIONS, readSectionMdx } from "@/lib/mdx/sections";
 import { listForUser } from "@/lib/progress";
 
@@ -28,11 +29,16 @@ export default async function LearnIndex(): Promise<JSX.Element> {
     })),
   );
 
-  const session = await getSession();
+  // Tolerate a missing/unreachable DB so the index renders on a fresh
+  // clone with placeholder env values.
+  const session = await runOrFallback("learn-index:auth", getSession, null);
   const userId = (session?.user as { id?: string } | undefined)?.id ?? null;
-  const progressMap = userId
-    ? new Map((await listForUser(userId)).map((p) => [p.sectionSlug, p.status]))
-    : new Map<string, string>();
+  const progressRows = userId
+    ? await runOrFallback("learn-index:progress", () => listForUser(userId), [])
+    : [];
+  const progressMap = new Map(
+    progressRows.map((p) => [p.sectionSlug, p.status]),
+  );
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
