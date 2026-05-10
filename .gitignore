@@ -48,3 +48,4 @@ drizzle/.cache/
 .venv-fixtures/
 __pycache__/
 
+.vercel
