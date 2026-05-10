@@ -78,6 +78,12 @@ const githubProvider = GitHub({
   clientId: process.env.AUTH_GITHUB_ID,
   clientSecret: process.env.AUTH_GITHUB_SECRET,
   profile: mapGitHubProfile,
+  // GitHub verifies user emails. If a row already exists in `users` with the
+  // same email (e.g. from `pnpm db:seed` putting the admin login in upfront),
+  // link the OAuth identity to that row instead of throwing
+  // `OAuthAccountNotLinked`. Safe specifically because GitHub never lets a
+  // user claim an email they haven't verified.
+  allowDangerousEmailAccountLinking: true,
 });
 
 const e2eCredentialsProvider = Credentials({
@@ -107,7 +113,10 @@ export const authConfig: NextAuthConfig = {
   // build flips strategy. Production stays on database sessions so revoking
   // a session row immediately logs the user out.
   session: { strategy: e2eAuthEnabled ? "jwt" : "database" },
-  pages: { signIn: "/api/auth/signin" },
+  // No `pages.signIn` override — Auth.js v5's default `/api/auth/signin`
+  // handler auto-redirects to the only configured provider (GitHub) for
+  // production. Pointing `pages.signIn` *at* the handler caused a redirect
+  // loop on the deployed site.
   callbacks: {
     /** Stamp the user with GitHub metadata on first sign-in. */
     async signIn({ user, profile }) {

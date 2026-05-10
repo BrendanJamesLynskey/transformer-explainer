@@ -14,6 +14,20 @@ against PyTorch fixtures to within `1e-5`.
 
 ![Attention page](docs/screenshots/03-attention.png)
 
+## Reading the codebase
+
+If you're here to **learn backend engineering** from this repo, start with
+the companion report:
+
+📄 **[Backend engineering tour (PDF, 8 pages)](docs/reports/backend-tour.pdf)** — a
+guided walkthrough of every component (Next.js Server Components / Server
+Actions / Route Handlers, Drizzle, Auth.js, the graceful-fallback
+pattern, the monotonic-upsert SQL trick, token-bucket rate limiting, the
+test pyramid, CI/CD, and the six real production bugs we hit on the way
+to live). Source markdown lives at
+[`docs/reports/backend-tour.md`](docs/reports/backend-tour.md);
+re-render with `pnpm tsx scripts/generate-report.ts <input.md> <out.pdf>`.
+
 ## What you can do
 
 - Walk through the decoder one operation at a time at `/learn`.

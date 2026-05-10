@@ -14,3 +14,7 @@ test-results
 
 # Generated test fixtures (from scripts/reference.py).
 tests/unit/fixtures/
+
+# The PDF report is intentionally hand-formatted prose with wide ASCII
+# diagrams; Prettier reflow would break the boxes.
+docs/reports/backend-tour.md
