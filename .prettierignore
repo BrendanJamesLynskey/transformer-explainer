@@ -18,3 +18,9 @@ tests/unit/fixtures/
 # The PDF report is intentionally hand-formatted prose with wide ASCII
 # diagrams; Prettier reflow would break the boxes.
 docs/reports/backend-tour.md
+
+# Presentation assets — Reveal.js HTML and the inherited style.css use
+# hand-tuned spacing that Prettier would reflow.
+docs/index.html
+docs/style.css
+docs/interactive.js

@@ -16,17 +16,27 @@ against PyTorch fixtures to within `1e-5`.
 
 ## Reading the codebase
 
-If you're here to **learn backend engineering** from this repo, start with
-the companion report:
+If you're here to **learn backend engineering** from this repo, two
+companion resources walk through every component for a junior engineer:
 
-📄 **[Backend engineering tour (PDF, 8 pages)](docs/reports/backend-tour.pdf)** — a
-guided walkthrough of every component (Next.js Server Components / Server
-Actions / Route Handlers, Drizzle, Auth.js, the graceful-fallback
-pattern, the monotonic-upsert SQL trick, token-bucket rate limiting, the
-test pyramid, CI/CD, and the six real production bugs we hit on the way
-to live). Source markdown lives at
-[`docs/reports/backend-tour.md`](docs/reports/backend-tour.md);
-re-render with `pnpm tsx scripts/generate-report.ts <input.md> <out.pdf>`.
+- 🎬 **[Launch presentation](https://brendanjameslynskey.github.io/transformer-explainer/)** —
+  a slide-by-slide tour of the architecture, request lifecycle, database
+  patterns, auth flow, API design, testing, CI/CD, and the six real
+  production bugs we hit going live. Reveal.js, same style as the other
+  decks in the [LLMs](https://github.com/BrendanJamesLynskey/LLMs) and
+  [Software](https://github.com/BrendanJamesLynskey/Software) hubs.
+- 📄 **[Backend engineering tour (PDF, 8 pages)](docs/reports/backend-tour.pdf)** —
+  the longer-form version of the same material with code excerpts you
+  can read alongside the source. Markdown source at
+  [`docs/reports/backend-tour.md`](docs/reports/backend-tour.md);
+  re-render with `pnpm tsx scripts/generate-report.ts <input.md> <out.pdf>`.
+
+## Part of
+
+This project sits in the [LLMs](https://github.com/BrendanJamesLynskey/LLMs)
+hub (Transformer Architecture sub-area) and is referenced from the
+[Software](https://github.com/BrendanJamesLynskey/Software) hub as a
+full-stack reference application.
 
 ## What you can do
 

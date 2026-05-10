@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transformer Explainer — Backend Engineering Tour</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/black.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/monokai.min.css"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* Presentation-specific overrides */
+      .reveal pre {
+        max-height: 70vh;
+      }
+      .reveal pre code {
+        max-height: 70vh;
+      }
+      .ascii {
+        font-family: "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+        font-size: 0.42em;
+        line-height: 1.25;
+        text-align: left;
+        white-space: pre;
+        background: #0d1117;
+        padding: 0.8em 1em;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        overflow-x: auto;
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .small-table {
+        font-size: 0.5em;
+      }
+      .small-table th,
+      .small-table td {
+        padding: 0.3em 0.6em;
+        border: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+      .small-table th {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .lessons-list {
+        font-size: 0.55em;
+        text-align: left;
+      }
+      .lessons-list li {
+        margin: 0.4em 0;
+      }
+      .bug-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent2);
+        border-radius: 8px;
+        padding: 0.7em 1em;
+        margin: 0.5em 0;
+        text-align: left;
+        font-size: 0.5em;
+      }
+      .bug-card strong {
+        color: var(--accent);
+      }
+      .pill {
+        display: inline-block;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 0.2em 0.7em;
+        font-size: 0.5em;
+        margin: 0.1em 0.2em;
+        color: var(--text-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <!-- ==================== TITLE ==================== -->
+        <section data-roadmap="shape">
+          <h1 class="gradient-text">
+            Transformer Explainer<br />Backend Engineering Tour
+          </h1>
+          <p class="subtitle">
+            A walkthrough of the full-stack codebase behind
+            <em>transformer-explainer-three.vercel.app</em>
+          </p>
+          <div class="meta-info">
+            <span>Next.js 14 App Router</span> ·
+            <span>Drizzle + Postgres</span> · <span>Auth.js v5</span> ·
+            <span>Vitest + Playwright</span>
+          </div>
+          <p class="nav-hint">
+            Use <kbd>→</kbd> to advance · <kbd>↓</kbd> for sub-sections ·
+            <kbd>Esc</kbd> for overview
+          </p>
+        </section>
+
+        <!-- ==================== ROADMAP ==================== -->
+        <section data-roadmap="shape">
+          <h2>Roadmap</h2>
+          <div class="roadmap">
+            <div class="roadmap-item active" data-step="shape">
+              <div class="roadmap-icon">🏛️</div>
+              <div class="roadmap-label">The shape</div>
+            </div>
+            <div class="roadmap-arrow">→</div>
+            <div class="roadmap-item" data-step="lifecycle">
+              <div class="roadmap-icon">🔄</div>
+              <div class="roadmap-label">Request lifecycle</div>
+            </div>
+            <div class="roadmap-arrow">→</div>
+            <div class="roadmap-item" data-step="data-auth">
+              <div class="roadmap-icon">🔐</div>
+              <div class="roadmap-label">Data &amp; auth</div>
+            </div>
+            <div class="roadmap-arrow">→</div>
+            <div class="roadmap-item" data-step="api-patterns">
+              <div class="roadmap-icon">⚙️</div>
+              <div class="roadmap-label">API patterns</div>
+            </div>
+            <div class="roadmap-arrow">→</div>
+            <div class="roadmap-item" data-step="test-deploy">
+              <div class="roadmap-icon">🚀</div>
+              <div class="roadmap-label">Test &amp; deploy</div>
+            </div>
+            <div class="roadmap-arrow">→</div>
+            <div class="roadmap-item" data-step="production">
+              <div class="roadmap-icon">🐛</div>
+              <div class="roadmap-label">Production reality</div>
+            </div>
+          </div>
+          <p class="explain-box">
+            Each section drills from "what" → "how" → "why we chose it" → "what
+            broke in production". Target audience: a junior backend engineer
+            meeting a modern TypeScript codebase for the first time.
+          </p>
+        </section>
+
+        <!-- ==================== SECTION 1: SHAPE ==================== -->
+        <section data-roadmap="shape">
+          <p class="section-title">Part 1</p>
+          <h2>The shape of the system</h2>
+          <pre class="ascii">                ┌───────────────────────────────────────────────┐
+                │                  Browser                      │
+                │  React UI · Service Worker · localStorage     │
+                └────────────────┬──────────────────────────────┘
+                                 │  HTTPS
+                                 ▼
+                ┌───────────────────────────────────────────────┐
+                │                  Vercel                       │
+                │   Edge network · Serverless Node.js runtime   │
+                │   • Server Components (pages)                 │
+                │   • Server Actions  (sign-in, sign-out)       │
+                │   • Route Handlers  (/api/*)                  │
+                └───────┬─────────────────────────┬─────────────┘
+                        │                         │
+                        │ Drizzle ORM             │ HTTPS
+                        ▼                         ▼
+            ┌──────────────────┐       ┌────────────────────┐
+            │   Neon Postgres  │       │   GitHub OAuth     │
+            │  (managed pg17)  │       │  (identity prov.)  │
+            └──────────────────┘       └────────────────────┘</pre>
+          <p class="explain-box small">
+            The <strong>only</strong> stateful pieces are Postgres and your
+            browser cookies. Everything between is functions — the same code
+            running locally on <code>pnpm dev</code> runs on Vercel as
+            serverless invocations, spun up per-request.
+          </p>
+        </section>
+
+        <section data-roadmap="shape">
+          <h2>The stack</h2>
+          <table class="small-table">
+            <tr>
+              <th>Layer</th>
+              <th>Choice</th>
+              <th>Why</th>
+            </tr>
+            <tr>
+              <td>Runtime</td>
+              <td>Node.js 24</td>
+              <td>Default on Vercel</td>
+            </tr>
+            <tr>
+              <td>Framework</td>
+              <td>Next.js 14 (App Router)</td>
+              <td>Co-locates server + client React</td>
+            </tr>
+            <tr>
+              <td>Language</td>
+              <td>TypeScript (strict)</td>
+              <td>Catches bugs at compile time</td>
+            </tr>
+            <tr>
+              <td>ORM</td>
+              <td>Drizzle</td>
+              <td>Thin, SQL-shaped, type-safe</td>
+            </tr>
+            <tr>
+              <td>Database</td>
+              <td>Postgres / Neon</td>
+              <td>Free-tier managed, branched DBs</td>
+            </tr>
+            <tr>
+              <td>Auth</td>
+              <td>Auth.js v5</td>
+              <td>Handles OAuth + sessions</td>
+            </tr>
+            <tr>
+              <td>Validation</td>
+              <td>Zod</td>
+              <td>Runtime schemas + TS inference</td>
+            </tr>
+            <tr>
+              <td>Tests</td>
+              <td>Vitest + Playwright + axe-core</td>
+              <td>Unit, e2e, a11y</td>
+            </tr>
+            <tr>
+              <td>Deploy</td>
+              <td>Vercel + GitHub Actions</td>
+              <td>Push to main → live in ~90s</td>
+            </tr>
+          </table>
+          <p class="explain-box small">
+            <strong>Constraint:</strong> nothing exotic. Every piece is
+            something a junior engineer will plausibly meet at a normal
+            employer.
+          </p>
+        </section>
+
+        <!-- ==================== SECTION 2: LIFECYCLE ==================== -->
+        <section data-roadmap="lifecycle">
+          <p class="section-title">Part 2</p>
+          <h2>What happens on GET /learn/03-attention</h2>
+          <pre class="ascii"> Browser                Vercel Edge          Serverless Fn        Postgres
+   │                       │                     │                   │
+   │  GET /learn/03-...    │                     │                   │
+   │ ─────────────────────►│   route lookup      │                   │
+   │                       │ ──── invoke ───────►│                   │
+   │                       │                     │  read MDX file    │
+   │                       │                     │  (bundled)        │
+   │                       │                     │  SELECT session   │
+   │                       │                     │ ─────────────────►│
+   │                       │                     │ ◄─────────────────│
+   │                       │                     │  SELECT progress  │
+   │                       │                     │ ─────────────────►│
+   │                       │                     │ ◄─────────────────│
+   │                       │   render JSX → HTML │                   │
+   │  HTML + RSC payload   │ ◄── return ─────────│                   │
+   │ ◄─────────────────────│                     │                   │
+   │  paint, hydrate JS    │                     │                   │
+   │                       │                     │                   │
+   │  POST /api/events     │                     │                   │
+   │ ─────────────────────►│ ──── invoke ───────►│  INSERT events    │
+   │                       │                     │ ─────────────────►│
+   │  200 ok               │ ◄────────────────── │                   │
+   │ ◄─────────────────────│                     │                   │</pre>
+          <p class="explain-box small">
+            One page visit = many independent function invocations. Each one is
+            stateless, runs to completion, exits. <strong>That</strong> is the
+            serverless mental model.
+          </p>
+        </section>
+
+        <section data-roadmap="lifecycle">
+          <h2>Four kinds of code</h2>
+          <pre class="ascii">                ┌─── server ────┐    ┌──── browser ────┐
+                │               │    │                 │
+                │  Server       │    │                 │
+                │  Components   │    │                 │
+                │               │    │                 │
+                │  ┌──────────┐ │    │                 │
+                │  │ Server   │ │    │                 │
+                │  │ Actions  │◄├────┤  form submit    │
+                │  └──────────┘ │    │                 │
+                │  ┌──────────┐ │    │  ┌──────────┐   │
+                │  │ Route    │◄├────┤──┤ Client   │   │
+                │  │ Handlers │ │    │  │ Comps    │   │
+                │  │ /api/... │ │    │  └──────────┘   │
+                │  └──────────┘ │    │     ▲           │
+                │  Server       │    │     │ initial   │
+                │  Components ──┼────┤──►  │ HTML +    │
+                │  emit HTML +  │    │     │ hydration │
+                │  hydration    │    │     │           │
+                └───────────────┘    └─────────────────┘</pre>
+          <div class="two-col">
+            <div class="col explain-box small">
+              <strong>Server Components</strong> &amp;
+              <strong>Server Actions</strong> never ship JS to the browser.
+              They run only on the server, can <code>await</code> directly,
+              can read files and the DB.
+            </div>
+            <div class="col explain-box small">
+              <strong>Client Components</strong> run server-side once to
+              produce HTML, then in the browser to hydrate.
+              <strong>Route Handlers</strong> are plain HTTP endpoints — the
+              closest thing to "traditional" backend code.
+            </div>
+          </div>
+        </section>
+
+        <section data-roadmap="lifecycle">
+          <h2>A Server Component reads the DB directly</h2>
+          <pre><code class="language-typescript" data-trim>
+// src/app/learn/page.tsx — Server Component
+export default async function LearnIndex(): Promise&lt;JSX.Element&gt; {
+  const status = await Promise.all(
+    SECTIONS.map(async (s) =&gt; ({
+      ...s,
+      ready: (await readSectionMdx(s.slug)) !== null,
+    })),
+  );
+
+  const session = await runOrFallback(
+    "learn-index:auth",
+    getSession,     // ← Auth.js: reads cookie, looks up sessions table
+    null,
+  );
+  const userId = session?.user?.id ?? null;
+  const progress = userId
+    ? await runOrFallback("learn-index:progress", () =&gt; listForUser(userId), [])
+    : [];
+
+  return &lt;main&gt;...&lt;/main&gt;;  // ← rendered to HTML on the server
+}
+          </code></pre>
+          <p class="explain-box small">
+            No <code>useState</code>, no <code>useEffect</code> — none of that
+            machinery exists. A Server Component is a plain async function. The
+            JSX it returns is serialised to HTML and sent to the browser.
+          </p>
+        </section>
+
+        <!-- ==================== SECTION 3: DATA & AUTH ==================== -->
+        <section data-roadmap="data-auth">
+          <p class="section-title">Part 3</p>
+          <h2>Database schema (eight tables)</h2>
+          <pre class="ascii">              ┌─────────────┐
+              │   users     │ ◄────────────────┐
+              │  id (uuid)  │                  │
+              │  email ─────┤◄──────┐          │
+              │  github_id  │       │          │
+              └─────────────┘       │          │
+                  │       │         │          │
+        ┌─────────┘       └─────────┐          │
+        ▼                           ▼          │
+┌──────────────┐            ┌──────────────┐   │
+│  accounts    │            │  sessions    │   │
+│  user_id ────┘            │  user_id ────┘   │
+│  provider    │            │  expires      │  │
+└──────────────┘            └──────────────┘   │
+                                                │
+        ┌──────────────┐    ┌──────────────┐   │
+        │  comments    │    │  experiments │   │
+        │  user_id ────┼────┤  owner_id ───┼───┘
+        │  parent_id ──┐    │  slug         │
+        │  section_slug│    │  config_json  │
+        └──────┬───────┘    │  forked_from  │
+               │            └──────────────┘
+               │ self-FK (one level threading)
+               └───────────►
+        ┌──────────────┐    ┌──────────────┐
+        │  progress    │    │   events     │
+        │  user_id ────┼─►  │  user_id?    │ ← nullable (anon ok)
+        │  section_slug│    │  session_id  │ ← UUID from localStorage
+        │  status      │    │  kind        │
+        └──────────────┘    └──────────────┘</pre>
+          <p class="explain-box small">
+            UUIDs everywhere (<code>defaultRandom()</code>), foreign keys with
+            <code>onDelete: "cascade"</code>, timestamps with timezone, and
+            <code>.notNull()</code> on every required column.
+          </p>
+        </section>
+
+        <section data-roadmap="data-auth">
+          <h2>A real-world SQL pattern: monotonic upsert</h2>
+          <pre><code class="language-typescript" data-trim>
+// src/lib/progress.ts
+await db.insert(progress).values({ userId, sectionSlug, status })
+  .onConflictDoUpdate({
+    target: [progress.userId, progress.sectionSlug],
+    set: {
+      status: sql`CASE
+        WHEN ${progress.status} = 'completed' THEN ${progress.status}
+        WHEN ${progress.status} = 'in_progress' AND ${newRank} >= 1 THEN ${status}
+        WHEN ${progress.status} = 'not_started' THEN ${status}
+        ELSE ${progress.status}
+      END`,
+      updatedAt: new Date(),
+    },
+  });
+          </code></pre>
+          <p class="explain-box small">
+            <strong>Problem:</strong> every page visit fires
+            <code>in_progress</code>. A return visit must not regress a
+            <code>completed</code> row.
+            <strong>Solution:</strong> the CASE clause encodes a state machine
+            in SQL — only forward transitions allowed. Postgres handles
+            concurrent updates for free.
+          </p>
+        </section>
+
+        <section data-roadmap="data-auth">
+          <h2>OAuth flow — sign-in with GitHub</h2>
+          <pre class="ascii"> Browser              Our server          GitHub             Postgres
+   │  click "Sign in"    │                  │                   │
+   │ ───────────────────►│ set CSRF cookie  │                   │
+   │                     │ 302 redirect     │                   │
+   │ ◄───────────────────│                  │                   │
+   │  GET /authorize?... │                  │                   │
+   │ ──────────────────────────────────────►│                   │
+   │  consent screen     │                  │                   │
+   │ ◄──────────────────────────────────────│                   │
+   │  POST consent       │                  │                   │
+   │ ──────────────────────────────────────►│                   │
+   │  302 to /callback?code=XXX             │                   │
+   │ ◄──────────────────────────────────────│                   │
+   │  GET /api/auth/callback?code=XXX       │                   │
+   │ ───────────────────►│  POST /token (server→server)         │
+   │                     │ ────────────────►│                   │
+   │                     │  access_token    │                   │
+   │                     │ ◄────────────────│                   │
+   │                     │  GET /user → profile                 │
+   │                     │ upsert user, insert account, session │
+   │                     │ ───────────────────────────────────►│
+   │  Set session cookie │                  │                   │
+   │  302 to /           │                  │                   │
+   │ ◄───────────────────│                  │                   │</pre>
+          <p class="explain-box small">
+            Auth.js handles every step. We provide a profile mapper and a
+            Drizzle adapter; the library does CSRF, the token exchange, the DB
+            inserts, and the session cookie.
+          </p>
+        </section>
+
+        <section data-roadmap="data-auth">
+          <h2>Sessions — database vs JWT</h2>
+          <div class="two-col">
+            <div class="col explain-box" style="font-size: 0.5em">
+              <strong>Database (production)</strong>
+              <ul style="text-align: left">
+                <li>Cookie holds opaque ID</li>
+                <li>
+                  Each request: DB read on
+                  <code>sessions</code>
+                </li>
+                <li>Logout: delete the row → instant revoke</li>
+                <li>
+                  Slightly slower (~5 ms/request) but stronger guarantees
+                </li>
+              </ul>
+            </div>
+            <div class="col explain-box" style="font-size: 0.5em">
+              <strong>JWT (E2E test build)</strong>
+              <ul style="text-align: left">
+                <li>Cookie IS the session (signed JWT)</li>
+                <li>No DB read per request</li>
+                <li>Logout deletes cookie; old JWTs still valid</li>
+                <li>Required if using Credentials provider</li>
+              </ul>
+            </div>
+          </div>
+          <pre style="margin-top: 0.5em"><code class="language-typescript" data-trim>
+session: { strategy: e2eAuthEnabled ? "jwt" : "database" },
+          </code></pre>
+        </section>
+
+        <!-- ==================== SECTION 4: API PATTERNS ==================== -->
+        <section data-roadmap="api-patterns">
+          <p class="section-title">Part 4</p>
+          <h2>Three flavours of API route</h2>
+          <div class="two-col" style="font-size: 0.55em">
+            <div class="col">
+              <h3 style="font-size: 1.2em">Pure compute</h3>
+              <p>
+                <code>/api/compute/embed</code>, etc. CPU-bound, no I/O. Safest
+                endpoints — touch no shared state.
+              </p>
+              <h3 style="font-size: 1.2em">Auth + DB</h3>
+              <p>
+                Session lookup, authorise, validate, query, return. Uniform
+                response: <code>{ ok: true, data } | { ok: false, error }</code>.
+              </p>
+            </div>
+            <div class="col">
+              <h3 style="font-size: 1.2em">Analytics</h3>
+              <p>
+                <code>/api/events</code> — accepts anonymous batches.
+                Rate-limited per IP, with graceful DB fallback. Loss of
+                analytics ≪ user-visible 500s.
+              </p>
+            </div>
+          </div>
+          <p class="explain-box small">
+            <strong>The choice</strong> between Server Action and Route Handler
+            comes down to <em>who calls it</em>. Server Actions are for your
+            own forms. Route Handlers are for anyone with HTTP — JS clients,
+            mobile apps, curl.
+          </p>
+        </section>
+
+        <section data-roadmap="api-patterns">
+          <h2>Validate every input with Zod</h2>
+          <pre><code class="language-typescript" data-trim>
+// src/lib/analytics-shared.ts
+export const ingestSchema = z.object({
+  sessionId: z.string().min(8).max(64),
+  events: z.array(z.object({
+    kind: z.enum(EVENT_KIND),
+    sectionSlug: z.string().min(1).max(80).optional(),
+    meta: z.record(z.unknown()).optional(),
+  })).min(1).max(50),
+});
+type Ingest = z.infer&lt;typeof ingestSchema&gt;;  // ← TS type for free
+
+const parsed = ingestSchema.safeParse(await req.json());
+if (!parsed.success) {
+  return NextResponse.json(
+    { ok: false, error: parsed.error.issues[0]?.message },
+    { status: 400 },
+  );
+}
+// parsed.data is now sanitised AND typed
+          </code></pre>
+          <p class="explain-box small">
+            One schema gives you: <strong>(1)</strong> runtime validation,
+            <strong>(2)</strong> a static TS type via
+            <code>z.infer</code>, <strong>(3)</strong> cheap DoS protection
+            (<code>.max(50)</code>).
+          </p>
+        </section>
+
+        <section data-roadmap="api-patterns">
+          <h2>Graceful fallback — degrade, don't fail</h2>
+          <pre><code class="language-typescript" data-trim>
+// src/lib/db-fallback.ts
+export async function runOrFallback&lt;T&gt;(
+  key: string,
+  fn: () =&gt; Promise&lt;T&gt;,
+  fallback: T,
+): Promise&lt;T&gt; {
+  try { return await fn(); }
+  catch (err) {
+    maybeWarn(key, err);   // throttled to once per minute per key
+    return fallback;
+  }
+}
+
+// usage
+const session = await runOrFallback("learn:auth", getSession, null);
+const rows = await runOrFallback("comments:list", () =&gt; listForSection(slug), []);
+          </code></pre>
+          <p class="explain-box small">
+            A fresh clone with placeholder env values still renders
+            <code>/learn/*</code> and <code>/playground</code> cleanly. DB
+            outage = empty data, not 500. <strong>Pick which writes are
+            critical</strong>; for everything else, degrade.
+          </p>
+        </section>
+
+        <section data-roadmap="api-patterns">
+          <h2>Sanitising user-supplied Markdown (XSS)</h2>
+          <pre><code class="language-typescript" data-trim>
+// src/lib/comments-render.ts
+export function renderCommentHtml(md: string): string {
+  const rawHtml = marked.parse(md, { async: false }) as string;
+  return getSanitize()(rawHtml, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS:  ["style", "script"],
+    FORBID_ATTR:  ["style", "onerror", "onload", "onclick"],
+  });
+}
+          </code></pre>
+          <div class="two-col" style="font-size: 0.5em">
+            <div class="col explain-box">
+              <strong>Two stages:</strong> Marked turns MD → HTML, DOMPurify
+              walks the tree and removes <code>&lt;script&gt;</code>,
+              event handlers, <code>javascript:</code> URLs.
+            </div>
+            <div class="col explain-box">
+              <strong>Lazy-loaded:</strong> JSDOM (inside DOMPurify) reads a
+              stylesheet at import-time that breaks Vercel build. Cached
+              dynamic <code>require</code> defers it to runtime.
+            </div>
+          </div>
+        </section>
+
+        <section data-roadmap="api-patterns">
+          <h2>Token-bucket rate limiter</h2>
+          <pre class="ascii">       capacity = 5       refill = 1 token / sec
+       ┌─────────────────┐
+       │ ●●●●●           │  t = 0s    bucket starts full
+       └─────────────────┘
+            │ call (cost 1)
+            ▼
+       ┌─────────────────┐
+       │ ●●●●            │  t = 0.1s
+       └─────────────────┘
+            │ … 4 more calls in quick succession
+            ▼
+       ┌─────────────────┐
+       │                 │  t = 0.5s   empty → 6th call rejected (429)
+       └─────────────────┘
+            │ wait 1s; refill adds a token
+            ▼
+       ┌─────────────────┐
+       │ ●               │  t = 1.5s   one call worth of capacity
+       └─────────────────┘</pre>
+          <p class="explain-box small">
+            Classic algorithm, ~20 lines of code. In-memory per instance — fine
+            for our scale; at scale you'd use Redis or Vercel Edge Config.
+            <strong>The function takes <code>now</code> as a parameter</strong>
+            so tests pass made-up timestamps; the real clock is the default.
+          </p>
+        </section>
+
+        <section data-roadmap="api-patterns">
+          <h2>One env-var boundary</h2>
+          <pre><code class="language-typescript" data-trim>
+// src/lib/env.ts — ONLY file that reads process.env
+const parsed = makeEnvSchema(isProd).safeParse(process.env);
+if (!parsed.success) {
+  console.error("❌ Invalid environment variables:");
+  for (const issue of parsed.error.issues) {
+    console.error(`  - ${issue.path.join(".") || "(root)"}: ${issue.message}`);
+  }
+  throw new Error("Invalid environment configuration. See .env.example.");
+}
+export const env = parsed.data;   // ← rest of the app imports this
+          </code></pre>
+          <p class="explain-box small">
+            One chokepoint validates at boot. A bad deploy crashes immediately
+            with a clear message — not on the first request that happened to
+            need that variable. Production requires real secrets; dev tolerates
+            placeholders.
+          </p>
+        </section>
+
+        <!-- ==================== SECTION 5: TEST & DEPLOY ==================== -->
+        <section data-roadmap="test-deploy">
+          <p class="section-title">Part 5</p>
+          <h2>The test pyramid</h2>
+          <table class="small-table">
+            <tr>
+              <th>Level</th>
+              <th>Tool</th>
+              <th>What</th>
+              <th>Speed</th>
+            </tr>
+            <tr>
+              <td>Unit</td>
+              <td>Vitest</td>
+              <td>Pure functions, Zod schemas, helpers, the math</td>
+              <td>~5s</td>
+            </tr>
+            <tr>
+              <td>Integration</td>
+              <td>Vitest</td>
+              <td>Comment Markdown → safe HTML pipeline</td>
+              <td>~5s</td>
+            </tr>
+            <tr>
+              <td>End-to-end</td>
+              <td>Playwright</td>
+              <td>
+                Real Chromium drives <code>pnpm dev</code> against a real
+                Postgres
+              </td>
+              <td>~50s</td>
+            </tr>
+            <tr>
+              <td>Accessibility</td>
+              <td>axe-core</td>
+              <td>WCAG violations on key pages</td>
+              <td>~30s</td>
+            </tr>
+            <tr>
+              <td>Numerical</td>
+              <td>PyTorch fixtures</td>
+              <td>TS ops match PyTorch to within 1e-5</td>
+              <td>~3s</td>
+            </tr>
+          </table>
+          <p class="explain-box small">
+            <strong>100% line coverage on <code>src/lib/transformer/</code></strong>
+            is enforced in CI — that's where the maths lives. Drop below 100%
+            and the PR fails to merge.
+          </p>
+        </section>
+
+        <section data-roadmap="test-deploy">
+          <h2>CI/CD — push to main → live in ~90 seconds</h2>
+          <pre class="ascii">   Developer's machine            GitHub                Vercel
+        │                            │                     │
+        │ git push branch            │                     │
+        │ ──────────────────────────►│                     │
+        │                            │  Actions: 4 jobs    │
+        │                            │  ├─ Lint &amp; Type     │
+        │                            │  ├─ Unit            │
+        │                            │  ├─ Verify maths    │
+        │                            │  └─ E2E (with pg)   │
+        │                            │  ─── all pass ───►  │ build preview
+        │                            │                     │ deploys to
+        │                            │                     │ &lt;hash&gt;.vercel.app
+        │ open PR ──────────────────►│  reviewer reads     │
+        │                            │  preview URL + diff │
+        │ squash-merge to main ─────►│                     │
+        │                            │  Actions re-run     │
+        │                            │  on main            │
+        │                            │  ─── all pass ───►  │ build prod
+        │                            │                     │ deploys to
+        │                            │                     │ canonical alias</pre>
+          <p class="explain-box small">
+            This loop only works if CI is <em>trustworthy</em>: fast enough you
+            don't ignore it, strict enough that "CI is green" actually means
+            "safe to ship".
+          </p>
+        </section>
+
+        <section data-roadmap="test-deploy">
+          <h2>Vercel — two delivery paths</h2>
+          <table class="small-table">
+            <tr>
+              <th>File type</th>
+              <th>Path</th>
+              <th>Delivery</th>
+            </tr>
+            <tr>
+              <td>Static asset</td>
+              <td><code>/_next/static/</code></td>
+              <td>Edge CDN, cached forever</td>
+            </tr>
+            <tr>
+              <td>Static page</td>
+              <td><code>/some/page</code></td>
+              <td>Edge CDN, may revalidate</td>
+            </tr>
+            <tr>
+              <td>Dynamic page</td>
+              <td><code>/learn/[slug]</code></td>
+              <td>Serverless function on demand</td>
+            </tr>
+            <tr>
+              <td>Route handler</td>
+              <td><code>/api/...</code></td>
+              <td>Serverless function on demand</td>
+            </tr>
+          </table>
+          <p class="explain-box small">
+            <strong>Cold start tax:</strong> ~200-500 ms for the first request
+            after a deploy. Mitigations: small bundles, no work at module load
+            (lazy init), and warm with traffic.
+          </p>
+        </section>
+
+        <!-- ==================== SECTION 6: PRODUCTION REALITY ==================== -->
+        <section data-roadmap="production">
+          <p class="section-title">Part 6</p>
+          <h2>Six real bugs we hit going live</h2>
+          <div class="bug-card">
+            <strong>1. DATABASE_URL not loaded.</strong> <code>drizzle-kit</code>
+            doesn't auto-load <code>.env.local</code> — only Next.js does. Fix:
+            explicit <code>dotenv</code> in <code>drizzle.config.ts</code>.
+          </div>
+          <div class="bug-card">
+            <strong>2. 500-cascade on fresh clone.</strong> Placeholder
+            DATABASE_URL → DNS failure → /api/events 500s. Fix:
+            <code>runOrFallback</code> on every page-paint DB call.
+          </div>
+          <div class="bug-card">
+            <strong>3. Vercel security scanner blocked deploy.</strong>
+            <code>next-mdx-remote@5.0.0</code> had a CVE. Fix: bump to 6.0.0
+            (API-compatible).
+          </div>
+          <div class="bug-card">
+            <strong>4. OAuthCallbackError on sign-in.</strong> Postgres rejected
+            GitHub's numeric id as invalid uuid. Fix: drop <code>id</code> from
+            <code>mapGitHubProfile</code>; let <code>defaultRandom()</code>
+            generate.
+          </div>
+          <div class="bug-card">
+            <strong>5. ERR_TOO_MANY_REDIRECTS.</strong>
+            <code>pages.signIn: "/api/auth/signin"</code> pointed at the
+            Auth.js handler itself. Fix: remove the field; the handler
+            auto-redirects to the only provider.
+          </div>
+          <div class="bug-card">
+            <strong>6. OAuthAccountNotLinked.</strong> Seeded admin user
+            blocked first real OAuth sign-in by email collision. Fix:
+            <code>allowDangerousEmailAccountLinking: true</code> on the GitHub
+            provider (GitHub verifies emails, so safe).
+          </div>
+        </section>
+
+        <section data-roadmap="production">
+          <h2>What's missing for "real" production</h2>
+          <ol class="lessons-list">
+            <li>
+              <strong>Distributed rate limiting.</strong> In-memory bucket
+              doesn't survive cold starts or scale. → Redis / Upstash.
+            </li>
+            <li>
+              <strong>Background jobs.</strong> Anything time-consuming off the
+              request path. → Vercel Cron, Inngest, BullMQ.
+            </li>
+            <li>
+              <strong>Observability.</strong> Tracing (OpenTelemetry → Honeycomb
+              / Datadog) and error tracking (Sentry).
+            </li>
+            <li>
+              <strong>Real migrations</strong>, not <code>db:push</code>.
+              Generated SQL files, applied deterministically.
+            </li>
+            <li>
+              <strong>Multi-environment Postgres.</strong> Separate dev /
+              staging / prod (Neon branches make this cheap).
+            </li>
+            <li>
+              <strong>Secrets rotation.</strong> Auth secret, OAuth client
+              secret, DB password rotated on a schedule.
+            </li>
+            <li>
+              <strong>RBAC.</strong> Beyond admin/non-admin: scoped tokens,
+              audit logs.
+            </li>
+          </ol>
+          <p class="explain-box small">
+            If you can articulate the <em>why</em> behind each of these, you're
+            past the junior bar.
+          </p>
+        </section>
+
+        <section data-roadmap="production">
+          <h2>Lessons for a junior backend engineer</h2>
+          <ol class="lessons-list">
+            <li>
+              <strong>One env-var boundary.</strong> Validate at boot. Crash
+              loud if anything's missing.
+            </li>
+            <li>
+              <strong>One response shape.</strong>
+              <code>{ ok, data } | { ok, error }</code> everywhere — clients
+              never guess.
+            </li>
+            <li>
+              <strong>Validate every input with Zod.</strong> Network = untrusted.
+              DB = trusted.
+            </li>
+            <li>
+              <strong>Degrade gracefully on read paths.</strong> Empty data
+              beats 500s.
+            </li>
+            <li>
+              <strong>TypeScript ≠ DB constraints.</strong> Your column type is
+              the real source of truth.
+            </li>
+            <li>
+              <strong>Lazy-load expensive imports.</strong> Top-level side
+              effects bite at build time.
+            </li>
+            <li>
+              <strong>Read production logs.</strong> Half of debugging is
+              finding the actual error message, not guessing.
+            </li>
+            <li>
+              <strong>Test the inputs to your tests.</strong> Pass
+              <code>now</code>, pass seeds — deterministic tests don't flake.
+            </li>
+          </ol>
+        </section>
+
+        <!-- ==================== CLOSE ==================== -->
+        <section data-roadmap="production">
+          <h1 class="gradient-text">Thanks</h1>
+          <div class="meta-info" style="flex-direction: column; gap: 0.5em">
+            <span>
+              📄 Full report (PDF):
+              <a
+                href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/docs/reports/backend-tour.pdf"
+                >docs/reports/backend-tour.pdf</a
+              >
+            </span>
+            <span>
+              💻 Source:
+              <a
+                href="https://github.com/BrendanJamesLynskey/transformer-explainer"
+                >github.com/BrendanJamesLynskey/transformer-explainer</a
+              >
+            </span>
+            <span>
+              🌐 Live app:
+              <a href="https://transformer-explainer-three.vercel.app/"
+                >transformer-explainer-three.vercel.app</a
+              >
+            </span>
+          </div>
+          <p class="explain-box small" style="margin-top: 1em">
+            The codebase is itself the teaching artefact. Open
+            <code>src/lib/auth/config.ts</code>,
+            <code>src/lib/db/schema.ts</code>, or
+            <code>src/app/api/events/route.ts</code> alongside this
+            presentation — every pattern shown here is one git-blame away.
+          </p>
+          <div class="pill-row" style="margin-top: 1em">
+            <span class="pill">Next.js 14</span>
+            <span class="pill">TypeScript strict</span>
+            <span class="pill">Drizzle + Neon</span>
+            <span class="pill">Auth.js v5</span>
+            <span class="pill">Vitest + Playwright</span>
+            <span class="pill">Vercel</span>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>
+      Reveal.initialize({
+        hash: true,
+        slideNumber: "c/t",
+        transition: "fade",
+        backgroundTransition: "fade",
+        controls: true,
+        progress: true,
+        center: true,
+      });
+      hljs.highlightAll();
+    </script>
+    <script src="interactive.js"></script>
+  </body>
+</html>
