@@ -18,15 +18,18 @@ export function mapGitHubProfile(profile: {
   email?: string | null;
   avatar_url?: string | null;
 }): {
-  id: string;
   name: string | null;
   email: string | null;
   image: string | null;
   githubId: string;
   githubLogin: string;
 } {
+  // Note: we deliberately do NOT return `id`. Our `users.id` column is a
+  // Postgres `uuid` with `defaultRandom()` — letting the DB generate it
+  // gives us a valid UUID. Returning GitHub's numeric id (e.g. "12345")
+  // makes Postgres reject the insert as invalid UUID syntax, which surfaces
+  // in production as an OAuthCallbackError on the GitHub sign-in flow.
   return {
-    id: String(profile.id),
     name: profile.name ?? profile.login,
     email: profile.email ?? null,
     image: profile.avatar_url ?? null,

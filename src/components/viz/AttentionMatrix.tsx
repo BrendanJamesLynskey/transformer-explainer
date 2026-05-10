@@ -43,11 +43,18 @@ function buildColourFn(
         if (v > max) max = v;
       }
   }
+  // Non-finite cells (the mask's −∞ entries) always render as the "blocked"
+  // colour, regardless of which branch we take below. Without this, a mask
+  // matrix that's `0` on/below diagonal and `−∞` above would collapse to a
+  // single colour (since min == max == 0 sends finite cells through the
+  // constant fallback), erasing the triangle the user expects to see.
+  const blocked = "#0a0a0a";
   if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) {
-    return () => interpolateViridis(0.5);
+    return (v: number) =>
+      Number.isFinite(v) ? interpolateViridis(0.5) : blocked;
   }
   return (v: number) => {
-    if (!Number.isFinite(v)) return "#0a0a0a";
+    if (!Number.isFinite(v)) return blocked;
     return interpolateViridis((v - min) / (max - min));
   };
 }

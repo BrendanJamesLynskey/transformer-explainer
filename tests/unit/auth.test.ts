@@ -20,7 +20,8 @@ describe("mapGitHubProfile", () => {
       avatar_url: "https://avatars.example.com/alice.png",
     });
     expect(out).toEqual({
-      id: "12345",
+      // Note: no `id` field — the DB generates the UUID; returning
+      // GitHub's numeric id here would break the Postgres uuid type.
       name: "Alice Smith",
       email: "alice@example.com",
       image: "https://avatars.example.com/alice.png",

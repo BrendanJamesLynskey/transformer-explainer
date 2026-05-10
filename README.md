@@ -14,6 +14,30 @@ against PyTorch fixtures to within `1e-5`.
 
 ![Attention page](docs/screenshots/03-attention.png)
 
+## Reading the codebase
+
+If you're here to **learn backend engineering** from this repo, two
+companion resources walk through every component for a junior engineer:
+
+- 🎬 **[Launch presentation](https://brendanjameslynskey.github.io/transformer-explainer/)** —
+  a slide-by-slide tour of the architecture, request lifecycle, database
+  patterns, auth flow, API design, testing, CI/CD, and the six real
+  production bugs we hit going live. Reveal.js, same style as the other
+  decks in the [LLMs](https://github.com/BrendanJamesLynskey/LLMs) and
+  [Software](https://github.com/BrendanJamesLynskey/Software) hubs.
+- 📄 **[Backend engineering tour (PDF, 8 pages)](docs/reports/backend-tour.pdf)** —
+  the longer-form version of the same material with code excerpts you
+  can read alongside the source. Markdown source at
+  [`docs/reports/backend-tour.md`](docs/reports/backend-tour.md);
+  re-render with `pnpm tsx scripts/generate-report.ts <input.md> <out.pdf>`.
+
+## Part of
+
+This project sits in the [LLMs](https://github.com/BrendanJamesLynskey/LLMs)
+hub (Transformer Architecture sub-area) and is referenced from the
+[Software](https://github.com/BrendanJamesLynskey/Software) hub as a
+full-stack reference application.
+
 ## What you can do
 
 - Walk through the decoder one operation at a time at `/learn`.
