@@ -553,7 +553,11 @@ open Phase 3 / 9 / 10 boxes, and lock `main`.
 - [x] Lighthouse ≥ 90 (perf, a11y, best practices) on `/`, `/learn`,
       `/learn/03-attention`; `@lhci/cli` enforcing it in CI.
 - [x] Comment and progress events in the analytics stream and on `/admin`.
-- [ ] Branch protection on `main`.
+- [x] Branch protection on `main` (2026-10-04): the five CI checks
+      (Lint & Typecheck, Unit Tests, Verify maths, E2E Tests, Lighthouse)
+      required; force pushes blocked; admin enforcement off so the owner
+      can still push in an emergency; no review requirement. Confirmed
+      with `gh api repos/BrendanJamesLynskey/transformer-explainer/branches/main/protection`.
 - [ ] Optional: dev-only viz demo pages and the inline admin dev panel —
       skipped (see Follow-ups).
 
@@ -598,6 +602,13 @@ open Phase 3 / 9 / 10 boxes, and lock `main`.
   median of 3 runs — performance / accessibility / best practices:
   `/` 100 / 100 / 96, `/learn` 100 / 95 / 96, `/learn/03-attention`
   99 / 94 / 96.
+- Lighthouse in CI on the merged commit's PR run (representative run):
+  `/` 100 / 100 / 96, `/learn` 100 / 100 / 96, `/learn/03-attention`
+  99 / 98 / 96.
+- Deployed 0ddc4c7 to production with the CLI (RUNBOOK §7); `pnpm smoke`
+  passed 14/14 with `/api/health` reporting `db=up schema=current 1/1`;
+  production logs clean; zero page errors and no 390 px overflow on all
+  13 public pages.
 - `/` ships 187 B of page JavaScript (94.1 kB first load, all shared).
 - Every chapter's Maths layer renders through KaTeX with no raw `$` and
   no `katex-error` nodes (checked on all seven pages, light and dark).
