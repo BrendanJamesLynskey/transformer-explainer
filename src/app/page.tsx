@@ -1,9 +1,8 @@
+import Link from "next/link";
+
 /**
- * Landing page (placeholder).
- *
- * Phase 0 ships a minimal "what this is + start here" page so `pnpm dev`
- * has something to render. Phase 10 will replace this with the polished
- * marketing landing page (animated hero, mini playground preview, etc.).
+ * Landing page: what the explainer is, and the three ways in (the guided
+ * lessons, the free-form playground, and saved experiments).
  */
 export default function HomePage(): JSX.Element {
   return (
@@ -20,6 +19,27 @@ export default function HomePage(): JSX.Element {
         FFN, layernorm, residuals, and final next-token sampling — execute on
         the server and visualised step-by-step in your browser.
       </p>
+
+      <nav aria-label="Get started" className="mt-8 flex flex-wrap gap-3">
+        <Link
+          href="/learn"
+          className="focus-ring rounded bg-accent px-4 py-2 text-sm font-medium text-accent-fg hover:opacity-90"
+        >
+          Start the lessons →
+        </Link>
+        <Link
+          href="/playground"
+          className="focus-ring rounded border border-neutral-300 px-4 py-2 text-sm font-medium hover:border-accent dark:border-neutral-700"
+        >
+          Open the playground
+        </Link>
+        <Link
+          href="/experiments"
+          className="focus-ring rounded border border-neutral-300 px-4 py-2 text-sm font-medium hover:border-accent dark:border-neutral-700"
+        >
+          Browse saved experiments
+        </Link>
+      </nav>
 
       <section className="mt-12 grid gap-4 text-sm text-neutral-700 dark:text-neutral-300 sm:grid-cols-2">
         <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
@@ -43,11 +63,6 @@ export default function HomePage(): JSX.Element {
           </p>
         </div>
       </section>
-
-      <p className="mt-12 font-mono text-xs text-neutral-500 dark:text-neutral-500">
-        Phase 0 placeholder · /learn and /playground come online in later
-        phases.
-      </p>
     </main>
   );
 }
