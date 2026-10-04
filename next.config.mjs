@@ -19,7 +19,9 @@ const nextConfig = {
     return [
       {
         source: "/:path*",
-        has: [{ type: "host", value: "transformer-explainer-three.vercel.app" }],
+        has: [
+          { type: "host", value: "transformer-explainer-three.vercel.app" },
+        ],
         destination: "https://transformer-decoder-explained.vercel.app/:path*",
         permanent: true,
       },
