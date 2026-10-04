@@ -77,6 +77,12 @@ async function upsertE2EUser(username: string): Promise<{
 const githubProvider = GitHub({
   clientId: process.env.AUTH_GITHUB_ID,
   clientSecret: process.env.AUTH_GITHUB_SECRET,
+  // GitHub now returns an `iss` parameter on the authorization response (RFC 9207).
+  // This Auth.js beta validates it against `issuer`, which otherwise defaults to the
+  // placeholder "https://authjs.dev", so every sign-in failed with
+  // `unexpected "iss" (issuer) response parameter value`. Later @auth/core releases set
+  // this same value on the built-in GitHub provider.
+  issuer: "https://github.com/login/oauth",
   profile: mapGitHubProfile,
   // GitHub verifies user emails. If a row already exists in `users` with the
   // same email (e.g. from `pnpm db:seed` putting the admin login in upfront),
