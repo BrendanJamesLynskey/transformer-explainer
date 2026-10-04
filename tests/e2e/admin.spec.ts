@@ -76,7 +76,13 @@ test.describe("admin", () => {
     // Posting a comment is recorded server-side as `comment_post`.
     const body = `Analytics check ${Date.now()}`;
     await page.getByLabel(/comment body/i).fill(body);
+    // Wait for the POST itself: `getByText(body)` below also matches the
+    // textarea, so on its own it can pass before the comment is stored.
+    const posted = page.waitForResponse(
+      (r) => r.url().includes("/comments") && r.request().method() === "POST",
+    );
     await page.getByRole("button", { name: /^Post$/ }).click();
+    expect((await posted).status()).toBe(201);
     await expect(page.getByText(body)).toBeVisible({ timeout: 5_000 });
 
     const res = await page.request.get("/api/admin/metrics");

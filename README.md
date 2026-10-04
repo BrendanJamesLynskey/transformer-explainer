@@ -183,7 +183,9 @@ fallbacks served.
 6. **Seed (optional).** From a machine with the prod `DATABASE_URL`,
    `pnpm db:seed`.
 7. **Smoke-check.** `pnpm smoke https://<your-vercel-url>` checks
-   `/api/health` and every public page, and exits non-zero on any failure.
+   `/api/health`, every public page and one section's comment list (it
+   needs a visible comment; `--comments-section <slug|none>` picks the
+   section), and exits non-zero on any failure.
 
 The first deploy from `main` will go live at the URL Vercel prints.
 Subsequent merges deploy automatically; PR pushes get preview URLs.
@@ -203,7 +205,7 @@ pnpm test:coverage         # …with thresholds enforced (100% lines on lib/tran
 pnpm test:e2e              # Playwright (boots `pnpm dev` itself)
 pnpm verify:maths          # cross-check TS ops vs. PyTorch fixtures
 pnpm lighthouse            # Lighthouse CI on a `pnpm build` (needs Chrome)
-pnpm smoke <url>           # post-deploy check of /api/health + every page
+pnpm smoke <url>           # post-deploy check of /api/health, every page, a comment list
 ```
 
 E2E runs against a real `pnpm dev` server with the seeded test database;

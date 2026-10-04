@@ -651,9 +651,9 @@ open Phase 3 / 9 / 10 boxes, and lock `main`.
 
 **Follow-ups:**
 
-- [ ] `CommentSection` throws an uncaught promise rejection when the
+- [x] `CommentSection` throws an uncaught promise rejection when the
       comments GET returns a non-JSON body (e.g. a 500); it should show an
-      inline error (CLAUDE.md §5 → Errors).
+      inline error (CLAUDE.md §5 → Errors). (Phase 11 follow-up below.)
 - [ ] `runOrFallback` also catches Next's internal "dynamic server usage"
       signal during `next build` (the `[db-fallback] header:auth` lines in
       the build log). Harmless today because the routes are dynamic
@@ -667,3 +667,64 @@ open Phase 3 / 9 / 10 boxes, and lock `main`.
       if that changed.
 - [ ] Optional items skipped: dev-only viz demo pages (Phase 1/3/4
       follow-ups) and the inline admin dev panel (Phase 9 follow-up).
+
+---
+
+## Phase 11 follow-up — comments 500 on production (2026-10-04)
+
+After the Phase 11 deploy the owner signed in and posted in `07-sampling`.
+From then on every comment list with a visible comment, and every POST,
+returned 500 on Vercel: `ERR_REQUIRE_ESM` from jsdom (pulled in by
+`isomorphic-dompurify`) → `html-encoding-sniffer@6` → the ES-module-only
+`@exodus/bytes`. The POST stored the row before rendering crashed, and the
+UI showed nothing, so the comment went in three times. RUNBOOK §7 explains
+why local and CI builds passed.
+
+- [x] Sanitise comments without jsdom: `remark-parse` → `remark-gfm` →
+      `remark-rehype` → `rehype-sanitize` (GitHub schema, no `<input>`) →
+      a small plugin adding `rel="nofollow noopener noreferrer"` →
+      `rehype-stringify`. `isomorphic-dompurify` and the
+      `serverComponentsExternalPackages` entry are gone.
+- [x] Render before writing: POST renders the body before the insert,
+      PATCH before the update; render failures answer
+      `{ ok: false, error }` JSON instead of a bare 500.
+- [x] Visible client errors: `src/lib/api-response.ts`
+      (`readApiResponse`) turns any reply, including a non-JSON 500, into
+      `{ ok, data } | { ok, error }`. `CommentSection` shows a failing list
+      as an error (not "Be the first…") and a failing post as an inline
+      error, keeping the draft.
+- [x] Guards: CI's e2e server runs `next start` under
+      `node --no-experimental-require-module` (rejects `require()` of ES
+      modules like Vercel's runtime); `comments-progress.spec` now reloads
+      after posting so the list GET renders a stored comment;
+      `pnpm smoke` checks a comment list with a visible comment
+      (`--comments-section`, default `07-sampling`).
+- [ ] Remove the two duplicate `07-sampling` comments: blocked, the
+      executor's permission to delete production rows was refused. Keep
+      `c4525d3f-…` (15:50:57 UTC), delete `01604a6d-…` and `ab5d4f41-…`
+      (identical body, same user, no replies).
+
+**Results:**
+
+- Unit: 26 files, 198 tests (new: 8 more sanitiser cases including
+  `on*` handlers, `javascript:` variants, `data:` images, `<style>` /
+  `<iframe>`, link `rel`; 7 for `readApiResponse`).
+- e2e against `pnpm build` + `next start` with the flag, local Postgres:
+  26/26 (new `comments-errors.spec`: failing list, failing POST keeps the
+  draft).
+- The Phase 11 build reproduces the production error locally under the
+  flag (comment list 500, `ERR_REQUIRE_ESM` for `@exodus/bytes`) and
+  returns 200 without it; the new build returns 200 under the flag.
+- The new `pnpm smoke` failed against the old production deploy
+  (`/api/sections/07-sampling/comments 500 (non-JSON body)`).
+
+**Deviations:**
+
+- New runtime dependencies `unified`, `remark-parse`, `remark-gfm`,
+  `remark-rehype`, `rehype-sanitize`, `rehype-stringify` (the 08B brief
+  recommended this pipeline; the site already used the same family through
+  `next-mdx-remote`). Removed `isomorphic-dompurify`. `marked` stays, for
+  `scripts/generate-report.ts` only.
+- Raw HTML in a comment is now dropped, not sanitised and kept (the
+  textarea always said "No raw HTML"). Inline tags vanish and their text
+  stays as plain text.

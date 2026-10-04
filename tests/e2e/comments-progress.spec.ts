@@ -40,10 +40,21 @@ test.describe("comments + progress", () => {
 
     const body = `Hello from Phase 8 — ${Date.now()}`;
     await page.getByLabel(/comment body/i).fill(body);
+    // Wait for the POST itself: `getByText(body)` below also matches the
+    // textarea, so on its own it can pass before the comment is stored.
+    const posted = page.waitForResponse(
+      (r) => r.url().includes("/comments") && r.request().method() === "POST",
+    );
     await page.getByRole("button", { name: /^Post$/ }).click();
+    expect((await posted).status()).toBe(201);
 
     // Posted comment renders.
     await expect(page.getByText(body)).toBeVisible({ timeout: 5_000 });
+
+    // ...and still renders after a reload, which goes through the list GET
+    // and the server-side sanitiser (the path that 500'd in production).
+    await page.reload();
+    await expect(page.getByText(body)).toBeVisible({ timeout: 10_000 });
 
     // /learn server-renders a progress badge for the section we visited.
     // Either "in progress" or "✓ done" is acceptable — short sections can
