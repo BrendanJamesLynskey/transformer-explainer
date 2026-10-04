@@ -12,6 +12,19 @@ const nextConfig = {
   experimental: {
     typedRoutes: true,
   },
+  // The site moved from Vercel's auto-assigned transformer-explainer-three.vercel.app to
+  // transformer-decoder-explained.vercel.app (the GitHub OAuth callback now points there).
+  // Send old links, path and query intact, to the new host.
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "transformer-explainer-three.vercel.app" }],
+        destination: "https://transformer-decoder-explained.vercel.app/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

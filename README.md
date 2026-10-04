@@ -10,7 +10,7 @@ strict TypeScript, Drizzle / Postgres, Auth.js, MDX content, D3
 visualisations, and a pure-TypeScript transformer library that's verified
 against PyTorch fixtures to within `1e-5`.
 
-**Live:** [transformer-explainer-three.vercel.app](https://transformer-explainer-three.vercel.app/)
+**Live:** [transformer-decoder-explained.vercel.app](https://transformer-decoder-explained.vercel.app/)
 
 ![Attention page](docs/screenshots/03-attention.png)
 
