@@ -15,12 +15,37 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("auth", () => {
-  test("homepage shows the sign-in button when logged out", async ({
+  test("homepage links to the sign-in page when logged out", async ({
     page,
   }) => {
     await page.goto("/");
+    await page.getByRole("link", { name: /^sign in$/i }).click();
+    await expect(page).toHaveURL(/\/signin$/);
     await expect(
       page.getByRole("button", { name: /sign in with github/i }),
+    ).toBeVisible();
+  });
+
+  test("the sign-in page starts the GitHub OAuth flow", async ({ page }) => {
+    // Stop at GitHub's door: answer the authorize request locally so the
+    // test never depends on github.com, then check where we were sent.
+    await page.route("https://github.com/**", (route) =>
+      route.fulfill({ status: 200, body: "stub" }),
+    );
+    await page.goto("/signin?callbackUrl=/learn");
+    await page.getByRole("button", { name: /sign in with github/i }).click();
+    await page.waitForURL(/github\.com\/login\/oauth\/authorize/);
+    const url = new URL(page.url());
+    expect(url.searchParams.get("redirect_uri")).toMatch(
+      /\/api\/auth\/callback\/github$/,
+    );
+  });
+
+  test("the sign-in page explains an Auth.js error", async ({ page }) => {
+    await page.goto("/signin?error=AccessDenied");
+    // Filter by text: Next's route announcer is also a role="alert".
+    await expect(
+      page.getByRole("alert").filter({ hasText: /cancelled/i }),
     ).toBeVisible();
   });
 

@@ -3,10 +3,12 @@
  *
  *   GET  → list (anyone). Hidden comments are still returned but with a
  *          stripped body — the section UI renders a "[hidden]" placeholder.
- *   POST → create (auth required). One-level threading enforced.
+ *   POST → create (auth required). One-level threading enforced. Each
+ *          stored comment is also recorded as a `comment_post` event.
  */
 import { NextResponse } from "next/server";
 
+import { recordServerEvent } from "@/lib/analytics";
 import { auth } from "@/lib/auth";
 import {
   create,
@@ -96,6 +98,12 @@ export async function POST(
   }
 
   const created = await create(userId, ctx.params.slug, parsed.data);
+  // Into the analytics stream for /admin. Recorded here, not beaconed by the
+  // client, so it counts exactly the comments that were actually stored.
+  await recordServerEvent(req, userId, "comment_post", ctx.params.slug, {
+    commentId: created.id,
+    reply: created.parentId !== null,
+  });
   return NextResponse.json(
     {
       ok: true,

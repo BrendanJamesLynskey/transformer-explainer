@@ -1,13 +1,17 @@
 /**
  * Section funnel as a table with inline bars. Per row:
  *   page views → interacts → completes,
- * showing the count plus the % retained from the previous step.
+ * showing the count plus the % retained from the previous step, then two
+ * signed-in-only columns recorded by the server: comments posted, and users
+ * whose saved progress reached "completed".
  */
 type Row = {
   sectionSlug: string;
   views: number;
   interacts: number;
   completes: number;
+  comments: number;
+  progressCompleted: number;
 };
 
 function pct(num: number, denom: number): string {
@@ -26,42 +30,48 @@ export function SectionFunnelTable({ rows }: { rows: Row[] }): JSX.Element {
   const maxViews = Math.max(...rows.map((r) => r.views), 1);
 
   return (
-    <table className="w-full text-sm">
-      <thead className="text-left">
-        <tr className="border-b border-neutral-200 text-xs uppercase tracking-wide text-neutral-500 dark:border-neutral-800">
-          <th className="py-2 pr-4">Section</th>
-          <th className="py-2 pr-4">Views</th>
-          <th className="py-2 pr-4">Interacted</th>
-          <th className="py-2 pr-4">Completed</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr
-            key={r.sectionSlug}
-            className="border-b border-neutral-100 last:border-b-0 dark:border-neutral-900"
-          >
-            <td className="py-2 pr-4 font-mono text-xs">{r.sectionSlug}</td>
-            <td className="py-2 pr-4">
-              <Bar value={r.views} max={maxViews} />
-              <span className="ml-2 tabular-nums">{r.views}</span>
-            </td>
-            <td className="py-2 pr-4 tabular-nums">
-              {r.interacts}{" "}
-              <span className="text-xs text-neutral-500">
-                ({pct(r.interacts, r.views)})
-              </span>
-            </td>
-            <td className="py-2 pr-4 tabular-nums">
-              {r.completes}{" "}
-              <span className="text-xs text-neutral-500">
-                ({pct(r.completes, r.views)})
-              </span>
-            </td>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="text-left">
+          <tr className="border-b border-neutral-200 text-xs uppercase tracking-wide text-neutral-500 dark:border-neutral-800">
+            <th className="py-2 pr-4">Section</th>
+            <th className="py-2 pr-4">Views</th>
+            <th className="py-2 pr-4">Interacted</th>
+            <th className="py-2 pr-4">Completed</th>
+            <th className="py-2 pr-4">Comments</th>
+            <th className="py-2 pr-4">Users done</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr
+              key={r.sectionSlug}
+              className="border-b border-neutral-100 last:border-b-0 dark:border-neutral-900"
+            >
+              <td className="py-2 pr-4 font-mono text-xs">{r.sectionSlug}</td>
+              <td className="py-2 pr-4">
+                <Bar value={r.views} max={maxViews} />
+                <span className="ml-2 tabular-nums">{r.views}</span>
+              </td>
+              <td className="py-2 pr-4 tabular-nums">
+                {r.interacts}{" "}
+                <span className="text-xs text-neutral-500">
+                  ({pct(r.interacts, r.views)})
+                </span>
+              </td>
+              <td className="py-2 pr-4 tabular-nums">
+                {r.completes}{" "}
+                <span className="text-xs text-neutral-500">
+                  ({pct(r.completes, r.views)})
+                </span>
+              </td>
+              <td className="py-2 pr-4 tabular-nums">{r.comments}</td>
+              <td className="py-2 pr-4 tabular-nums">{r.progressCompleted}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

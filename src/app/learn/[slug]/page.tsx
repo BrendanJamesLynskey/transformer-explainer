@@ -5,10 +5,17 @@
  * Server Component. Validates the slug against the catalogue, reads the
  * MDX from disk, and hands it to `next-mdx-remote/rsc` with our components
  * map.
+ *
+ * Maths: `remark-math` turns `$…$` / `$$…$$` into maths nodes and
+ * `rehype-katex` renders them to HTML on the server, so the Maths layer
+ * arrives as finished markup and no KaTeX JavaScript is shipped. Only the
+ * KaTeX stylesheet (and its fonts) is loaded, and only on these pages.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
+import rehypeKatex from "rehype-katex";
+import remarkMath from "remark-math";
 
 import { CommentSection } from "@/components/interactive/CommentSection";
 import { EventTracker } from "@/components/interactive/EventTracker";
@@ -23,6 +30,8 @@ import {
   isValidSlug,
   readSectionMdx,
 } from "@/lib/mdx/sections";
+
+import "katex/dist/katex.min.css";
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
   return SECTIONS.map((s) => ({ slug: s.slug }));
@@ -60,7 +69,7 @@ export default async function SectionPage({
 
   return (
     <article className="mx-auto max-w-3xl px-6 py-10">
-      <div className="flex items-baseline justify-between gap-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-4">
         <div>
           <Link
             href="/learn"
@@ -77,7 +86,16 @@ export default async function SectionPage({
       </div>
 
       <div className="prose prose-neutral dark:prose-invert mt-8 max-w-none">
-        <MDXRemote source={mdx} components={mdxComponents} />
+        <MDXRemote
+          source={mdx}
+          components={mdxComponents}
+          options={{
+            mdxOptions: {
+              remarkPlugins: [remarkMath],
+              rehypePlugins: [rehypeKatex],
+            },
+          }}
+        />
       </div>
 
       <nav className="mt-12 flex items-center justify-between border-t border-neutral-200 pt-6 text-sm dark:border-neutral-800">

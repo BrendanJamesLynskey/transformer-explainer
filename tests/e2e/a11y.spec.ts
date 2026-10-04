@@ -8,7 +8,13 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-const PAGES = ["/", "/learn/03-attention", "/playground"] as const;
+const PAGES = [
+  "/",
+  "/learn",
+  "/learn/03-attention",
+  "/playground",
+  "/signin",
+] as const;
 
 for (const path of PAGES) {
   test(`a11y: ${path} has no serious or critical violations`, async ({

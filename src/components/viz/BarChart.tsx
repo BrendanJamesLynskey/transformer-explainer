@@ -53,9 +53,9 @@ export function BarChart({
             height={rowHeight - 2}
             fill={v >= 0 ? positive : negative}
           >
-            <title>
-              [{i}] {v.toFixed(3)}
-            </title>
+            {/* One string, not `[{i}] {v}`: several text children inside an
+                SVG <title> hydrate differently from the server HTML. */}
+            <title>{`[${i}] ${v.toFixed(3)}`}</title>
           </rect>
         );
       })}

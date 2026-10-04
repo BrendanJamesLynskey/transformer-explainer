@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 
 import {
   dailyActive,
+  eventCounts,
   recentComments,
   sectionFunnel,
   topExperiments,
@@ -29,14 +30,15 @@ export async function GET(): Promise<Response> {
       { status: 403 },
     );
   }
-  const [dau, funnel, top, comments] = await Promise.all([
+  const [dau, funnel, top, comments, kinds] = await Promise.all([
     dailyActive(60),
     sectionFunnel(),
     topExperiments(10),
     recentComments(10),
+    eventCounts(30),
   ]);
   return NextResponse.json({
     ok: true,
-    data: { dau, funnel, top, comments },
+    data: { dau, funnel, top, comments, kinds },
   });
 }

@@ -30,27 +30,30 @@ highlight the keys it pays attention to.
 
 <Layer kind="maths">
 
-For a single head with head dimension `d_head = d_model / n_heads`:
+For a single head with head dimension $d_{\text{head}} = d_{\text{model}} / n_{\text{heads}}$:
 
-```
-Q = X · W_q              // [S, d_head]
-K = X · W_k              // [S, d_head]
-V = X · W_v              // [S, d_head]
-scores = Q · Kᵀ / √d_head            // [S, S]
-masked = scores + M                  // M = causal mask
-weights = softmax(masked, dim=-1)    // each row sums to 1
-output = weights · V                 // [S, d_head]
-```
+$$
+\begin{aligned}
+Q &= X W_q, \quad K = X W_k, \quad V = X W_v && [S, d_{\text{head}}] \\
+\text{scores} &= \frac{Q K^{\top}}{\sqrt{d_{\text{head}}}} && [S, S] \\
+\text{weights} &= \operatorname{softmax}(\text{scores} + M) && \text{each row sums to } 1 \\
+\text{output} &= \text{weights} \cdot V && [S, d_{\text{head}}]
+\end{aligned}
+$$
 
-**Multi-head attention** runs `H` of these in parallel on disjoint
-slices of `d_model`, concatenates the per-head outputs, and projects
-through `W_o`:
+where $M$ is the causal mask: $M_{ij} = 0$ for $j \le i$ and $-\infty$ for
+$j \gt i$, so position $i$ can never attend to a later token.
 
-```
-heads_h = Attention(X · W_q[h], X · W_k[h], X · W_v[h])
-concat  = [heads_0, heads_1, …, heads_{H-1}]   // [S, d_model]
-output  = concat · W_o                         // [S, d_model]
-```
+**Multi-head attention** runs $H$ of these in parallel on disjoint
+slices of $d_{\text{model}}$, concatenates the per-head outputs, and projects
+through $W_o$:
+
+$$
+\begin{aligned}
+\text{head}_h &= \operatorname{Attention}\!\left(X W_q^{(h)},\, X W_k^{(h)},\, X W_v^{(h)}\right) \\
+\text{output} &= \left[\text{head}_0 \,\|\, \text{head}_1 \,\|\, \cdots \,\|\, \text{head}_{H-1}\right] W_o && [S, d_{\text{model}}]
+\end{aligned}
+$$
 
 Each head can specialise in a different relationship — one might track
 which token came right before, another which token shares an opening

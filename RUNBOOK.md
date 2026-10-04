@@ -173,6 +173,9 @@ Never widen `tsconfig.json` strictness.
 
 ### Deployment (Phase 10)
 
+(For every deploy after the first, follow §7: migrate first, then deploy,
+then smoke-check.)
+
 The end-of-project Vercel deployment can be partially automated. Try, in
 order:
 
@@ -306,3 +309,56 @@ Lighthouse scores (Phase 10): perf <n>, a11y <n>, best-practices <n>.
 ```
 
 Then stop. Do not start a new phase. Do not refactor.
+
+---
+
+## 7. Deploying to production (Phase 11)
+
+The production database went unmigrated for months because
+`lib/db-fallback.ts` quietly served empty data. These steps exist so that
+can't happen again. Follow them for **every** production deploy.
+
+1. **Migrate production first, whenever the deploy changes the schema.** If
+   `src/lib/db/schema.ts` changed, generate and commit the migration
+   (`pnpm db:generate`), then run it against production **before** the new
+   code goes live:
+
+   ```bash
+   pnpm db:migrate        # uses DATABASE_URL from .env.local (the production branch)
+   ```
+
+   Migrations must be additive (new tables / nullable columns), so the
+   running old code keeps working between this step and the deploy. Never
+   print or commit the connection string.
+
+2. **Deploy.** The Vercel project isn't on Vercel's Git integration, so
+   deploy with the logged-in CLI from a clean export of `HEAD` (no
+   `.env.local`, no `node_modules`):
+
+   ```bash
+   rm -rf /tmp/te-deploy && mkdir /tmp/te-deploy
+   git archive HEAD | tar -x -C /tmp/te-deploy
+   cp -r .vercel /tmp/te-deploy/
+   (cd /tmp/te-deploy && vercel deploy --prod --yes)
+   vercel ls transformer-explainer | head    # newest deployment must be ● Ready
+   ```
+
+3. **Smoke-check.** `/api/health` must report a reachable database with a
+   `current` schema, and every public page must answer 200:
+
+   ```bash
+   pnpm smoke https://transformer-decoder-explained.vercel.app
+   ```
+
+   It exits non-zero on any failure. A `behind` or `none` schema means
+   step 1 was skipped: run `pnpm db:migrate` now.
+
+4. **Read the logs** for the first requests:
+
+   ```bash
+   vercel logs --environment production --since 15m --no-branch --expand
+   ```
+
+`/admin` shows the same health result, plus how often this server instance
+has served a database fallback. A healthy check next to a non-zero
+fallback count means the database was failing recently.

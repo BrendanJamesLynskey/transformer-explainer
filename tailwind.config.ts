@@ -2,7 +2,10 @@ import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: ["./src/**/*.{ts,tsx,mdx}", "./content/**/*.{md,mdx}"],
-  darkMode: "class",
+  // Follow the OS setting (CLAUDE.md §5: "default is system preference").
+  // This was "class", but nothing ever set the class, so every `dark:`
+  // variant was dead and the site was light-only.
+  darkMode: "media",
   theme: {
     extend: {
       fontFamily: {

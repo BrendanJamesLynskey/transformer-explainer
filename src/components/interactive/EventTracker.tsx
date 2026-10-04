@@ -16,26 +16,7 @@
  */
 import { useEffect } from "react";
 
-const SESSION_KEY = "te.sessionId";
-
-function getOrCreateSessionId(): string {
-  try {
-    const existing = window.localStorage.getItem(SESSION_KEY);
-    if (existing) return existing;
-  } catch {
-    /* localStorage may be disabled — fall through */
-  }
-  const fresh =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `s_${Math.random().toString(36).slice(2)}_${Date.now()}`;
-  try {
-    window.localStorage.setItem(SESSION_KEY, fresh);
-  } catch {
-    /* ignore — sessionId still works for this tab via the closure below */
-  }
-  return fresh;
-}
+import { getOrCreateSessionId } from "./analyticsSession";
 
 type Kind = "page_view" | "widget_interact" | "section_complete" | "exp_view";
 

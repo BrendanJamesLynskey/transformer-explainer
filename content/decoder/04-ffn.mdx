@@ -29,21 +29,23 @@ softly zeroes most of the bars.
 
 <Layer kind="maths">
 
-For one position with input `x` (a `d_model`-dimensional vector):
+For one position with input $x \in \mathbb{R}^{d_{\text{model}}}$:
 
-```
-pre  = x · W1 + b1                       // [d_ff]
-act  = GELU(pre)                         // [d_ff]
-out  = act · W2 + b2                     // [d_model]
-```
+$$
+\begin{aligned}
+\text{pre} &= x W_1 + b_1 && [d_{\text{ff}}] \\
+\text{act} &= \operatorname{GELU}(\text{pre}) && [d_{\text{ff}}] \\
+\text{out} &= \text{act}\, W_2 + b_2 && [d_{\text{model}}]
+\end{aligned}
+$$
 
 We use the _tanh approximation_ of GELU (the variant GPT-2 uses):
 
-```
-GELU(x) ≈ 0.5 · x · (1 + tanh(√(2/π) · (x + 0.044715 · x³)))
-```
+$$
+\operatorname{GELU}(x) \approx \tfrac{1}{2}\, x \left(1 + \tanh\!\left(\sqrt{2/\pi}\,\left(x + 0.044715\, x^{3}\right)\right)\right)
+$$
 
-The same `W1, b1, W2, b2` are applied at every sequence position
+The same $W_1, b_1, W_2, b_2$ are applied at every sequence position
 independently — that's why we say "position-wise". Mathematically this
 is identical to a 1-D convolution with a kernel size of 1.
 

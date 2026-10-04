@@ -9,11 +9,19 @@ import { and, count, desc, eq, gte, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { comments, events, experiments, users } from "@/lib/db/schema";
+import { runOrFallback } from "@/lib/db-fallback";
 
-import type { Ingest } from "./analytics-shared";
+import {
+  SESSION_HEADER,
+  buildServerEvent,
+  serverEventSessionId,
+  type EventKind,
+  type Ingest,
+} from "./analytics-shared";
 
 export {
   EVENT_KIND,
+  SESSION_HEADER,
   _resetRateLimitForTest,
   ingestSchema,
   rateLimitOk,
@@ -33,6 +41,38 @@ export async function recordEvents(
   }));
   await db.insert(events).values(rows);
   return rows.length;
+}
+
+/**
+ * Record one event from inside an API route — used for actions the server
+ * sees directly (a comment posted, a progress upsert) rather than trusting
+ * the client to beacon them. Best-effort: a failed insert is counted by
+ * `db-fallback` and never fails the user's request.
+ *
+ * @param req      The incoming request; its {@link SESSION_HEADER} ties the
+ *                 event to the client's analytics session.
+ * @param userId   The signed-in user who acted.
+ */
+export async function recordServerEvent(
+  req: Request,
+  userId: string,
+  kind: EventKind,
+  sectionSlug: string,
+  meta?: Record<string, unknown>,
+): Promise<void> {
+  const sessionId = serverEventSessionId(
+    req.headers.get(SESSION_HEADER),
+    userId,
+  );
+  await runOrFallback(
+    `events:${kind}`,
+    () =>
+      recordEvents(
+        userId,
+        buildServerEvent(sessionId, kind, sectionSlug, meta),
+      ),
+    0,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -66,6 +106,10 @@ export type SectionFunnelRow = {
   views: number;
   interacts: number;
   completes: number;
+  /** Comments posted on the section (`comment_post`, server-recorded). */
+  comments: number;
+  /** Signed-in users whose progress reached `completed` (`progress_update`). */
+  progressCompleted: number;
 };
 
 /**
@@ -80,6 +124,8 @@ export async function sectionFunnel(): Promise<SectionFunnelRow[]> {
       views: sql<number>`count(*) filter (where ${events.kind} = 'page_view')::int`,
       interacts: sql<number>`count(*) filter (where ${events.kind} = 'widget_interact')::int`,
       completes: sql<number>`count(*) filter (where ${events.kind} = 'section_complete')::int`,
+      comments: sql<number>`count(*) filter (where ${events.kind} = 'comment_post')::int`,
+      progressCompleted: sql<number>`count(distinct ${events.userId}) filter (where ${events.kind} = 'progress_update' and ${events.metaJson}->>'stored' = 'completed')::int`,
     })
     .from(events)
     .where(sql`${events.sectionSlug} is not null`)
@@ -88,6 +134,26 @@ export async function sectionFunnel(): Promise<SectionFunnelRow[]> {
   return rows
     .filter((r): r is SectionFunnelRow => r.sectionSlug !== null)
     .map((r) => ({ ...r, sectionSlug: r.sectionSlug }));
+}
+
+export type EventKindCount = { kind: string; count: number };
+
+/**
+ * How many events of each kind arrived in the last `days` days, most
+ * frequent first. A kind that never shows up here is a kind nothing is
+ * recording — the quickest way to spot a broken tracker.
+ */
+export async function eventCounts(days: number): Promise<EventKindCount[]> {
+  const since = new Date(Date.now() - days * 24 * 3600 * 1000);
+  return db
+    .select({
+      kind: events.kind,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(events)
+    .where(gte(events.createdAt, since))
+    .groupBy(events.kind)
+    .orderBy(desc(sql`count(*)`));
 }
 
 export type TopExperiment = {

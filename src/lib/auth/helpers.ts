@@ -95,3 +95,39 @@ export function isAdmin(
   if (!login) return false;
   return allowList.has(login.toLowerCase());
 }
+
+/**
+ * Where to send the user after sign-in, from the `callbackUrl` query
+ * parameter. Only same-site paths are allowed: anything else (an absolute
+ * URL, a protocol-relative `//evil.example`, a backslash trick) falls back
+ * to `/`, so the sign-in page can't be used as an open redirect. Auth.js
+ * applies its own same-origin check later; this keeps the page honest too.
+ */
+export function safeCallbackUrl(raw: string | string[] | undefined): string {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value || !value.startsWith("/")) return "/";
+  if (value.startsWith("//") || value.includes("\\")) return "/";
+  return value;
+}
+
+/**
+ * Human-readable text for an Auth.js `?error=` code on the sign-in page.
+ * Returns null when there is no error. Unknown codes get a generic line;
+ * the code itself is shown alongside so a bug report can quote it.
+ */
+export function signInErrorMessage(
+  code: string | string[] | undefined,
+): string | null {
+  const value = Array.isArray(code) ? code[0] : code;
+  if (!value) return null;
+  switch (value) {
+    case "OAuthAccountNotLinked":
+      return "That email address is already linked to a different sign-in. Sign in the way you did before.";
+    case "AccessDenied":
+      return "Sign-in was cancelled or refused.";
+    case "Configuration":
+      return "The server's sign-in configuration has a problem. Please try again later.";
+    default:
+      return "Sign-in didn't complete. Please try again.";
+  }
+}

@@ -47,6 +47,10 @@ export default defineConfig({
         "src/lib/comments.ts",
         "src/lib/progress.ts",
         "src/lib/analytics.ts",
+        // Health check: one SQL query plus a timeout race. The comparison
+        // logic lives in health-shared.ts and is unit-tested there; this
+        // half is exercised by the e2e health spec against a real Postgres.
+        "src/lib/health.ts",
       ],
       thresholds: {
         // CLAUDE.md §8 mandates 100% line coverage for src/lib/transformer/.

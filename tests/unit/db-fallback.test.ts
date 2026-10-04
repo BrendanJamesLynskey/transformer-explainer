@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { runOrFallback } from "@/lib/db-fallback";
+import {
+  _resetFallbackStatsForTest,
+  fallbackStats,
+  runOrFallback,
+} from "@/lib/db-fallback";
 
 describe("runOrFallback", () => {
   it("returns the resolved value when fn succeeds", async () => {
@@ -36,5 +40,32 @@ describe("runOrFallback", () => {
     }
     expect(warn).toHaveBeenCalledOnce();
     warn.mockRestore();
+  });
+});
+
+describe("fallbackStats", () => {
+  it("counts every fallback per key, even when the warning is throttled", async () => {
+    _resetFallbackStatsForTest();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const fail = async (): Promise<number> => {
+      throw new Error("db down");
+    };
+    await runOrFallback("stats:a", fail, 0);
+    await runOrFallback("stats:a", fail, 0);
+    await runOrFallback("stats:b", fail, 0);
+    await runOrFallback("stats:ok", async () => 1, 0);
+    warn.mockRestore();
+
+    const stats = fallbackStats();
+    expect(stats.map((s) => [s.key, s.count]).sort()).toEqual([
+      ["stats:a", 2],
+      ["stats:b", 1],
+    ]);
+    for (const s of stats) expect(() => new Date(s.lastAt)).not.toThrow();
+  });
+
+  it("is empty when nothing has fallen back", () => {
+    _resetFallbackStatsForTest();
+    expect(fallbackStats()).toEqual([]);
   });
 });

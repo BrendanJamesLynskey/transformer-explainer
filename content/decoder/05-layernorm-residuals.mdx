@@ -42,25 +42,28 @@ sub-layer (pre-norm). Pre-norm trains more stably and is what we use.
 
 <Layer kind="maths">
 
-For an input vector `x` of length `d`:
+For an input vector $x \in \mathbb{R}^{d}$:
 
-```
-μ      = mean(x)                                 // scalar
-σ²     = mean((x − μ)²)                          // population variance
-LN(x)  = γ · (x − μ) / √(σ² + ε) + β             // length-d vector
-```
+$$
+\mu = \frac{1}{d}\sum_{i=1}^{d} x_i, \qquad
+\sigma^2 = \frac{1}{d}\sum_{i=1}^{d} (x_i - \mu)^2, \qquad
+\operatorname{LN}(x) = \gamma \odot \frac{x - \mu}{\sqrt{\sigma^2 + \varepsilon}} + \beta
+$$
 
-with ε = 1e-5 for numerical stability. γ and β are learned vectors of
-length `d`, applied elementwise.
+with $\varepsilon = 10^{-5}$ for numerical stability and $\sigma^2$ the
+population variance. $\gamma$ and $\beta$ are learned vectors of length
+$d$, applied elementwise ($\odot$).
 
 The pre-norm decoder block is then
 
-```
-h  = x + MultiHeadAttention(LN(x))
-y  = h + FFN(LN(h))
-```
+$$
+\begin{aligned}
+h &= x + \operatorname{MultiHeadAttention}\big(\operatorname{LN}(x)\big) \\
+y &= h + \operatorname{FFN}\big(\operatorname{LN}(h)\big)
+\end{aligned}
+$$
 
-…and stacking blocks just iterates this `N` times.
+…and stacking blocks just iterates this $N$ times.
 
 </Layer>
 

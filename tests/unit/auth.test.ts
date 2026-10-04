@@ -8,6 +8,8 @@ import {
   enrichSession,
   isAdmin,
   mapGitHubProfile,
+  safeCallbackUrl,
+  signInErrorMessage,
 } from "@/lib/auth/helpers";
 
 describe("mapGitHubProfile", () => {
@@ -94,5 +96,43 @@ describe("isAdmin", () => {
     expect(isAdmin(null, allow)).toBe(false);
     expect(isAdmin(undefined, allow)).toBe(false);
     expect(isAdmin("", allow)).toBe(false);
+  });
+});
+
+describe("safeCallbackUrl", () => {
+  it("keeps same-site paths", () => {
+    expect(safeCallbackUrl("/learn/03-attention?x=1")).toBe(
+      "/learn/03-attention?x=1",
+    );
+    expect(safeCallbackUrl(["/playground", "/admin"])).toBe("/playground");
+  });
+
+  it("falls back to / for anything that could leave the site", () => {
+    for (const bad of [
+      undefined,
+      "",
+      "https://evil.example/",
+      "//evil.example",
+      "/\\evil.example",
+      "javascript:alert(1)",
+    ]) {
+      expect(safeCallbackUrl(bad)).toBe("/");
+    }
+  });
+});
+
+describe("signInErrorMessage", () => {
+  it("is null without an error", () => {
+    expect(signInErrorMessage(undefined)).toBeNull();
+    expect(signInErrorMessage("")).toBeNull();
+  });
+
+  it("explains the known codes and has a generic fallback", () => {
+    expect(signInErrorMessage("OAuthAccountNotLinked")).toMatch(
+      /already linked/,
+    );
+    expect(signInErrorMessage(["AccessDenied"])).toMatch(/cancelled/);
+    expect(signInErrorMessage("Configuration")).toMatch(/configuration/);
+    expect(signInErrorMessage("CallbackRouteError")).toMatch(/didn't complete/);
   });
 });

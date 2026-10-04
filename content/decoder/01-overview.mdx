@@ -25,20 +25,22 @@ trust. Every operation has a widget you can poke at.
 
 <Layer kind="maths">
 
-The decoder defines a function `f : Z^S → R^(S×V)`, where `S` is the
-sequence length and `V` is the vocabulary size. For each position `i`,
-`f(x)_i` is a vector of unnormalised log-probabilities — "logits" — over the
-next-token distribution.
+The decoder defines a function $f : \mathbb{Z}^{S} \to \mathbb{R}^{S \times V}$,
+where $S$ is the sequence length and $V$ is the vocabulary size. For each
+position $i$, $f(x)_i \in \mathbb{R}^{V}$ is a vector of unnormalised
+log-probabilities — "logits" — over the next-token distribution.
 
-Internally, `f` is built from `N` identical blocks, each composed of a
+Internally, $f$ is built from $N$ identical blocks, each composed of a
 masked multi-head self-attention sub-layer and a position-wise
 feed-forward sub-layer, both wrapped in a residual connection and a
 LayerNorm:
 
-```
-Block(x) = x + Attn(LN_1(x))      // residual around attention
-Block(h) = h + FFN(LN_2(h))       // residual around ffn
-```
+$$
+\begin{aligned}
+h &= x + \operatorname{Attn}\big(\operatorname{LN}_1(x)\big) && \text{residual around attention} \\
+y &= h + \operatorname{FFN}\big(\operatorname{LN}_2(h)\big) && \text{residual around the FFN}
+\end{aligned}
+$$
 
 The pre-norm placement — LayerNorm _before_ each sub-layer — is the choice
 GPT-2 made. It trains more stably than the original post-norm in

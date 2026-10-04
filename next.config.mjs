@@ -11,6 +11,11 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     typedRoutes: true,
+    // Comment rendering sanitises with isomorphic-dompurify, which runs jsdom
+    // on the server. Bundled by webpack, jsdom can't find its own
+    // `default-stylesheet.css`, so every comment list containing a visible
+    // comment returned 500. Loading both from node_modules fixes that.
+    serverComponentsExternalPackages: ["isomorphic-dompurify", "jsdom"],
   },
   // The site moved from Vercel's auto-assigned transformer-explainer-three.vercel.app to
   // transformer-decoder-explained.vercel.app (the GitHub OAuth callback now points there).
