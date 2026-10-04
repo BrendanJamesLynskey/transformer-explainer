@@ -42,7 +42,7 @@ export default async function LearnIndex(): Promise<JSX.Element> {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
-      <p className="font-mono text-xs uppercase tracking-widest text-accent">
+      <p className="font-mono text-xs uppercase tracking-widest text-accent dark:text-indigo-300">
         /learn
       </p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">
@@ -58,7 +58,7 @@ export default async function LearnIndex(): Promise<JSX.Element> {
         {status.map((s, i) => (
           <li key={s.slug} className="py-5">
             <div className="flex items-baseline gap-3">
-              <span className="font-mono text-xs text-neutral-500">
+              <span className="font-mono text-xs text-neutral-500 dark:text-neutral-400">
                 {String(i + 1).padStart(2, "0")}
               </span>
               {s.ready ? (

@@ -57,7 +57,7 @@ export async function SiteHeader(): Promise<JSX.Element> {
           {admin && (
             <Link
               href="/admin"
-              className="focus-ring rounded px-2 py-1 text-accent hover:underline"
+              className="focus-ring rounded px-2 py-1 text-accent hover:underline dark:text-indigo-300"
             >
               Admin
             </Link>
@@ -71,7 +71,7 @@ export async function SiteHeader(): Promise<JSX.Element> {
               >
                 Sign out
                 {login ? (
-                  <span className="ml-2 font-mono text-xs text-neutral-500">
+                  <span className="ml-2 font-mono text-xs text-neutral-500 dark:text-neutral-400">
                     @{login}
                   </span>
                 ) : null}

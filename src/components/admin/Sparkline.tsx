@@ -16,7 +16,7 @@ export function Sparkline({
 }): JSX.Element {
   if (points.length === 0) {
     return (
-      <p className="font-mono text-xs text-neutral-500">
+      <p className="font-mono text-xs text-neutral-500 dark:text-neutral-400">
         no events in window — interact with a page to populate
       </p>
     );
@@ -46,7 +46,7 @@ export function Sparkline({
           fill="none"
           stroke="currentColor"
           strokeWidth="1.5"
-          className="text-accent"
+          className="text-accent dark:text-indigo-300"
         />
         {points.map((p, i) => (
           <circle
@@ -62,7 +62,7 @@ export function Sparkline({
           </circle>
         ))}
       </svg>
-      <figcaption className="font-mono text-[11px] text-neutral-500">
+      <figcaption className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400">
         {points[0]?.day} → {points.at(-1)?.day} · peak {max}
       </figcaption>
     </figure>

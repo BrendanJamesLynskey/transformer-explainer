@@ -56,7 +56,7 @@ export function LayerNormWidget(): JSX.Element {
         </Panel>
       </div>
 
-      <p className="mt-4 text-xs text-neutral-500">
+      <p className="mt-4 text-xs text-neutral-500 dark:text-neutral-400">
         Notice how γ scales the spread and β shifts the centre. With γ=1 and β=0
         the output has zero mean and (very nearly) unit variance.
       </p>
@@ -83,7 +83,7 @@ function Slider({
     <label className="flex flex-col gap-1 text-sm">
       <span className="flex justify-between font-medium text-neutral-700 dark:text-neutral-300">
         {label}
-        <span className="font-mono text-xs text-neutral-500">
+        <span className="font-mono text-xs text-neutral-500 dark:text-neutral-400">
           {value.toFixed(1)}
         </span>
       </span>
@@ -115,7 +115,11 @@ function Panel({
       <h4 className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
         {title}
       </h4>
-      {subtitle && <p className="text-xs text-neutral-500">{subtitle}</p>}
+      {subtitle && (
+        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+          {subtitle}
+        </p>
+      )}
       <div className="mt-2">{children}</div>
     </div>
   );

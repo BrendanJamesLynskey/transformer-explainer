@@ -224,7 +224,7 @@ export function AttentionWidget(): JSX.Element {
 
           {hoverRow !== null && headData.weights[hoverRow] && (
             <div className="rounded border border-neutral-200 bg-white p-3 text-sm lg:col-span-2 dark:border-neutral-800 dark:bg-neutral-950">
-              <p className="text-xs uppercase tracking-widest text-neutral-500">
+              <p className="text-xs uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
                 Query row {hoverRow}
                 {data.tokens[hoverRow] && (
                   <>
@@ -249,7 +249,9 @@ export function AttentionWidget(): JSX.Element {
                       key={key}
                       className="rounded bg-neutral-100 px-2 py-1 font-mono text-xs dark:bg-neutral-900"
                     >
-                      <span className="text-neutral-500">k{key}</span>
+                      <span className="text-neutral-500 dark:text-neutral-400">
+                        k{key}
+                      </span>
                       <span className="mx-1 text-neutral-400">·</span>
                       <span>{visibleToken(data.tokens[key] ?? "?")}</span>
                       <span className="mx-1 text-neutral-400">·</span>
@@ -263,7 +265,9 @@ export function AttentionWidget(): JSX.Element {
       )}
 
       {pending && !data && (
-        <p className="mt-4 text-sm text-neutral-500">Computing…</p>
+        <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">
+          Computing…
+        </p>
       )}
     </div>
   );
@@ -283,7 +287,9 @@ function Panel({
       <h4 className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
         {title}
       </h4>
-      <p className="text-xs text-neutral-500">{subtitle}</p>
+      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        {subtitle}
+      </p>
       <div className="mt-2 overflow-x-auto">{children}</div>
     </div>
   );

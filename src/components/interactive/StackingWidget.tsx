@@ -136,7 +136,7 @@ export function StackingWidget(): JSX.Element {
               <h4 className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
                 Block {blockIdx} · head 0 weights
               </h4>
-              <p className="text-xs text-neutral-500">
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
                 Notice how each block&apos;s attention pattern can specialise
                 differently — even with random weights, the rows differ from
                 block to block because each layer sees a different residual

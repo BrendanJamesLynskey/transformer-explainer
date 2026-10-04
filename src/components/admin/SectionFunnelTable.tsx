@@ -22,7 +22,7 @@ function pct(num: number, denom: number): string {
 export function SectionFunnelTable({ rows }: { rows: Row[] }): JSX.Element {
   if (rows.length === 0) {
     return (
-      <p className="font-mono text-xs text-neutral-500">
+      <p className="font-mono text-xs text-neutral-500 dark:text-neutral-400">
         no section events yet
       </p>
     );
@@ -33,7 +33,7 @@ export function SectionFunnelTable({ rows }: { rows: Row[] }): JSX.Element {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="text-left">
-          <tr className="border-b border-neutral-200 text-xs uppercase tracking-wide text-neutral-500 dark:border-neutral-800">
+          <tr className="border-b border-neutral-200 text-xs uppercase tracking-wide text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
             <th className="py-2 pr-4">Section</th>
             <th className="py-2 pr-4">Views</th>
             <th className="py-2 pr-4">Interacted</th>
@@ -55,13 +55,13 @@ export function SectionFunnelTable({ rows }: { rows: Row[] }): JSX.Element {
               </td>
               <td className="py-2 pr-4 tabular-nums">
                 {r.interacts}{" "}
-                <span className="text-xs text-neutral-500">
+                <span className="text-xs text-neutral-500 dark:text-neutral-400">
                   ({pct(r.interacts, r.views)})
                 </span>
               </td>
               <td className="py-2 pr-4 tabular-nums">
                 {r.completes}{" "}
-                <span className="text-xs text-neutral-500">
+                <span className="text-xs text-neutral-500 dark:text-neutral-400">
                   ({pct(r.completes, r.views)})
                 </span>
               </td>
