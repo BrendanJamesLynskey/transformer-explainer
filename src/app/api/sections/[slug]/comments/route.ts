@@ -3,8 +3,15 @@
  *
  *   GET  → list (anyone). Hidden comments are still returned but with a
  *          stripped body — the section UI renders a "[hidden]" placeholder.
- *   POST → create (auth required). One-level threading enforced. Each
- *          stored comment is also recorded as a `comment_post` event.
+ *   POST → create (auth required). One-level threading enforced. The body
+ *          is rendered *before* it is stored, so a rendering failure can
+ *          never leave a saved comment behind a 500 (the client would show
+ *          an error, the user would post again, and the section would fill
+ *          with duplicates). Each stored comment is also recorded as a
+ *          `comment_post` event.
+ *
+ * Both handlers answer `{ ok: false, error }` JSON on failure, never a bare
+ * 500 page (CLAUDE.md §5 → Errors).
  */
 import { NextResponse } from "next/server";
 
@@ -21,10 +28,10 @@ import { runOrFallback } from "@/lib/db-fallback";
 import { isValidSlug } from "@/lib/mdx/sections";
 
 export const runtime = "nodejs";
-// `isomorphic-dompurify` initialises jsdom at import time. Skip Next's
-// build-time route data collection (which evaluates the module in a
-// stripped environment that breaks jsdom's stylesheet lookup).
+// The list changes whenever someone posts: never cache or prerender it.
 export const dynamic = "force-dynamic";
+
+const RENDER_FAILED = "Couldn't render the comments. Please try again later.";
 
 export async function GET(
   _req: Request,
@@ -44,15 +51,23 @@ export async function GET(
     () => listForSection(ctx.params.slug),
     [],
   );
-  const data = rows.map((c) => ({
-    id: c.id,
-    parentId: c.parentId,
-    userId: c.userId,
-    createdAt: c.createdAt,
-    hidden: c.hidden,
-    bodyHtml: c.hidden ? "" : renderCommentHtml(c.bodyMd),
-  }));
-  return NextResponse.json({ ok: true, data });
+  try {
+    const data = rows.map((c) => ({
+      id: c.id,
+      parentId: c.parentId,
+      userId: c.userId,
+      createdAt: c.createdAt,
+      hidden: c.hidden,
+      bodyHtml: c.hidden ? "" : renderCommentHtml(c.bodyMd),
+    }));
+    return NextResponse.json({ ok: true, data });
+  } catch (err) {
+    console.error("[comments] render failed (list)", err);
+    return NextResponse.json(
+      { ok: false, error: RENDER_FAILED },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(
@@ -97,6 +112,18 @@ export async function POST(
     );
   }
 
+  // Render first: if this throws, nothing has been stored yet.
+  let bodyHtml: string;
+  try {
+    bodyHtml = renderCommentHtml(parsed.data.body);
+  } catch (err) {
+    console.error("[comments] render failed (post)", err);
+    return NextResponse.json(
+      { ok: false, error: "Couldn't render your comment, so it wasn't saved." },
+      { status: 500 },
+    );
+  }
+
   const created = await create(userId, ctx.params.slug, parsed.data);
   // Into the analytics stream for /admin. Recorded here, not beaconed by the
   // client, so it counts exactly the comments that were actually stored.
@@ -113,7 +140,7 @@ export async function POST(
         userId: created.userId,
         createdAt: created.createdAt,
         hidden: created.hidden,
-        bodyHtml: renderCommentHtml(created.bodyMd),
+        bodyHtml,
       },
     },
     { status: 201 },

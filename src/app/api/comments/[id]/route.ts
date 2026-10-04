@@ -2,6 +2,8 @@
  * PATCH /api/comments/[id]
  *
  * Owners may edit `body`. Admins may additionally toggle `hidden`.
+ * A new body is rendered before the update, so a rendering failure leaves
+ * the stored comment unchanged.
  */
 import { NextResponse } from "next/server";
 
@@ -9,8 +11,6 @@ import { auth, isAdmin } from "@/lib/auth";
 import { renderCommentHtml, update, updateCommentSchema } from "@/lib/comments";
 
 export const runtime = "nodejs";
-// See note in /api/sections/[slug]/comments/route.ts — jsdom (via
-// isomorphic-dompurify) breaks Next's build-time route data collection.
 export const dynamic = "force-dynamic";
 
 export async function PATCH(
@@ -38,6 +38,20 @@ export async function PATCH(
       { status: 400 },
     );
   }
+  // Render the new body (if any) before touching the database.
+  let newBodyHtml: string | null = null;
+  try {
+    if (parsed.data.body !== undefined) {
+      newBodyHtml = renderCommentHtml(parsed.data.body);
+    }
+  } catch (err) {
+    console.error("[comments] render failed (edit)", err);
+    return NextResponse.json(
+      { ok: false, error: "Couldn't render your edit, so it wasn't saved." },
+      { status: 500 },
+    );
+  }
+
   const login = (session?.user as { githubLogin?: string | null } | undefined)
     ?.githubLogin;
   const updated = await update(
@@ -55,12 +69,22 @@ export async function PATCH(
       { status: 404 },
     );
   }
+  let bodyHtml = "";
+  if (!updated.hidden) {
+    try {
+      bodyHtml = newBodyHtml ?? renderCommentHtml(updated.bodyMd);
+    } catch (err) {
+      // Only reachable when an admin un-hides a comment whose stored body
+      // no longer renders; the change is saved, so say so.
+      console.error("[comments] render failed (unhide)", err);
+      return NextResponse.json(
+        { ok: false, error: "Saved, but the comment couldn't be rendered." },
+        { status: 500 },
+      );
+    }
+  }
   return NextResponse.json({
     ok: true,
-    data: {
-      id: updated.id,
-      hidden: updated.hidden,
-      bodyHtml: updated.hidden ? "" : renderCommentHtml(updated.bodyMd),
-    },
+    data: { id: updated.id, hidden: updated.hidden, bodyHtml },
   });
 }

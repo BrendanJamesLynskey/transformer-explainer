@@ -45,6 +45,11 @@ test.describe("comments + progress", () => {
     // Posted comment renders.
     await expect(page.getByText(body)).toBeVisible({ timeout: 5_000 });
 
+    // ...and still renders after a reload, which goes through the list GET
+    // and the server-side sanitiser (the path that 500'd in production).
+    await page.reload();
+    await expect(page.getByText(body)).toBeVisible({ timeout: 10_000 });
+
     // /learn server-renders a progress badge for the section we visited.
     // Either "in progress" or "✓ done" is acceptable — short sections can
     // complete on first visit (scroll past 80% + interaction).

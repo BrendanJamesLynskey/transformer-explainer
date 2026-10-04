@@ -344,20 +344,65 @@ can't happen again. Follow them for **every** production deploy.
    ```
 
 3. **Smoke-check.** `/api/health` must report a reachable database with a
-   `current` schema, and every public page must answer 200:
+   `current` schema, every public page must answer 200, and one section's
+   comment list must answer 200 with at least one rendered comment:
 
    ```bash
    pnpm smoke https://transformer-decoder-explained.vercel.app
+   # another section:  … --comments-section 01-overview
+   # skip the check:   … --comments-section none
    ```
 
    It exits non-zero on any failure. A `behind` or `none` schema means
-   step 1 was skipped: run `pnpm db:migrate` now.
+   step 1 was skipped: run `pnpm db:migrate` now. The comments check
+   defaults to `07-sampling`, which holds a real comment; if that comment
+   is ever deleted or hidden, point the check at a section that has one
+   (an empty list never runs the sanitiser, so it proves nothing).
 
 4. **Read the logs** for the first requests:
 
    ```bash
    vercel logs --environment production --since 15m --no-branch --expand
    ```
+
+   On the Hobby plan the CLI only reaches back about an hour. For older
+   errors, use the Vercel dashboard's Logs → Errors view (or the Vercel
+   MCP `get_runtime_errors` tool), which keeps grouped errors for days.
+
+### Why a green CI can still 500 on Vercel (2026-10-04)
+
+Phase 11 sanitised comments with `isomorphic-dompurify`, which loads jsdom
+on the server. jsdom's `html-encoding-sniffer@6` `require()`s the ES-module-
+only `@exodus/bytes`. Plain Node 20.19+ / 22.12+ can `require()` an ES
+module, so `pnpm build && pnpm start` worked locally and in CI, with posted
+comments and all e2e tests passing. Vercel's function runtime loads modules
+through its own loader, which can't, so **every comment list with a visible
+comment, and every POST, returned 500 in production** (`ERR_REQUIRE_ESM`).
+Production had no comments until the owner posted one, so nothing noticed.
+
+Fixes and guards:
+
+- Comments are sanitised with the unified pipeline (`remark` → `rehype` →
+  `rehype-sanitize`), which webpack bundles; no jsdom on the server, and
+  no `serverComponentsExternalPackages`.
+- The comment routes render **before** they write, so a render failure
+  can't store a comment and then 500; the client shows any non-OK or
+  non-JSON reply and keeps the draft.
+- CI's e2e server runs `next start` under
+  `node --no-experimental-require-module`, which makes Node refuse
+  `require()` of an ES module as Vercel's runtime does. Checked on
+  2026-10-04: the Phase 11 build answers the comment list with 200 under
+  plain `next start` and with 500 `ERR_REQUIRE_ESM` under the flag. The
+  e2e suite posts a comment and reloads the list, so the same class of
+  bug now fails CI.
+- `pnpm smoke` fetches a real comment list after every deploy (step 3).
+
+A `vercel build` alone wouldn't have caught it: it compiles the same
+bundle; the failure is in the runtime's module loader, not the build.
+Server dependencies that pull in ES-module-only packages through
+`require()` are the risk; prefer packages webpack can bundle, and don't add
+them to `serverComponentsExternalPackages` unless they're plain CommonJS
+all the way down.
 
 `/admin` shows the same health result, plus how often this server instance
 has served a database fallback. A healthy check next to a non-zero

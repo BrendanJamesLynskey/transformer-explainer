@@ -20,7 +20,14 @@ export default defineConfig({
   ],
   webServer: process.env.CI
     ? {
-        command: "pnpm build && pnpm start -p 3000",
+        // `--no-experimental-require-module` makes Node refuse to require()
+        // an ES module, as Vercel's function runtime does. Plain Node 20.19+
+        // / 22.12+ allows it, which is how a server dependency that crashed
+        // every comment list in production (jsdom → ESM-only @exodus/bytes,
+        // 2026-10-04) passed this suite. With the flag, such a dependency
+        // fails here instead.
+        command:
+          "pnpm build && node --no-experimental-require-module node_modules/next/dist/bin/next start -p 3000",
         url: "http://localhost:3000",
         reuseExistingServer: false,
         timeout: 120_000,

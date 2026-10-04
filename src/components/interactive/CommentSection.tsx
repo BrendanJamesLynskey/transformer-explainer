@@ -4,8 +4,19 @@
  * Per-section comments UI. Lists existing comments (top-level + replies)
  * and renders a textarea for new ones. Sanitised HTML comes from the
  * server; we never render raw user input.
+ *
+ * Every failure is shown inline: a list that can't load says so (instead of
+ * looking like an empty section), and a post that fails keeps the draft in
+ * the textarea and explains why. Responses go through `readApiResponse`, so
+ * even a non-JSON 500 becomes a message rather than an uncaught rejection.
  */
 import { useEffect, useState } from "react";
+
+import {
+  networkErrorMessage,
+  readApiResponse,
+  type ApiResult,
+} from "@/lib/api-response";
 
 import { jsonHeadersWithSession } from "./analyticsSession";
 
@@ -32,15 +43,26 @@ export function CommentSection({
   const [parentId, setParentId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const res = await fetch(`/api/sections/${sectionSlug}/comments`);
-      const json = (await res.json()) as
-        | { ok: true; data: CommentRow[] }
-        | { ok: false; error: string };
-      if (!cancelled && json.ok) setComments(json.data);
+      const action = "load the comments";
+      let result: ApiResult<CommentRow[]>;
+      try {
+        const res = await fetch(`/api/sections/${sectionSlug}/comments`);
+        result = await readApiResponse<CommentRow[]>(res, action);
+      } catch {
+        result = { ok: false, error: networkErrorMessage(action) };
+      }
+      if (cancelled) return;
+      if (result.ok) {
+        setComments(result.data);
+        setLoadError(null);
+      } else {
+        setLoadError(result.error);
+      }
     })();
     return () => {
       cancelled = true;
@@ -51,24 +73,30 @@ export function CommentSection({
     if (!signedIn || !body.trim() || busy) return;
     setBusy(true);
     setError(null);
+    const action = "post your comment";
     try {
-      const res = await fetch(`/api/sections/${sectionSlug}/comments`, {
-        method: "POST",
-        headers: jsonHeadersWithSession(),
-        body: JSON.stringify({
-          body,
-          ...(parentId ? { parentId } : {}),
-        }),
-      });
-      const json = (await res.json()) as
-        | { ok: true; data: CommentRow }
-        | { ok: false; error: string };
-      if (json.ok) {
-        setComments((prev) => [...prev, json.data]);
+      let result: ApiResult<CommentRow>;
+      try {
+        const res = await fetch(`/api/sections/${sectionSlug}/comments`, {
+          method: "POST",
+          headers: jsonHeadersWithSession(),
+          body: JSON.stringify({
+            body,
+            ...(parentId ? { parentId } : {}),
+          }),
+        });
+        result = await readApiResponse<CommentRow>(res, action);
+      } catch {
+        result = { ok: false, error: networkErrorMessage(action) };
+      }
+      if (result.ok) {
+        const created = result.data;
+        setComments((prev) => [...prev, created]);
         setBody("");
         setParentId(null);
       } else {
-        setError(json.error);
+        // The draft stays in the textarea so nothing typed is lost.
+        setError(result.error);
       }
     } finally {
       setBusy(false);
@@ -84,12 +112,20 @@ export function CommentSection({
         Comments
       </h2>
 
-      {topLevel.length === 0 ? (
+      {loadError ? (
+        <p
+          role="alert"
+          className="mt-4 text-sm text-red-700 dark:text-red-300"
+          data-testid="comments-load-error"
+        >
+          {loadError}
+        </p>
+      ) : topLevel.length === 0 ? (
         <p className="mt-4 text-sm text-neutral-500">
           Be the first to leave a comment on this section.
         </p>
       ) : (
-        <ol className="mt-4 space-y-4">
+        <ol className="mt-4 space-y-4" data-testid="comments-list">
           {topLevel.map((c) => (
             <li
               key={c.id}
@@ -155,6 +191,7 @@ export function CommentSection({
               <p
                 role="alert"
                 className="text-sm text-red-700 dark:text-red-300"
+                data-testid="comment-post-error"
               >
                 {error}
               </p>
