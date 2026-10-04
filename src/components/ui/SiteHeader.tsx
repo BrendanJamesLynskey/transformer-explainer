@@ -11,6 +11,8 @@ import Link from "next/link";
 import { getSession, isAdmin, signOut } from "@/lib/auth";
 import { runOrFallback } from "@/lib/db-fallback";
 
+import { SiteSwitch } from "./SiteSwitch";
+
 async function signOutAction() {
   "use server";
   await signOut({ redirectTo: "/" });
@@ -51,6 +53,7 @@ export async function SiteHeader(): Promise<JSX.Element> {
           >
             About
           </Link>
+          <SiteSwitch current="decoder" />
           {admin && (
             <Link
               href="/admin"

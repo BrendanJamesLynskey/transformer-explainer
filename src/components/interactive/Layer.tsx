@@ -32,7 +32,7 @@ export function Layer({
       data-layer={kind}
       className={`te-layer my-6 border-l-4 ${ACCENTS[kind]} pl-4`}
     >
-      <p className="font-mono text-[0.65rem] uppercase tracking-widest text-neutral-500">
+      <p className="font-mono text-[0.65rem] uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
         {LABELS[kind]}
       </p>
       <div className="mt-1">{children}</div>
