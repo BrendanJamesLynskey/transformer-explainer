@@ -13,6 +13,8 @@ concurrency:
 # Jobs are added phase-by-phase as their prerequisites land:
 #   - Phase 1 added `verify-maths` (needs src/lib/transformer/* and fixtures).
 #   - Phase 2 added `e2e-tests` (needs Drizzle schema + auth + a home page).
+#   - Phase 11 added `lighthouse` (Lighthouse CI: performance, accessibility
+#     and best practices must each score >= 90; see lighthouserc.json).
 
 jobs:
   lint-and-typecheck:
@@ -132,4 +134,58 @@ jobs:
         with:
           name: playwright-report
           path: playwright-report/
+          retention-days: 7
+
+  lighthouse:
+    name: Lighthouse
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, unit-tests]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: transformer_explainer_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    # Production-like: no E2E credentials provider, real `pnpm build`.
+    env:
+      DATABASE_URL: postgres://test:test@localhost:5432/transformer_explainer_test
+      AUTH_SECRET: test-secret-do-not-use-in-production-test-secret
+      AUTH_GITHUB_ID: test
+      AUTH_GITHUB_SECRET: test
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      ADMIN_GITHUB_LOGINS: testadmin
+      AUTH_TRUST_HOST: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm version comes from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm build
+      # Starts `pnpm start`, audits `/`, `/learn` and `/learn/03-attention`
+      # three times each, and fails on any category below 0.9.
+      - run: pnpm lighthouse
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          include-hidden-files: true
           retention-days: 7

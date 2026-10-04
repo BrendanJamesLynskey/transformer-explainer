@@ -49,3 +49,6 @@ drizzle/.cache/
 __pycache__/
 
 .vercel
+
+# Lighthouse CI output
+.lighthouseci/

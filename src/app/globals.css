@@ -25,6 +25,23 @@
   body {
     @apply bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100;
   }
+
+  /* Code blocks scroll sideways on narrow screens rather than widening the
+   * page. (The `prose` classes on the lesson pages come from no plugin, so
+   * nothing else sets this.) */
+  pre {
+    @apply overflow-x-auto;
+  }
+}
+
+/* Display maths (KaTeX, rendered on the server for the Maths layer) scrolls
+ * sideways on narrow screens too. Deliberately outside `@layer`: the class
+ * only appears in generated HTML, so Tailwind would tree-shake it from a
+ * layer. */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
 }
 
 @layer components {

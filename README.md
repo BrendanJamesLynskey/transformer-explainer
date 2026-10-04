@@ -44,7 +44,9 @@ full-stack reference application.
 - Toggle three layers — **Concept / Maths / Code** — inside any section to
   control how deep the explanation goes.
 - Run the full pipeline end-to-end on `/playground` with named-seed presets.
-- Sign in with GitHub to **save** a configuration as an experiment, share
+- Read the Maths layer as typeset equations (KaTeX), in light or dark
+  mode (the site follows your system setting).
+- Sign in with GitHub (at `/signin`) to **save** a configuration as an experiment, share
   the URL, and let others **fork** it to their own account.
 - Drop a comment on any section (Markdown, sanitised server-side).
 - Track per-section progress automatically (scroll + interaction).
@@ -159,6 +161,10 @@ and the seed script. Full list:
 `src/lib/env.ts` validates with Zod at boot. In production all secrets
 are required; in development they're optional and the app degrades
 gracefully (DB-backed features silently no-op, see `lib/db-fallback.ts`).
+Because that fallback is silent, `GET /api/health` reports whether the
+database answers and whether it has every migration in `drizzle/`
+(HTTP 503 if not), and `/admin` shows the same check plus a count of
+fallbacks served.
 
 ## Deploy to Vercel
 
@@ -176,9 +182,15 @@ gracefully (DB-backed features silently no-op, see `lib/db-fallback.ts`).
    include your Vercel URL.
 6. **Seed (optional).** From a machine with the prod `DATABASE_URL`,
    `pnpm db:seed`.
+7. **Smoke-check.** `pnpm smoke https://<your-vercel-url>` checks
+   `/api/health` and every public page, and exits non-zero on any failure.
 
 The first deploy from `main` will go live at the URL Vercel prints.
 Subsequent merges deploy automatically; PR pushes get preview URLs.
+
+**Every later deploy that changes the schema:** run `pnpm db:migrate`
+against production _before_ deploying, then `pnpm smoke` after. The full
+checklist the live site uses is in [`RUNBOOK.md` §7](RUNBOOK.md).
 
 ## Testing
 
@@ -190,6 +202,8 @@ pnpm test                  # Vitest unit
 pnpm test:coverage         # …with thresholds enforced (100% lines on lib/transformer/)
 pnpm test:e2e              # Playwright (boots `pnpm dev` itself)
 pnpm verify:maths          # cross-check TS ops vs. PyTorch fixtures
+pnpm lighthouse            # Lighthouse CI on a `pnpm build` (needs Chrome)
+pnpm smoke <url>           # post-deploy check of /api/health + every page
 ```
 
 E2E runs against a real `pnpm dev` server with the seeded test database;
@@ -236,14 +250,26 @@ scripts/                  seed-db, verify-maths, capture-screenshots, reference.
 - **Server-rendered MDX.** Each `/learn/[slug]` page is a Server
   Component; the three-layer Concept / Maths / Code visibility is driven
   by `data-*` attributes on `<html>` and pure CSS, so the SEO-friendly
-  HTML carries every layer.
+  HTML carries every layer. The Maths layer is LaTeX, rendered by
+  `remark-math` + `rehype-katex` on the server, so no KaTeX JavaScript
+  reaches the browser.
+- **A landing page with no client JavaScript of its own.** The attention
+  heatmap on `/` is computed on the server by `lib/transformer` (the same
+  path as `/api/compute/attention`) and drawn as static SVG.
 - **Pre-norm decoder block** (`x → x + Attn(LN(x)); h → h + FFN(LN(h))`)
   matches GPT-2 conventions; sinusoidal positional encoding follows
   Vaswani 2017.
 - **Monotonic progress upsert.** A SQL `CASE` clause prevents a returning
   visit from regressing a `completed` row to `in_progress`.
 - **Anonymous-friendly analytics.** Events carry a stable `localStorage`
-  session id, so DAU has a denominator without requiring auth.
+  session id, so DAU has a denominator without requiring auth. Comments
+  and progress updates are recorded by the server (`comment_post`,
+  `progress_update`) under the same session id, so `/admin` counts what
+  was actually stored.
+- **Health check that refuses to fall back.** `/api/health` is the one DB
+  read that doesn't go through `runOrFallback`; it compares
+  `drizzle.__drizzle_migrations` with `drizzle/meta/_journal.json` and
+  returns only statuses and error codes, never connection details.
 
 ## References
 
@@ -260,7 +286,10 @@ scripts/                  seed-db, verify-maths, capture-screenshots, reference.
 
 PRs welcome. The CI pipeline runs `lint`, `typecheck`, `format:check`,
 `test`, `verify:maths`, and `test:e2e` against a service-container
-Postgres. Coverage thresholds:
+Postgres, plus Lighthouse CI, which fails if performance, accessibility or
+best practices scores below 90 on `/`, `/learn` or `/learn/03-attention`.
+`main` is branch-protected: those checks must pass before a change lands.
+Coverage thresholds:
 
 - `src/lib/transformer/`: **100% lines / functions / statements**, 80%
   branches.

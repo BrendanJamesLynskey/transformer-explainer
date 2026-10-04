@@ -223,7 +223,7 @@ export function AttentionWidget(): JSX.Element {
           </Panel>
 
           {hoverRow !== null && headData.weights[hoverRow] && (
-            <div className="rounded border border-neutral-200 bg-white p-3 text-sm dark:border-neutral-800 dark:bg-neutral-950 lg:col-span-2">
+            <div className="rounded border border-neutral-200 bg-white p-3 text-sm lg:col-span-2 dark:border-neutral-800 dark:bg-neutral-950">
               <p className="text-xs uppercase tracking-widest text-neutral-500">
                 Query row {hoverRow}
                 {data.tokens[hoverRow] && (

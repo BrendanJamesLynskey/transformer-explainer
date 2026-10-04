@@ -2,10 +2,12 @@
  * /api/progress
  *
  *   GET  → current user's whole progress map (auth).
- *   POST → upsert one section's status (auth, monotonic).
+ *   POST → upsert one section's status (auth, monotonic), and record a
+ *          `progress_update` analytics event.
  */
 import { NextResponse } from "next/server";
 
+import { recordServerEvent } from "@/lib/analytics";
 import { auth } from "@/lib/auth";
 import { listForUser, upsert, upsertProgressSchema } from "@/lib/progress";
 
@@ -44,5 +46,14 @@ export async function POST(req: Request): Promise<Response> {
     );
   }
   const row = await upsert(userId, parsed.data.sectionSlug, parsed.data.status);
+  // Into the analytics stream for /admin. `stored` can differ from the
+  // requested status: the upsert never moves `completed` back.
+  await recordServerEvent(
+    req,
+    userId,
+    "progress_update",
+    parsed.data.sectionSlug,
+    { status: parsed.data.status, stored: row.status },
+  );
   return NextResponse.json({ ok: true, data: row });
 }

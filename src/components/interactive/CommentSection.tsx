@@ -7,6 +7,8 @@
  */
 import { useEffect, useState } from "react";
 
+import { jsonHeadersWithSession } from "./analyticsSession";
+
 type CommentRow = {
   id: string;
   parentId: string | null;
@@ -52,7 +54,7 @@ export function CommentSection({
     try {
       const res = await fetch(`/api/sections/${sectionSlug}/comments`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: jsonHeadersWithSession(),
         body: JSON.stringify({
           body,
           ...(parentId ? { parentId } : {}),

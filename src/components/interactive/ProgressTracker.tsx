@@ -14,13 +14,15 @@
  */
 import { useEffect } from "react";
 
+import { jsonHeadersWithSession } from "./analyticsSession";
+
 async function postProgress(
   sectionSlug: string,
   status: "in_progress" | "completed",
 ) {
   await fetch("/api/progress", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: jsonHeadersWithSession(),
     body: JSON.stringify({ sectionSlug, status }),
   }).catch(() => undefined);
 }

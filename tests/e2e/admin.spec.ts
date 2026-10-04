@@ -58,6 +58,49 @@ test.describe("admin", () => {
     await expect(page.getByText("02-embeddings").first()).toBeVisible();
   });
 
+  test("comment and progress events reach the stream and /admin", async ({
+    page,
+  }) => {
+    await signInAs(page, "testadmin");
+    const section = "04-ffn";
+
+    // Landing on a section as a signed-in user fires the progress upsert;
+    // the server records it as a `progress_update` event.
+    const progressDone = page.waitForResponse(
+      (r) =>
+        r.url().includes("/api/progress") && r.request().method() === "POST",
+    );
+    await page.goto(`/learn/${section}`);
+    await progressDone;
+
+    // Posting a comment is recorded server-side as `comment_post`.
+    const body = `Analytics check ${Date.now()}`;
+    await page.getByLabel(/comment body/i).fill(body);
+    await page.getByRole("button", { name: /^Post$/ }).click();
+    await expect(page.getByText(body)).toBeVisible({ timeout: 5_000 });
+
+    const res = await page.request.get("/api/admin/metrics");
+    expect(res.status()).toBe(200);
+    const json = (await res.json()) as {
+      data: {
+        kinds: { kind: string; count: number }[];
+        funnel: { sectionSlug: string; comments: number }[];
+      };
+    };
+    const count = (kind: string) =>
+      json.data.kinds.find((k) => k.kind === kind)?.count ?? 0;
+    expect(count("comment_post")).toBeGreaterThan(0);
+    expect(count("progress_update")).toBeGreaterThan(0);
+    const row = json.data.funnel.find((r) => r.sectionSlug === section);
+    expect(row?.comments ?? 0).toBeGreaterThan(0);
+
+    await page.goto("/admin", { waitUntil: "domcontentloaded" });
+    const kinds = page.getByTestId("kinds-card");
+    await expect(kinds).toContainText("comment_post");
+    await expect(kinds).toContainText("progress_update");
+    await expect(page.getByTestId("health-status")).toContainText("healthy");
+  });
+
   test("non-admin gets 403 on /api/admin/metrics", async ({ page }) => {
     await signInAs(page, "alice");
     const res = await page.request.get("/api/admin/metrics");

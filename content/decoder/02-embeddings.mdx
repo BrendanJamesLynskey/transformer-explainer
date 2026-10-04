@@ -26,23 +26,26 @@ position only, not on what you typed).
 
 <Layer kind="maths">
 
-Let `E` be the embedding table — a `V × d` matrix, with `V` rows (one per
-token) and `d` columns (the model dimension). For an input sequence of
-token ids `x = (x_1, …, x_S)`, the lookup gives one row per position:
+Let $E \in \mathbb{R}^{V \times d}$ be the embedding table, with $V$ rows
+(one per token) and $d$ columns (the model dimension). For an input
+sequence of token ids $x = (x_1, \dots, x_S)$, the lookup gives one row per
+position:
 
-```
-Emb(x)_i = E[x_i]      ∈ R^d
-```
+$$
+\operatorname{Emb}(x)_i = E[x_i] \in \mathbb{R}^{d}
+$$
 
 The sinusoidal positional encoding (Vaswani et al. 2017, §3.5) is the
-matrix `PE` of shape `S × d` with entries
+matrix $PE \in \mathbb{R}^{S \times d}$ with entries
 
-```
-PE[pos, 2i]   = sin(pos / 10000^(2i / d))
-PE[pos, 2i+1] = cos(pos / 10000^(2i / d))
-```
+$$
+\begin{aligned}
+PE[\mathit{pos}, 2i]   &= \sin\!\left(\mathit{pos} / 10000^{2i/d}\right) \\
+PE[\mathit{pos}, 2i+1] &= \cos\!\left(\mathit{pos} / 10000^{2i/d}\right)
+\end{aligned}
+$$
 
-The block-0 input is the elementwise sum of the two: `X = E[x] + PE`.
+The block-0 input is the elementwise sum of the two: $X = E[x] + PE$.
 
 </Layer>
 

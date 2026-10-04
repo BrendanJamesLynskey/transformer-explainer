@@ -119,10 +119,11 @@ export const authConfig: NextAuthConfig = {
   // build flips strategy. Production stays on database sessions so revoking
   // a session row immediately logs the user out.
   session: { strategy: e2eAuthEnabled ? "jwt" : "database" },
-  // No `pages.signIn` override — Auth.js v5's default `/api/auth/signin`
-  // handler auto-redirects to the only configured provider (GitHub) for
-  // production. Pointing `pages.signIn` *at* the handler caused a redirect
-  // loop on the deployed site.
+  // The site's own sign-in page (src/app/signin/page.tsx). Auth.js sends
+  // users there when it needs a sign-in, and back there with `?error=` when
+  // one fails. (An earlier attempt pointed `pages.signIn` at Auth.js's own
+  // `/api/auth/signin` handler, which looped; a real page doesn't.)
+  pages: { signIn: "/signin", error: "/signin" },
   callbacks: {
     /** Stamp the user with GitHub metadata on first sign-in. */
     async signIn({ user, profile }) {

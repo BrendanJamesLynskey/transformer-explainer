@@ -2,18 +2,14 @@
  * Site-wide header.
  *
  * Server Component. Reads the current session via `auth()` and renders a
- * sign-in or sign-out button driven by Server Actions. Phase 3 will add the
+ * link to the `/signin` page, or a sign-out button driven by a Server
+ * Action. Phase 3 will add the
  * three-layer-toggle and theme switcher next to the auth controls.
  */
 import Link from "next/link";
 
-import { getSession, isAdmin, signIn, signOut } from "@/lib/auth";
+import { getSession, isAdmin, signOut } from "@/lib/auth";
 import { runOrFallback } from "@/lib/db-fallback";
-
-async function signInAction() {
-  "use server";
-  await signIn("github", { redirectTo: "/" });
-}
 
 async function signOutAction() {
   "use server";
@@ -29,14 +25,14 @@ export async function SiteHeader(): Promise<JSX.Element> {
 
   return (
     <header className="border-b border-neutral-200 dark:border-neutral-800">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
         <Link
           href="/"
           className="focus-ring rounded font-mono text-sm font-medium tracking-tight"
         >
           transformer-explainer
         </Link>
-        <nav className="flex items-center gap-3 text-sm">
+        <nav className="flex flex-wrap items-center gap-1 text-sm sm:gap-3">
           <Link
             href="/learn"
             className="focus-ring rounded px-2 py-1 text-neutral-700 hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-white"
@@ -79,14 +75,12 @@ export async function SiteHeader(): Promise<JSX.Element> {
               </button>
             </form>
           ) : (
-            <form action={signInAction}>
-              <button
-                type="submit"
-                className="focus-ring rounded bg-accent px-3 py-1 text-accent-fg hover:opacity-90"
-              >
-                Sign in with GitHub
-              </button>
-            </form>
+            <Link
+              href="/signin"
+              className="focus-ring rounded bg-accent px-3 py-1 text-accent-fg hover:opacity-90"
+            >
+              Sign in
+            </Link>
           )}
         </nav>
       </div>

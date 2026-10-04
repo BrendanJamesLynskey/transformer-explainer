@@ -7,15 +7,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { HealthCard } from "@/components/admin/HealthCard";
 import { Sparkline } from "@/components/admin/Sparkline";
 import { SectionFunnelTable } from "@/components/admin/SectionFunnelTable";
 import {
   dailyActive,
+  eventCounts,
   recentComments,
   sectionFunnel,
   topExperiments,
 } from "@/lib/analytics";
 import { auth, isAdmin } from "@/lib/auth";
+import { fallbackStats } from "@/lib/db-fallback";
+import { checkHealth } from "@/lib/health";
 
 export const dynamic = "force-dynamic";
 
@@ -30,11 +34,13 @@ export default async function AdminPage(): Promise<JSX.Element> {
     ?.githubLogin;
   if (!isAdmin(login)) notFound();
 
-  const [dau, funnel, top, comments] = await Promise.all([
+  const [health, dau, funnel, top, comments, kinds] = await Promise.all([
+    checkHealth(),
     dailyActive(60),
     sectionFunnel(),
     topExperiments(10),
     recentComments(10),
+    eventCounts(30),
   ]);
 
   return (
@@ -51,6 +57,11 @@ export default async function AdminPage(): Promise<JSX.Element> {
         </p>
       </header>
 
+      <section data-testid="health-card" className="space-y-3">
+        <h2 className="text-lg font-medium">Database health</h2>
+        <HealthCard report={health} fallbacks={fallbackStats()} />
+      </section>
+
       <section data-testid="dau-card" className="space-y-3">
         <h2 className="text-lg font-medium">Daily active sessions</h2>
         <Sparkline points={dau} />
@@ -62,6 +73,22 @@ export default async function AdminPage(): Promise<JSX.Element> {
           Views → Interacted → Completed. Anonymous-inclusive.
         </p>
         <SectionFunnelTable rows={funnel} />
+      </section>
+
+      <section data-testid="kinds-card" className="space-y-3">
+        <h2 className="text-lg font-medium">Events by kind (30 days)</h2>
+        {kinds.length === 0 ? (
+          <p className="font-mono text-xs text-neutral-500">no events yet</p>
+        ) : (
+          <ul className="grid grid-cols-1 gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
+            {kinds.map((k) => (
+              <li key={k.kind} className="flex justify-between gap-4">
+                <span className="font-mono text-xs">{k.kind}</span>
+                <span className="tabular-nums">{k.count}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section data-testid="top-card" className="space-y-3">

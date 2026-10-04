@@ -56,13 +56,15 @@ human will review at the end of the run.
 
 **Follow-ups:**
 
-- [ ] Phase 1: re-add the `verify-maths` CI job and remove the
-      `scripts/verify-maths.ts` exclusion from `tsconfig.json`.
-- [ ] Phase 3 (or earliest with auth + pages): re-add the `e2e-tests` CI
+- [x] Phase 1: re-add the `verify-maths` CI job and remove the
+      `scripts/verify-maths.ts` exclusion from `tsconfig.json`. (Both jobs
+      are in `ci.yml`; confirmed 2026-10-04.)
+- [x] Phase 3 (or earliest with auth + pages): re-add the `e2e-tests` CI
       job once a seedable schema and at least one page exist.
-- [ ] Human: enable branch protection on `main` after the run completes:
-      require status checks, require linear history, require PR review.
-      See `gh api` docs for the full payload.
+- [x] Human: enable branch protection on `main` after the run completes.
+      Done in Phase 11 with the owner's chosen settings: required CI
+      checks, no force-pushes, admin enforcement off (no PR-review or
+      linear-history requirement).
 
 ---
 
@@ -118,6 +120,9 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 - [ ] Phase 4: build `src/lib/transformer/__demos__/` Storybook-style pages
       under `/learn/_demos/<viz-name>` (CLAUDE.md §5 → D3 → "self-contained
       demo page"). Keep them dev-only via `NODE_ENV !== 'production'`.
+      **Skipped in Phase 11** (optional there). Note for whoever builds it:
+      App Router treats `_`-prefixed folders as private (not routed), so
+      the folder must be `%5Fdemos` to serve `/learn/_demos/…`.
 
 ---
 
@@ -162,12 +167,13 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 
 **Follow-ups:**
 
-- [ ] Phase 3+: build a custom sign-in page once the `(marketing)` route
+- [x] Phase 3+: build a custom sign-in page once the `(marketing)` route
       group exists, so the GitHub-only provider doesn't have to bounce
-      through the Auth.js default page.
-- [ ] Manual smoke test: real GitHub OAuth round trip. Documented as a
-      README step in Phase 10. Today's e2e covers the Credentials path.
-- [ ] Human (still): enable branch protection on `main` after the run.
+      through the Auth.js default page. (Phase 11: `/signin`.)
+- [x] Manual smoke test: real GitHub OAuth round trip. Confirmed by the
+      owner on 2026-10-04, after the issuer fix (see "Production notes").
+- [x] Human (still): enable branch protection on `main` after the run.
+      (Phase 11.)
 
 ---
 
@@ -210,9 +216,11 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 
 **Follow-ups:**
 
-- [ ] Phase 10: KaTeX-render the Maths layer once `remark-math` is in.
+- [x] Phase 10: KaTeX-render the Maths layer once `remark-math` is in.
+      (Phase 11.)
 - [ ] Phase 4+: per-viz dev-only demos under `/learn/_demos/<viz>`
-      (CLAUDE.md §5 → D3 → Storybook-style demo pages).
+      (CLAUDE.md §5 → D3 → Storybook-style demo pages). Skipped in
+      Phase 11; see the Phase 1 follow-up.
 
 ---
 
@@ -392,9 +400,10 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 
 **Follow-ups:**
 
-- [ ] Phase 9: surface comment / progress events in the analytics stream so
+- [x] Phase 9: surface comment / progress events in the analytics stream so
       the admin dashboard can show recent comments + per-section funnel
-      drop-off.
+      drop-off. (Phase 11: `comment_post` / `progress_update` events,
+      "Events by kind" card, funnel columns.)
 
 ---
 
@@ -451,6 +460,7 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 
 - [ ] Phase 10: a small dev panel that surfaces /admin metrics inline on
       `/playground` would help during the README screenshot capture.
+      Skipped in Phase 11 (optional there).
 
 ---
 
@@ -460,8 +470,10 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 - [x] About page with credits and references.
 - [x] Motion-reduction toggle; `prefers-reduced-motion` honoured.
 - [x] axe-core in CI; zero serious/critical violations.
-- [ ] Lighthouse ≥ 90 (perf, a11y, best-practices) on `/`,
-      `/learn/03-attention`, `/playground`.
+- [x] Lighthouse ≥ 90 (perf, a11y, best-practices) on `/`,
+      `/learn/03-attention`, `/playground`. (Phase 11 measured and
+      enforces `/`, `/learn` and `/learn/03-attention`, the pages the
+      Phase 11 brief named; `/playground` isn't in the LHCI set.)
 - [x] Live on Vercel; setup documented.
 
 **Plan:**
@@ -498,7 +510,149 @@ CI: re-enable `verify-maths` job; drop `scripts/verify-maths.ts` from
 
 **Follow-ups:**
 
-- [ ] Add `@lhci/cli` in CI so the Lighthouse threshold is enforced
-      rather than asserted.
-- [ ] After the first Vercel deploy, paste the live URL into the README
-      hero section.
+- [x] Add `@lhci/cli` in CI so the Lighthouse threshold is enforced
+      rather than asserted. (Phase 11: `lighthouse` job.)
+- [x] After the first Vercel deploy, paste the live URL into the README
+      hero section. (https://transformer-decoder-explained.vercel.app)
+
+**Production notes (2026-10-04):**
+
+- **Domain move.** The site moved from Vercel's auto-assigned
+  `transformer-explainer-three.vercel.app` to
+  `transformer-decoder-explained.vercel.app`. The GitHub OAuth app's
+  callback points at the new host, and a host-based 308 in
+  `next.config.mjs` sends old links (path and query kept) there
+  (1b3da66, 77a8e26).
+- **Issuer fix.** Real GitHub sign-in failed with `unexpected "iss"`:
+  GitHub now sends `iss` (RFC 9207) and this Auth.js beta defaulted the
+  GitHub issuer to a placeholder. Fixed with
+  `issuer: "https://github.com/login/oauth"` (72c2e16); the owner then
+  confirmed a real sign-in.
+- **Production migration.** The production Neon branch had never had the
+  schema applied; `db-fallback` had been serving empty data, so nothing
+  looked broken. Migrated (`pnpm db:migrate`, 8 tables) and seeded from
+  local. Phase 11's `/api/health` and smoke check exist so this is caught
+  immediately next time.
+- Deploys go through the Vercel CLI from a clean `git archive` export (the
+  project isn't on Vercel's Git integration); see RUNBOOK.md §7.
+
+---
+
+## Phase 11 — Production hardening and polish (2026-10-04)
+
+Follow-up brief after go-live: make database failures visible, finish the
+open Phase 3 / 9 / 10 boxes, and lock `main`.
+
+- [x] `/api/health` (DB reachability + schema version vs
+      `drizzle/meta/_journal.json`), fallback use on `/admin`,
+      migrate-before-deploy RUNBOOK step (§7), post-deploy smoke script
+      (`pnpm smoke <url>`).
+- [x] Maths layer rendered with KaTeX (`remark-math` + `rehype-katex`).
+- [x] Polished landing page with a static visualisation preview.
+- [x] Custom `/signin` page (GitHub only) replacing Auth.js's default page.
+- [x] Lighthouse ≥ 90 (perf, a11y, best practices) on `/`, `/learn`,
+      `/learn/03-attention`; `@lhci/cli` enforcing it in CI.
+- [x] Comment and progress events in the analytics stream and on `/admin`.
+- [ ] Branch protection on `main`.
+- [ ] Optional: dev-only viz demo pages and the inline admin dev panel —
+      skipped (see Follow-ups).
+
+**Plan:**
+
+- `src/lib/health.ts` — pure `compareSchema(applied, journal)` (unit-tested)
+  plus a `checkHealth()` that queries `drizzle.__drizzle_migrations`
+  directly (deliberately _not_ through `runOrFallback`).
+  `src/app/api/health/route.ts` returns `{ ok, data }`, HTTP 503 when the DB
+  is down or the schema is behind; error detail is reduced to a Postgres
+  error code, never a message or URL.
+- `src/lib/db-fallback.ts` — count each fallback per key (in-memory, per
+  server instance) and expose a snapshot; `/admin` shows the health result
+  and the fallback table.
+- `scripts/smoke-check.ts` (`pnpm smoke <url>`) — curls `/api/health` and the
+  public pages, exits non-zero on any failure. RUNBOOK gains a "Deploying"
+  section: migrate production first, deploy, then smoke.
+- KaTeX: `remark-math` + `rehype-katex` passed to `MDXRemote`'s
+  `mdxOptions`; KaTeX CSS imported by the `/learn/[slug]` route only. The
+  Maths layers move from code blocks + Unicode to `$…$` / `$$…$$`.
+  Rendering is server-side, so no KaTeX JS reaches the client.
+- Dark mode: Tailwind `darkMode` from `class` to `media`. Nothing ever set
+  the `dark` class, so every `dark:` variant was dead and the site was
+  light-only despite CLAUDE.md §5's "default is system preference".
+- Landing page: hero, a server-rendered SVG of real attention weights
+  (computed by `lib/transformer` at render time, no client JS), and the
+  three entry points.
+- `/signin` page with a Server Action calling `signIn("github")`;
+  `pages.signIn` and `pages.error` point at it; the header button becomes a
+  link to it carrying `callbackUrl`.
+- Analytics: new `progress_update` kind; the comments and progress routes
+  record `comment_post` / `progress_update` server-side (best-effort, never
+  failing the user's request), tagged with the client's analytics session
+  id when sent. `/admin` gets an "Events by kind" card and funnel columns
+  for comments and completions.
+- LHCI: `lighthouserc.json` + a `lighthouse` CI job against
+  `pnpm build && pnpm start`.
+
+**Results:**
+
+- Lighthouse, local `pnpm build` + `pnpm start`, default (mobile) preset,
+  median of 3 runs — performance / accessibility / best practices:
+  `/` 100 / 100 / 96, `/learn` 100 / 95 / 96, `/learn/03-attention`
+  99 / 94 / 96.
+- `/` ships 187 B of page JavaScript (94.1 kB first load, all shared).
+- Every chapter's Maths layer renders through KaTeX with no raw `$` and
+  no `katex-error` nodes (checked on all seven pages, light and dark).
+
+**Deviations:**
+
+- New runtime dependencies `remark-math`, `rehype-katex` and `katex`
+  (RUNBOOK §3 asks for the owner's nod on shipped dependencies; the Phase 3
+  follow-up and the Phase 11 brief asked for exactly these). Rendering is
+  server-side, so only the KaTeX stylesheet and fonts reach the browser.
+  `@lhci/cli` is a dev dependency.
+- Tailwind `darkMode` changed from `class` to `media`. Nothing set the
+  `dark` class, so every `dark:` variant was dead. The Prettier Tailwind
+  plugin re-sorted one class list (`AttentionWidget.tsx`) as a result.
+- Fixed while verifying (pre-existing bugs that blocked the brief's
+  checks):
+  - the comments list returned 500 whenever a section had a visible
+    comment: webpack bundled jsdom (via `isomorphic-dompurify`), which then
+    couldn't find its `default-stylesheet.css`. `next.config.mjs` now
+    lists both packages in `serverComponentsExternalPackages`;
+  - `/learn/05-layernorm-residuals` threw React hydration error #418:
+    `BarChart`'s SVG `<title>` had several text children. It's now one
+    string;
+  - every lesson page overflowed sideways at 390 px (header nav, code
+    blocks, the title row). The header and title row wrap; `pre` and
+    KaTeX display blocks scroll inside themselves.
+- The header's "Sign in with GitHub" button became a "Sign in" link to
+  `/signin` (one extra click, but the page explains what signing in is
+  for and shows errors).
+- `/api/health` treats a database _ahead_ of the build (a newer migration
+  this build doesn't know) as healthy but reports it; only `behind` and
+  `none` fail.
+- The fallback tally on `/admin` is per server instance and in memory, so
+  it resets on a cold start. A table would need the very database whose
+  failures it is meant to show.
+- Server-recorded events take the client's session id from the
+  `x-te-session` header; without it they're filed under `user:<id>`.
+- LHCI audits `/`, `/learn` and `/learn/03-attention` (the brief's set)
+  rather than SPEC §10's `/playground`.
+
+**Follow-ups:**
+
+- [ ] `CommentSection` throws an uncaught promise rejection when the
+      comments GET returns a non-JSON body (e.g. a 500); it should show an
+      inline error (CLAUDE.md §5 → Errors).
+- [ ] `runOrFallback` also catches Next's internal "dynamic server usage"
+      signal during `next build` (the `[db-fallback] header:auth` lines in
+      the build log). Harmless today because the routes are dynamic
+      anyway, but it should rethrow Next's own errors.
+- [ ] No `@tailwindcss/typography`: the `prose` classes on lesson and
+      about pages do nothing, so MDX headings and paragraph spacing are
+      unstyled.
+- [ ] `AttentionMatrix`, `EmbeddingHeatmap` and `Sparkline` still use
+      multi-child SVG `<title>`s. They render client-side or server-only
+      today, so they don't trip hydration, but they'd break the same way
+      if that changed.
+- [ ] Optional items skipped: dev-only viz demo pages (Phase 1/3/4
+      follow-ups) and the inline admin dev panel (Phase 9 follow-up).

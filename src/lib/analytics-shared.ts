@@ -7,6 +7,10 @@
  */
 import { z } from "zod";
 
+import { SESSION_HEADER } from "./analytics-constants";
+
+export { SESSION_HEADER };
+
 export const EVENT_KIND = [
   "page_view",
   "widget_interact",
@@ -15,6 +19,9 @@ export const EVENT_KIND = [
   "exp_fork",
   "comment_post",
   "section_complete",
+  // Recorded server-side by POST /api/progress (Phase 11); meta.status is
+  // the status the client asked for, meta.stored what the monotonic upsert kept.
+  "progress_update",
 ] as const;
 export type EventKind = (typeof EVENT_KIND)[number];
 
@@ -35,6 +42,43 @@ export const ingestSchema = z.object({
     .max(50),
 });
 export type Ingest = z.infer<typeof ingestSchema>;
+
+// ---------------------------------------------------------------------------
+// Server-recorded events (comments, progress).
+// ---------------------------------------------------------------------------
+
+const SESSION_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
+
+/**
+ * The session id to file a server-recorded event under: the client's id
+ * from {@link SESSION_HEADER} when it looks like one, otherwise a stable
+ * per-user id so the event still counts.
+ */
+export function serverEventSessionId(
+  header: string | null,
+  userId: string,
+): string {
+  if (header && SESSION_ID_RE.test(header)) return header;
+  // Real user ids are UUIDs, but pad and cap anyway so the result always
+  // satisfies ingestSchema's 8–64 characters.
+  return `user:${userId}`.padEnd(8, "_").slice(0, 64);
+}
+
+/**
+ * Build the ingest batch for one server-recorded event. Goes through
+ * {@link ingestSchema} like a client batch, so the two paths can't drift.
+ */
+export function buildServerEvent(
+  sessionId: string,
+  kind: EventKind,
+  sectionSlug: string,
+  meta?: Record<string, unknown>,
+): Ingest {
+  return ingestSchema.parse({
+    sessionId,
+    events: [{ kind, sectionSlug, ...(meta ? { meta } : {}) }],
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Tiny in-memory token bucket. Single-instance only — fine for v1 and
