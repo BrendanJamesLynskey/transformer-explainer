@@ -40,7 +40,7 @@ export function HealthCard({
           Fallbacks served by this server instance
         </h3>
         {fallbacks.length === 0 ? (
-          <p className="mt-1 font-mono text-xs text-neutral-500">
+          <p className="mt-1 font-mono text-xs text-neutral-500 dark:text-neutral-400">
             none since this instance started
           </p>
         ) : (
@@ -48,7 +48,7 @@ export function HealthCard({
             data-testid="fallback-table"
             className="mt-2 w-full text-left text-sm"
           >
-            <thead className="text-xs text-neutral-500">
+            <thead className="text-xs text-neutral-500 dark:text-neutral-400">
               <tr>
                 <th className="py-1 font-normal">Key</th>
                 <th className="py-1 text-right font-normal">Count</th>

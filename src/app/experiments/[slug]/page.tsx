@@ -48,12 +48,12 @@ export default async function ExperimentPage({
     <main className="mx-auto max-w-3xl px-6 py-10">
       <Link
         href="/experiments"
-        className="focus-ring rounded font-mono text-xs uppercase tracking-widest text-accent hover:underline"
+        className="focus-ring rounded font-mono text-xs uppercase tracking-widest text-accent hover:underline dark:text-indigo-300"
       >
         ← /experiments
       </Link>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">{exp.name}</h1>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
         {exp.visibility} · created{" "}
         {new Date(exp.createdAt).toLocaleDateString()} · {exp.viewCount} views
       </p>
@@ -74,7 +74,7 @@ export default async function ExperimentPage({
         <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-xs sm:grid-cols-3">
           {Object.entries(config).map(([k, v]) => (
             <div key={k} className="flex justify-between gap-2">
-              <dt className="text-neutral-500">{k}</dt>
+              <dt className="text-neutral-500 dark:text-neutral-400">{k}</dt>
               <dd>{String(v)}</dd>
             </div>
           ))}
@@ -92,7 +92,7 @@ export default async function ExperimentPage({
           <ForkButton slug={exp.slug} />
         )}
         {isOwner && (
-          <span className="font-mono text-xs text-neutral-500">
+          <span className="font-mono text-xs text-neutral-500 dark:text-neutral-400">
             You own this experiment.
           </span>
         )}

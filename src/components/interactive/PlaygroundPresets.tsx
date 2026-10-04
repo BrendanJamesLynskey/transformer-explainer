@@ -54,7 +54,7 @@ export function PlaygroundPresets(): JSX.Element {
 
   return (
     <div className="mt-6 rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
-      <p className="font-mono text-xs uppercase tracking-widest text-neutral-500">
+      <p className="font-mono text-xs uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
         Show me an example
       </p>
       <div className="mt-2 flex flex-wrap gap-2">

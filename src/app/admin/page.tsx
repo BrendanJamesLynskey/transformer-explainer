@@ -46,7 +46,7 @@ export default async function AdminPage(): Promise<JSX.Element> {
   return (
     <main className="mx-auto max-w-4xl space-y-12 px-6 py-12">
       <header>
-        <p className="font-mono text-xs uppercase tracking-widest text-accent">
+        <p className="font-mono text-xs uppercase tracking-widest text-accent dark:text-indigo-300">
           /admin
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">
@@ -69,7 +69,7 @@ export default async function AdminPage(): Promise<JSX.Element> {
 
       <section data-testid="funnel-card" className="space-y-3">
         <h2 className="text-lg font-medium">Section funnel</h2>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-neutral-500 dark:text-neutral-400">
           Views → Interacted → Completed. Anonymous-inclusive.
         </p>
         <SectionFunnelTable rows={funnel} />
@@ -78,7 +78,9 @@ export default async function AdminPage(): Promise<JSX.Element> {
       <section data-testid="kinds-card" className="space-y-3">
         <h2 className="text-lg font-medium">Events by kind (30 days)</h2>
         {kinds.length === 0 ? (
-          <p className="font-mono text-xs text-neutral-500">no events yet</p>
+          <p className="font-mono text-xs text-neutral-500 dark:text-neutral-400">
+            no events yet
+          </p>
         ) : (
           <ul className="grid grid-cols-1 gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
             {kinds.map((k) => (
@@ -94,7 +96,9 @@ export default async function AdminPage(): Promise<JSX.Element> {
       <section data-testid="top-card" className="space-y-3">
         <h2 className="text-lg font-medium">Top experiments</h2>
         {top.length === 0 ? (
-          <p className="font-mono text-xs text-neutral-500">no experiments</p>
+          <p className="font-mono text-xs text-neutral-500 dark:text-neutral-400">
+            no experiments
+          </p>
         ) : (
           <ol className="space-y-1 text-sm">
             {top.map((e) => (
@@ -105,7 +109,7 @@ export default async function AdminPage(): Promise<JSX.Element> {
                 >
                   {e.name}
                 </Link>
-                <span className="font-mono text-xs text-neutral-500">
+                <span className="font-mono text-xs text-neutral-500 dark:text-neutral-400">
                   {e.slug}
                 </span>
                 <span className="ml-auto tabular-nums text-neutral-600 dark:text-neutral-400">
@@ -120,7 +124,9 @@ export default async function AdminPage(): Promise<JSX.Element> {
       <section data-testid="comments-card" className="space-y-3">
         <h2 className="text-lg font-medium">Recent comments</h2>
         {comments.length === 0 ? (
-          <p className="font-mono text-xs text-neutral-500">no comments yet</p>
+          <p className="font-mono text-xs text-neutral-500 dark:text-neutral-400">
+            no comments yet
+          </p>
         ) : (
           <ul className="space-y-3 text-sm">
             {comments.map((c) => (
@@ -128,7 +134,7 @@ export default async function AdminPage(): Promise<JSX.Element> {
                 key={c.id}
                 className="rounded border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950"
               >
-                <p className="font-mono text-[11px] uppercase tracking-widest text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
                   @{c.authorLogin ?? "unknown"} · {c.sectionSlug} ·{" "}
                   {c.createdAt.toISOString().slice(0, 16).replace("T", " ")}Z
                 </p>

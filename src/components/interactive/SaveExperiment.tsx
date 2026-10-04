@@ -36,7 +36,7 @@ export function SaveExperiment({
 
   if (!signedIn) {
     return (
-      <p className="mt-4 rounded border border-dashed border-neutral-300 px-4 py-3 text-xs text-neutral-500 dark:border-neutral-700">
+      <p className="mt-4 rounded border border-dashed border-neutral-300 px-4 py-3 text-xs text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
         Sign in (top-right) to save experiments.
       </p>
     );

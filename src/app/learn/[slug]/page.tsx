@@ -73,14 +73,16 @@ export default async function SectionPage({
         <div>
           <Link
             href="/learn"
-            className="focus-ring rounded font-mono text-xs uppercase tracking-widest text-accent hover:underline"
+            className="focus-ring rounded font-mono text-xs uppercase tracking-widest text-accent hover:underline dark:text-indigo-300"
           >
             ← /learn
           </Link>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">
             {meta.title}
           </h1>
-          <p className="mt-1 text-sm text-neutral-500">{meta.summary}</p>
+          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+            {meta.summary}
+          </p>
         </div>
         <LayerToggle />
       </div>

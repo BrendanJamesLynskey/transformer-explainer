@@ -121,7 +121,9 @@ export function EmbeddingWidget(): JSX.Element {
                   key={i}
                   className="rounded bg-white px-2 py-1 ring-1 ring-neutral-200 dark:bg-neutral-950 dark:ring-neutral-800"
                 >
-                  <span className="text-neutral-500">{i}</span>
+                  <span className="text-neutral-500 dark:text-neutral-400">
+                    {i}
+                  </span>
                   <span className="mx-1.5 text-neutral-400">→</span>
                   <span>{data.tokenIds[i]}</span>
                   <span className="mx-1.5 text-neutral-400">·</span>
@@ -160,7 +162,9 @@ export function EmbeddingWidget(): JSX.Element {
       )}
 
       {pending && !data && (
-        <p className="mt-4 text-sm text-neutral-500">Computing…</p>
+        <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">
+          Computing…
+        </p>
       )}
     </div>
   );
@@ -180,7 +184,9 @@ function Section({
       <h4 className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
         {title}
       </h4>
-      <p className="text-xs text-neutral-500">{subtitle}</p>
+      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        {subtitle}
+      </p>
       <div className="mt-2 overflow-x-auto">{children}</div>
     </div>
   );

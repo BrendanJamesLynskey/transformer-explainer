@@ -184,7 +184,11 @@ function Panel({
       <h4 className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
         {title}
       </h4>
-      {subtitle && <p className="text-xs text-neutral-500">{subtitle}</p>}
+      {subtitle && (
+        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+          {subtitle}
+        </p>
+      )}
       <div className="mt-2 overflow-x-auto">{children}</div>
     </div>
   );

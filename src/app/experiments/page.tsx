@@ -20,7 +20,7 @@ export default async function ExperimentsIndex(): Promise<JSX.Element> {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
-      <p className="font-mono text-xs uppercase tracking-widest text-accent">
+      <p className="font-mono text-xs uppercase tracking-widest text-accent dark:text-indigo-300">
         /experiments
       </p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">
@@ -32,7 +32,7 @@ export default async function ExperimentsIndex(): Promise<JSX.Element> {
       </p>
 
       {items.length === 0 ? (
-        <p className="mt-12 text-sm text-neutral-500">
+        <p className="mt-12 text-sm text-neutral-500 dark:text-neutral-400">
           No public experiments yet. Be the first — head to the{" "}
           <Link href="/playground" className="underline">
             playground
@@ -52,7 +52,7 @@ export default async function ExperimentsIndex(): Promise<JSX.Element> {
               >
                 {e.name}
               </Link>
-              <p className="mt-1 line-clamp-2 font-mono text-xs text-neutral-500">
+              <p className="mt-1 line-clamp-2 font-mono text-xs text-neutral-500 dark:text-neutral-400">
                 {e.inputText || "(empty input)"}
               </p>
               <p className="mt-2 text-[10px] uppercase tracking-widest text-neutral-400">

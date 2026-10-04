@@ -27,13 +27,13 @@ export default async function AccountPage(): Promise<JSX.Element> {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <p className="font-mono text-xs uppercase tracking-widest text-accent">
+      <p className="font-mono text-xs uppercase tracking-widest text-accent dark:text-indigo-300">
         /account
       </p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">
         {login ? `@${login}` : "Your experiments"}
       </h1>
-      <p className="mt-2 text-sm text-neutral-500">
+      <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
         Saved on this account, newest first. Public ones also show up at{" "}
         <Link href="/experiments" className="underline">
           /experiments
@@ -42,7 +42,7 @@ export default async function AccountPage(): Promise<JSX.Element> {
       </p>
 
       {items.length === 0 ? (
-        <p className="mt-12 text-sm text-neutral-500">
+        <p className="mt-12 text-sm text-neutral-500 dark:text-neutral-400">
           You haven&apos;t saved anything yet. Try the{" "}
           <Link href="/playground" className="underline">
             playground
@@ -59,7 +59,7 @@ export default async function AccountPage(): Promise<JSX.Element> {
               >
                 {e.name}
               </Link>
-              <p className="mt-1 text-xs text-neutral-500">
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                 {e.visibility} · created{" "}
                 {new Date(e.createdAt).toLocaleDateString()} · {e.viewCount}{" "}
                 views

@@ -167,7 +167,7 @@ export function SamplingWidget(): JSX.Element {
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div>
-          <span className="text-xs font-medium uppercase tracking-widest text-neutral-500">
+          <span className="text-xs font-medium uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
             Mode
           </span>
           <div
@@ -263,7 +263,7 @@ export function SamplingWidget(): JSX.Element {
           <h4 className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
             Top-12 logits at position {lastIdx}
           </h4>
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs text-neutral-500 dark:text-neutral-400">
             Higher = more likely next token under temperature 1.
           </p>
           <ol className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -285,7 +285,7 @@ export function SamplingWidget(): JSX.Element {
                 <span className="flex-1">
                   <BarChart values={[row.value]} width={120} rowHeight={12} />
                 </span>
-                <span className="font-mono text-[10px] text-neutral-500">
+                <span className="font-mono text-[10px] text-neutral-500 dark:text-neutral-400">
                   {row.value.toFixed(2)}
                 </span>
               </li>

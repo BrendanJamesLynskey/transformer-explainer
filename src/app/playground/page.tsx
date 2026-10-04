@@ -30,7 +30,7 @@ export default async function PlaygroundPage(): Promise<JSX.Element> {
   const session = await runOrFallback("playground:auth", getSession, null);
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
-      <p className="font-mono text-xs uppercase tracking-widest text-accent">
+      <p className="font-mono text-xs uppercase tracking-widest text-accent dark:text-indigo-300">
         /playground
       </p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">
@@ -73,7 +73,7 @@ function Section({
 }): JSX.Element {
   return (
     <section className="mt-10">
-      <h2 className="font-mono text-sm uppercase tracking-widest text-neutral-500">
+      <h2 className="font-mono text-sm uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
         {title}
       </h2>
       {children}

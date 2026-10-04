@@ -108,7 +108,7 @@ export function CommentSection({
 
   return (
     <section className="mt-12 border-t border-neutral-200 pt-8 dark:border-neutral-800">
-      <h2 className="font-mono text-sm uppercase tracking-widest text-accent">
+      <h2 className="font-mono text-sm uppercase tracking-widest text-accent dark:text-indigo-300">
         Comments
       </h2>
 
@@ -121,7 +121,7 @@ export function CommentSection({
           {loadError}
         </p>
       ) : topLevel.length === 0 ? (
-        <p className="mt-4 text-sm text-neutral-500">
+        <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">
           Be the first to leave a comment on this section.
         </p>
       ) : (
@@ -143,7 +143,7 @@ export function CommentSection({
                 <button
                   type="button"
                   onClick={() => setParentId(c.id)}
-                  className="focus-ring mt-3 rounded text-xs text-accent hover:underline"
+                  className="focus-ring mt-3 rounded text-xs text-accent hover:underline dark:text-indigo-300"
                 >
                   Reply
                 </button>
@@ -162,7 +162,7 @@ export function CommentSection({
                 <button
                   type="button"
                   onClick={() => setParentId(null)}
-                  className="ml-2 text-xs text-neutral-500 underline"
+                  className="ml-2 text-xs text-neutral-500 underline dark:text-neutral-400"
                 >
                   cancel
                 </button>
@@ -199,7 +199,7 @@ export function CommentSection({
           </div>
         </div>
       ) : (
-        <p className="mt-6 rounded border border-dashed border-neutral-300 px-4 py-3 text-xs text-neutral-500 dark:border-neutral-700">
+        <p className="mt-6 rounded border border-dashed border-neutral-300 px-4 py-3 text-xs text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
           Sign in (top-right) to leave a comment.
         </p>
       )}
@@ -216,13 +216,15 @@ function CommentBody({
 }) {
   if (c.hidden) {
     return (
-      <p className="text-sm italic text-neutral-500">[hidden by an admin]</p>
+      <p className="text-sm italic text-neutral-500 dark:text-neutral-400">
+        [hidden by an admin]
+      </p>
     );
   }
   const own = currentUserId === c.userId;
   return (
     <article>
-      <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+      <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
         {own ? "you" : "user"} · {new Date(c.createdAt).toLocaleString()}
       </p>
       <div

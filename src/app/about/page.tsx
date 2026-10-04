@@ -13,7 +13,7 @@ export default function AboutPage(): JSX.Element {
   return (
     <main className="mx-auto max-w-3xl space-y-10 px-6 py-12">
       <header>
-        <p className="font-mono text-xs uppercase tracking-widest text-accent">
+        <p className="font-mono text-xs uppercase tracking-widest text-accent dark:text-indigo-300">
           /about
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">
@@ -58,7 +58,7 @@ export default function AboutPage(): JSX.Element {
             Vaswani et al., 2017 —{" "}
             <a
               href="https://arxiv.org/abs/1706.03762"
-              className="focus-ring rounded text-accent hover:underline"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -72,7 +72,7 @@ export default function AboutPage(): JSX.Element {
             Radford et al., 2019 —{" "}
             <a
               href="https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf"
-              className="focus-ring rounded text-accent hover:underline"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -85,7 +85,7 @@ export default function AboutPage(): JSX.Element {
             Hendrycks &amp; Gimpel, 2016 —{" "}
             <a
               href="https://arxiv.org/abs/1606.08415"
-              className="focus-ring rounded text-accent hover:underline"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -97,7 +97,7 @@ export default function AboutPage(): JSX.Element {
             Andrej Karpathy —{" "}
             <a
               href="https://github.com/karpathy/nanoGPT"
-              className="focus-ring rounded text-accent hover:underline"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -106,7 +106,7 @@ export default function AboutPage(): JSX.Element {
             and{" "}
             <a
               href="https://www.youtube.com/watch?v=kCc8FmEb1nY"
-              className="focus-ring rounded text-accent hover:underline"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -118,7 +118,7 @@ export default function AboutPage(): JSX.Element {
             3blue1brown —{" "}
             <a
               href="https://www.3blue1brown.com/topics/neural-networks"
-              className="focus-ring rounded text-accent hover:underline"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -135,7 +135,7 @@ export default function AboutPage(): JSX.Element {
           MIT. Use the code as a learning resource, fork it, ship it. See{" "}
           <a
             href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/LICENSE"
-            className="focus-ring rounded text-accent hover:underline"
+            className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
             rel="noopener noreferrer"
             target="_blank"
           >
@@ -148,7 +148,7 @@ export default function AboutPage(): JSX.Element {
       <p className="text-sm">
         <Link
           href="/learn"
-          className="focus-ring rounded text-accent hover:underline"
+          className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
         >
           → Start learning
         </Link>

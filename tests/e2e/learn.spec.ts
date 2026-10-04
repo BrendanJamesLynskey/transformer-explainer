@@ -181,3 +181,32 @@ test.describe("learn", () => {
     );
   });
 });
+
+test.describe("companion site", () => {
+  test("the cross-site switch links both sites, this one current", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const nav = page.getByRole("navigation", { name: "Companion sites" });
+    await expect(nav.getByRole("link", { name: "Inference" })).toHaveAttribute(
+      "href",
+      "https://llm-inference-explained.vercel.app",
+    );
+    await expect(nav.getByRole("link", { name: "Decoder" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+  });
+
+  test("the sampling chapter ends with a link to inference time", async ({
+    page,
+  }) => {
+    await page.goto("/learn/07-sampling");
+    await expect(
+      page.getByRole("link", { name: "What happens at inference time →" }),
+    ).toHaveAttribute(
+      "href",
+      "https://llm-inference-explained.vercel.app/learn/01-generation-loop",
+    );
+  });
+});
