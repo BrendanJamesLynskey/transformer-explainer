@@ -183,7 +183,7 @@ test.describe("learn", () => {
 });
 
 test.describe("companion site", () => {
-  test("the cross-site switch links both sites, this one current", async ({
+  test("the cross-site switch links all three sites, this one current", async ({
     page,
   }) => {
     await page.goto("/");
@@ -192,6 +192,9 @@ test.describe("companion site", () => {
       "href",
       "https://llm-inference-explained.vercel.app",
     );
+    await expect(
+      nav.getByRole("link", { name: "Architectures" }),
+    ).toHaveAttribute("href", "https://llm-architectures-explained.vercel.app");
     await expect(nav.getByRole("link", { name: "Decoder" })).toHaveAttribute(
       "aria-current",
       "true",
