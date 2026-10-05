@@ -38,6 +38,13 @@ hub (Transformer Architecture sub-area) and is referenced from the
 [Software](https://github.com/BrendanJamesLynskey/Software) hub as a
 full-stack reference application.
 
+It is the first of three companion sites, linked from every page's header
+("Decoder · Inference · Architectures"):
+[LLM Inference Explained](https://llm-inference-explained.vercel.app/)
+shows how a model is served, and
+[LLM Architectures Explained](https://llm-architectures-explained.vercel.app/)
+how real models' designs differ.
+
 ## What you can do
 
 - Walk through the decoder one operation at a time at `/learn`.
