@@ -197,8 +197,10 @@ test.describe("companion site", () => {
       "href",
       "https://numerics-explained.vercel.app",
     );
-    await expect(nav.getByText("Silicon")).toBeVisible();
-    await expect(nav.getByRole("link", { name: /Silicon/ })).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "Silicon" })).toHaveAttribute(
+      "href",
+      "https://systolic-arrays-explained.vercel.app",
+    );
     await expect(nav.getByRole("link", { name: "Inference" })).toHaveAttribute(
       "href",
       "https://llm-inference-explained.vercel.app",
