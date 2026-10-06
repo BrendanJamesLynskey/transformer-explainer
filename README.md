@@ -40,13 +40,15 @@ full-stack reference application.
 
 It is the first of a family of companion sites, linked from every page's
 header ("Decoder · Inference · Architectures · Kernels · Numerics · Silicon";
-the last two are coming):
+the last is coming):
 [LLM Inference Explained](https://llm-inference-explained.vercel.app/)
 shows how a model is served,
 [LLM Architectures Explained](https://llm-architectures-explained.vercel.app/)
-how real models' designs differ, and
+how real models' designs differ,
 [GPU Kernels Explained](https://gpu-kernels-explained.vercel.app/)
-how a GPU executes the maths.
+how a GPU executes the maths, and
+[Numerics Explained](https://numerics-explained.vercel.app/)
+the number formats and quantisation behind it.
 
 ## What you can do
 

@@ -193,6 +193,10 @@ test.describe("companion site", () => {
       "href",
       "https://gpu-kernels-explained.vercel.app",
     );
+    await expect(nav.getByRole("link", { name: "Numerics" })).toHaveAttribute(
+      "href",
+      "https://numerics-explained.vercel.app",
+    );
     await expect(nav.getByText("Silicon")).toBeVisible();
     await expect(nav.getByRole("link", { name: /Silicon/ })).toHaveCount(0);
     await expect(nav.getByRole("link", { name: "Inference" })).toHaveAttribute(
