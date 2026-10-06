@@ -183,11 +183,18 @@ test.describe("learn", () => {
 });
 
 test.describe("companion site", () => {
-  test("the cross-site switch links all three sites, this one current", async ({
+  test("the six-way site switch links every live site, this one current", async ({
     page,
   }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     const nav = page.getByRole("navigation", { name: "Companion sites" });
+    await expect(nav.getByRole("link", { name: "Kernels" })).toHaveAttribute(
+      "href",
+      "https://gpu-kernels-explained.vercel.app",
+    );
+    await expect(nav.getByText("Silicon")).toBeVisible();
+    await expect(nav.getByRole("link", { name: /Silicon/ })).toHaveCount(0);
     await expect(nav.getByRole("link", { name: "Inference" })).toHaveAttribute(
       "href",
       "https://llm-inference-explained.vercel.app",
@@ -199,6 +206,18 @@ test.describe("companion site", () => {
       "aria-current",
       "true",
     );
+  });
+
+  test("the site switch is a dropdown on phones", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto("/");
+    const compact = page.locator("[data-site-switch='compact']");
+    await expect(compact).toBeVisible();
+    await compact.locator("summary").click();
+    const kernels = compact.getByRole("link", { name: "Kernels" });
+    await expect(kernels).toBeVisible();
+    const box = await kernels.boundingBox();
+    expect(box!.height).toBeGreaterThanOrEqual(44);
   });
 
   test("the sampling chapter ends with a link to inference time", async ({
