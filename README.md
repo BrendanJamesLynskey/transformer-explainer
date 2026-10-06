@@ -38,12 +38,15 @@ hub (Transformer Architecture sub-area) and is referenced from the
 [Software](https://github.com/BrendanJamesLynskey/Software) hub as a
 full-stack reference application.
 
-It is the first of three companion sites, linked from every page's header
-("Decoder · Inference · Architectures"):
+It is the first of a family of companion sites, linked from every page's
+header ("Decoder · Inference · Architectures · Kernels · Numerics · Silicon";
+the last two are coming):
 [LLM Inference Explained](https://llm-inference-explained.vercel.app/)
-shows how a model is served, and
+shows how a model is served,
 [LLM Architectures Explained](https://llm-architectures-explained.vercel.app/)
-how real models' designs differ.
+how real models' designs differ, and
+[GPU Kernels Explained](https://gpu-kernels-explained.vercel.app/)
+how a GPU executes the maths.
 
 ## What you can do
 
