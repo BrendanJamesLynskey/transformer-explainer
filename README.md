@@ -39,7 +39,8 @@ hub (Transformer Architecture sub-area) and is referenced from the
 full-stack reference application.
 
 It is the first of a family of companion sites, linked from every page's
-header ("Decoder · Inference · Architectures · Kernels · Numerics · Silicon"):
+header ("Decoder · Inference · Architectures · Kernels · Numerics · Silicon ·
+Trade-offs"):
 [LLM Inference Explained](https://llm-inference-explained.vercel.app/)
 shows how a model is served,
 [LLM Architectures Explained](https://llm-architectures-explained.vercel.app/)
@@ -47,9 +48,11 @@ how real models' designs differ,
 [GPU Kernels Explained](https://gpu-kernels-explained.vercel.app/)
 how a GPU executes the maths,
 [Numerics Explained](https://numerics-explained.vercel.app/)
-the number formats and quantisation behind it, and
+the number formats and quantisation behind it,
 [Systolic Arrays Explained](https://systolic-arrays-explained.vercel.app/)
-the matrix hardware of TPUs.
+the matrix hardware of TPUs, and
+[Inference Trade-offs Explained](https://inference-tradeoffs-explained.vercel.app/)
+which serving lever helps which metric.
 
 ## What you can do
 
