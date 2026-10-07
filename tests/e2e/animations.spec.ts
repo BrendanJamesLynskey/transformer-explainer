@@ -11,6 +11,10 @@ const ANIMATIONS = [
   ["/learn/02-embeddings", "embedding-animation"],
   ["/learn/03-attention", "attention-animation"],
   ["/learn/04-ffn", "ffn-animation"],
+  ["/learn/05-layernorm-residuals", "layernorm-animation"],
+  ["/learn/06-stacking", "stacking-animation"],
+  ["/learn/07-sampling", "generation-animation"],
+  ["/playground", "playground-generation"],
 ] as const;
 
 async function step(fig: Locator): Promise<number> {

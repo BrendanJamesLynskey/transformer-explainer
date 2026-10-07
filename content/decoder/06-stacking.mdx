@@ -1,3 +1,14 @@
+A decoder is the same block stacked N times, and the residual stream is what runs up the stack. Below, one position's stream gains an attention update and a feed-forward update in each block; after the embedding and after every block, the "logit lens" applies the final LayerNorm and output head early, to show which next character the stream would predict if the model stopped there.
+
+<StackingAnimation>
+  <Eq
+    label="x 0 equals the token embedding plus the positional vector; each block adds an attention update and a feed-forward update, x l plus 1 equals x l plus delta attention plus delta FFN; the logit lens of x l is the softmax of LN f of x l times E transposed, and at the last layer that is the model's output"
+    tex="\begin{gathered} \htmlClass{hl-x0}{x_0 = E[t] + P[p]} \\ \htmlClass{hl-blk}{x_{l+1} = x_l + \Delta^{\text{attn}}_l + \Delta^{\text{ffn}}_l} \\ \htmlClass{hl-lens}{\operatorname{lens}(x_l) = \operatorname{softmax}\big(\operatorname{LN}_f(x_l)\, E^{\top}\big)}, \quad \text{output} = \operatorname{lens}(x_N) \end{gathered}"
+  />
+</StackingAnimation>
+
+With the random weights used here, each block's update is only about 1% of the stream, so the lens hardly moves from layer to layer. In trained models the read-out typically sharpens towards the final prediction as the layers go by; the idea and the name come from ["interpreting GPT: the logit lens"](https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens). This model ties its output head to the embedding table and ends with a single LayerNorm, so the lens is exactly the model's own read-out, applied early.
+
 <Layer kind="concept">
 
 A real Transformer doesn't run one block — it runs **N** of them, with

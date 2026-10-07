@@ -6,6 +6,9 @@
  * /learn/* widgets use, so a learner can flip between targeted
  * explanations and the full sandbox without re-learning the controls.
  *
+ * Brief 27B added "Step through generation": chapter 07's model-driven
+ * loop animation, computed in the browser (no API round trip per step).
+ *
  * SPEC §6.3 + §14 Q4 (presets) — the named-seed presets land as a top
  * strip that just nudges the inputs; saved-experiments come in Phase 7.
  */
@@ -13,6 +16,7 @@ import { AttentionWidget } from "@/components/interactive/AttentionWidget";
 import { EmbeddingWidget } from "@/components/interactive/EmbeddingWidget";
 import { EventTracker } from "@/components/interactive/EventTracker";
 import { FFNWidget } from "@/components/interactive/FFNWidget";
+import { GenerationAnimation } from "@/components/interactive/lazy";
 import { PlaygroundPresets } from "@/components/interactive/PlaygroundPresets";
 import { SamplingWidget } from "@/components/interactive/SamplingWidget";
 import { SaveExperiment } from "@/components/interactive/SaveExperiment";
@@ -58,6 +62,18 @@ export default async function PlaygroundPage(): Promise<JSX.Element> {
       </Section>
       <Section title="5 · Sampling">
         <SamplingWidget />
+      </Section>
+      <Section title="6 · Step through generation">
+        <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-300">
+          The whole loop, one step at a time: the model runs, the KV cache
+          grows, the logits become a distribution, temperature and top-k or
+          top-p reshape it, a seeded draw picks a token, and the token is
+          appended. The presets above set its prompt and seed.
+        </p>
+        <GenerationAnimation
+          testId="playground-generation"
+          title="Step through generation"
+        />
       </Section>
       <EventTracker sectionSlug="playground" />
     </main>

@@ -16,7 +16,10 @@ import {
   AttentionAnimation,
   EmbeddingAnimation,
   FFNAnimation,
+  GenerationAnimation,
+  LayerNormAnimation,
   OverviewHero,
+  StackingAnimation,
 } from "@/components/interactive/lazy";
 import { LayerNormWidget } from "@/components/interactive/LayerNormWidget";
 import { SamplingWidget } from "@/components/interactive/SamplingWidget";
@@ -38,4 +41,7 @@ export const mdxComponents: NonNullable<MDXRemoteProps["components"]> = {
   EmbeddingAnimation,
   AttentionAnimation,
   FFNAnimation,
+  LayerNormAnimation,
+  StackingAnimation,
+  GenerationAnimation,
 };

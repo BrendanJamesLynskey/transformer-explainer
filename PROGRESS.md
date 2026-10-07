@@ -766,3 +766,52 @@ Brings the first four chapters up to the family's visual standard
   (Lighthouse LCP), and the placeholders reserve the panels' height (CLS).
 - LHCI now also audits `/learn/01-overview`, `/learn/02-embeddings` and
   `/learn/04-ffn`.
+
+## Brief 27B — model-driven animations, chapters 05–07 and the playground (2026-10-07)
+
+Finishes brief 27: every chapter now opens with a model-driven animation
+to the family's visual standard.
+
+- [x] 05 LayerNorm and residuals (`src/lib/anim/ln-steps.ts`): block 1 at
+      one position, both sub-layers: mean, variance, centre, scale, γ ⊙ x̂ + β
+      (the dot plot shifts to mean 0 and spreads to 1), the sub-layer's
+      update Δ, and the residual add x + Δ, on a block diagram of the
+      stream. γ and β can be changed (the model's are 1 and 0); the block
+      then re-runs with them.
+- [x] 06 Stacking (`stack-steps.ts`): the stream at one position through 1–4
+      blocks, the size of each attention and FFN update, and a logit lens
+      (LN_f(x_l) Eᵀ) after the embedding and after every block. The lens at
+      the last layer is the model's logits exactly (unit test).
+- [x] 07 Sampling and the generation loop (`gen-steps.ts`): forward pass
+      (the KV cache grows by a column per block; prefill writes the
+      prompt's), logits, softmax, temperature (animated from τ = 1; the
+      slider re-runs at the current step), top-k or top-p, a seeded draw on
+      the cumulative probabilities, append, until the context is full. Every
+      draw equals `sample(ℓ, mode, rng)` with the same generator, and a
+      cached K/V column never changes between rounds (unit tests). Links the
+      Inference site's KV-cache chapter.
+- [x] Playground: "6 · Step through generation", the same loop animation,
+      driven by the presets.
+- [x] Frame tests: `scripts/reference.py` writes a new
+      `tests/unit/fixtures/animations_b.json` (2 LayerNorm, 2 stacking and
+      3 generation runs); every state matches to 1e-12 and every caption
+      matches. The existing fixtures, `animations.json` included, are
+      byte-identical. `tests/e2e/anim-frames-b.spec.ts` checks captions and
+      drawn elements at key frames on the pages.
+- [x] e2e (`animations.spec.ts`) for the three new animations and the
+      playground's at 1280/390 × light/dark, reduced motion, and phone
+      labels ≥ 11 px; axe on 05, 06 and 07 (light, dark, dark@390).
+- [x] LHCI also audits 05, 06 and 07; README GIFs for all three.
+
+**Deviations:**
+
+- `applyTemperature`, `topKMask` and `topPMask` in
+  `src/lib/transformer/sampling.ts` are now exported (no change to what they
+  compute), so the animation shows the sampler's own steps.
+- The sampling animation offers temperature, temperature + top-k and
+  temperature + top-p, as the sampler does; greedy stays in the widget
+  below it.
+- With the untrained weights the logit lens hardly moves from layer to
+  layer and the distribution is nearly flat (top token ≈ 1.9% at τ = 1);
+  the captions give the real numbers, and the default τ = 0.1 with top-k
+  (k = 5) makes the reshaping visible.

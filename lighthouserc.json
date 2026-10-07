@@ -9,7 +9,10 @@
         "http://localhost:3000/learn/01-overview",
         "http://localhost:3000/learn/02-embeddings",
         "http://localhost:3000/learn/03-attention",
-        "http://localhost:3000/learn/04-ffn"
+        "http://localhost:3000/learn/04-ffn",
+        "http://localhost:3000/learn/05-layernorm-residuals",
+        "http://localhost:3000/learn/06-stacking",
+        "http://localhost:3000/learn/07-sampling"
       ],
       "numberOfRuns": 3
     },

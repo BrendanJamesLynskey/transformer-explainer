@@ -622,6 +622,227 @@ def write_animation_fixture(out_dir: Path) -> None:
     print(f"wrote {path}")
 
 
+# ---------------------------------------------------------------------------
+# Animation states for brief 27B (chapters 05-07 and the playground's loop).
+# A second file, animations_b.json, so animations.json (27A) is untouched.
+# ---------------------------------------------------------------------------
+def ln_states(text: str, config: dict, pos: int, gamma: float, beta: float) -> list[dict]:
+    """Port of src/lib/anim/ln-steps.ts (residualTrace + lnStates), block 0."""
+    S, D, H = config["seq_len"], config["d_model"], config["n_heads"]
+    w = init_weights_site(dict(config, n_blocks=1))
+    g = torch.full((D,), float(gamma), dtype=torch.float64)
+    b = torch.full((D,), float(beta), dtype=torch.float64)
+    ids = encode(text, S)
+    x0 = w["tok_emb"][torch.tensor(ids, dtype=torch.long)] + positional_encoding_f64(S, D)
+    p0 = "block_0"
+    ln1 = layernorm(x0, g, b)
+    attn = multi_head_attention(
+        ln1, w[f"{p0}.attn.W_q"], w[f"{p0}.attn.W_k"], w[f"{p0}.attn.W_v"],
+        w[f"{p0}.attn.W_o"], H,
+    )["out"]
+    h = x0 + attn
+    ln2 = layernorm(h, g, b)
+    f = ffn(ln2, w[f"{p0}.ffn.W1"], w[f"{p0}.ffn.b1"], w[f"{p0}.ffn.W2"], w[f"{p0}.ffn.b2"])
+    p = max(0, min(S - 1, pos))
+    out: list[dict] = []
+    for sub, x_t, d_t in ((1, x0[p], attn[p]), (2, h[p], f[p])):
+        x, delta = vec(x_t), vec(d_t)
+        mean = float(x_t.mean())
+        variance = float(x_t.var(unbiased=False))
+        inv = 1 / math.sqrt(variance + EPS)
+        centred = [v - mean for v in x]
+        scaled = [(v - mean) * inv for v in x]
+        lnv = [(v - mean) * inv * gamma + beta for v in x]
+        total = [v + d for v, d in zip(x, delta)]
+        base = {"sub": sub, "pos": p, "x": x, "gamma": gamma, "beta": beta,
+                "ln": None, "delta": None, "out": None}
+        st = {"mean": mean, "variance": variance}
+        out.append(dict(base, phase="input", mean=None, variance=None, values=x))
+        out.append(dict(base, phase="mean", mean=mean, variance=None, values=x))
+        out.append(dict(base, **st, phase="var", values=x))
+        out.append(dict(base, **st, phase="centre", values=centred))
+        out.append(dict(base, **st, phase="scale", values=scaled))
+        out.append(dict(base, **st, phase="affine", values=lnv, ln=lnv))
+        out.append(dict(base, **st, phase="sublayer", values=lnv, ln=lnv, delta=delta))
+        out.append(dict(base, **st, phase="residual", values=lnv, ln=lnv, delta=delta, out=total))
+    return out
+
+
+def l2(v: list[float]) -> float:
+    s = 0.0
+    for x in v:
+        s += x * x
+    return math.sqrt(s)
+
+
+def top_tokens(logits: list[float], k: int = 5) -> list[dict]:
+    """Port of overview-steps.ts:topTokens over ts_softmax."""
+    probs = ts_softmax(logits)
+    order = sorted(range(len(logits)), key=lambda i: (-probs[i], i))[:k]
+    return [{"id": i, "logit": logits[i], "prob": probs[i]} for i in order]
+
+
+def stack_states(text: str, config: dict, pos: int) -> list[dict]:
+    """Port of src/lib/anim/stack-steps.ts:stackStates."""
+    S, N = config["seq_len"], config["n_blocks"]
+    w = init_weights_site(config)
+    tr = site_trace(encode(text, S), config, w)
+    p = max(0, min(S - 1, pos))
+
+    def lens(x: torch.Tensor) -> list[dict]:
+        xf = layernorm(x, w["ln_final.gamma"], w["ln_final.beta"])
+        return top_tokens(vec(xf @ w["tok_emb"].T))
+
+    x = tr["x0"][p]
+    rows = [{"layer": 0, "vec": vec(x), "attnNorm": None, "ffnNorm": None, "lens": lens(x)}]
+    base = {"pos": p, "nBlocks": N, "top": None}
+    out = [dict(base, kind="embed", block=-1, vec=vec(x), delta=None, rows=list(rows))]
+    for b, bt in enumerate(tr["blocks"]):
+        h, y = bt["h"][p], bt["y"][p]
+        dA, dF = vec(h - x), vec(y - h)
+        out.append(dict(base, kind="attn", block=b, vec=vec(h), delta=dA, rows=list(rows)))
+        rows.append({"layer": b + 1, "vec": vec(y), "attnNorm": l2(dA),
+                     "ffnNorm": l2(dF), "lens": lens(y)})
+        out.append(dict(base, kind="ffn", block=b, vec=vec(y), delta=dF, rows=list(rows)))
+        x = y
+    out.append(dict(base, kind="final", block=-1, vec=vec(tr["x_final"][p]), delta=None,
+                    rows=list(rows), top=top_tokens(vec(tr["logits"][p]))))
+    return out
+
+
+def top_k_mask(logits: list[float], k: int) -> list[float]:
+    """Port of sampling.ts:topKMask."""
+    n = len(logits)
+    if k <= 0 or k >= n:
+        return list(logits)
+    threshold = sorted(logits, reverse=True)[k - 1]
+    out, kept = [], 0
+    for v in logits:
+        if v > threshold or (v == threshold and kept < k):
+            out.append(v)
+            kept += 1
+        else:
+            out.append(-math.inf)
+    return out
+
+
+def top_p_mask(logits: list[float], p: float) -> list[float]:
+    """Port of sampling.ts:topPMask (a stable sort, like Array.prototype.sort)."""
+    if p <= 0 or p >= 1:
+        return list(logits)
+    probs = ts_softmax(logits)
+    order = sorted(range(len(logits)), key=lambda i: -probs[i])
+    keep, cum = set(), 0.0
+    for i in order:
+        keep.add(i)
+        cum += probs[i]
+        if cum >= p:
+            break
+    return [v if i in keep else -math.inf for i, v in enumerate(logits)]
+
+
+def ts_softmax_masked(x: list[float]) -> list[float]:
+    """softmax.ts on a vector with −∞ entries (they get probability 0)."""
+    m = max(x)
+    e = [math.exp(v - m) if math.isfinite(v) else 0.0 for v in x]
+    s = 0.0
+    for v in e:
+        s += v
+    return [v / s for v in e]
+
+
+def gen_states(text: str, config: dict, opts: dict) -> list[dict]:
+    """Port of src/lib/anim/gen-steps.ts:genStates."""
+    S = config["seq_len"]
+    w = init_weights_site(config)
+    rng = mulberry32(config["seed"])
+    t = text[: S - 1] if text else " "
+    context = encode(t, len(t))
+    out: list[dict] = []
+    rnd = 0
+    while rnd < opts["rounds"] and len(context) < S:
+        L = len(context)
+        p = L - 1
+        tr = site_trace(context + [0] * (S - L), config, w)
+        cache = [{"K": bt["attn"]["K"][:L].tolist(), "V": bt["attn"]["V"][:L].tolist()}
+                 for bt in tr["blocks"]]
+        fresh = list(range(L)) if rnd == 0 else [L - 1]
+        base = {"phase": "forward", "round": rnd, "pos": p, "seqLen": S,
+                "context": list(context), "cache": cache, "fresh": fresh,
+                "mode": opts["mode"], "tau": opts["temperature"], "k": opts["k"],
+                "p": opts["p"], "logits": None, "probs1": None, "probsT": None,
+                "kept": None, "final": None, "u": None, "sampled": None}
+        out.append(base)
+        logits = vec(tr["logits"][p])
+        s1 = dict(base, logits=logits)
+        out.append(dict(s1, phase="logits"))
+        probs1 = ts_softmax(logits)
+        out.append(dict(s1, phase="softmax", probs1=probs1))
+        tempered = [v / opts["temperature"] for v in logits]
+        probs_t = ts_softmax(tempered)
+        s2 = dict(s1, probs1=probs1, probsT=probs_t)
+        final, kept = probs_t, None
+        out.append(dict(s2, phase="temperature",
+                        final=final if opts["mode"] == "temperature" else None))
+        if opts["mode"] != "temperature":
+            masked = (top_k_mask(tempered, opts["k"]) if opts["mode"] == "top-k"
+                      else top_p_mask(tempered, opts["p"]))
+            final = ts_softmax_masked(masked)
+            kept = [i for i, v in enumerate(masked) if math.isfinite(v)]
+            out.append(dict(s2, phase="truncate", kept=kept, final=final))
+        u = rng()
+        sampled = sample_from_probs(final, lambda: u)
+        s3 = dict(s2, kept=kept, final=final, u=u, sampled=sampled)
+        out.append(dict(s3, phase="draw"))
+        context = context + [sampled]
+        out.append(dict(s3, phase="append", context=list(context)))
+        rnd += 1
+    return out
+
+
+GEN_TEXT = "hello"
+
+
+def animation_fixture_b() -> dict:
+    cfg = ANIM_CONFIG
+    return {
+        "note": "Brief 27B animation states from scripts/reference.py "
+                "(float64, site weights: mulberry32 init port).",
+        "config": cfg,
+        "layernorm": [
+            {"text": ANIM_TEXT, "pos": 5, "gamma": 1, "beta": 0,
+             "states": ln_states(ANIM_TEXT, cfg, 5, 1.0, 0.0)},
+            {"text": ANIM_TEXT, "pos": 2, "gamma": 2, "beta": 0.5,
+             "states": ln_states(ANIM_TEXT, cfg, 2, 2.0, 0.5)},
+        ],
+        "stacking": [
+            {"text": ANIM_TEXT, "pos": 5, "nBlocks": 4,
+             "states": stack_states(ANIM_TEXT, dict(cfg, n_blocks=4), 5)},
+            {"text": ANIM_TEXT, "pos": 3, "nBlocks": 2,
+             "states": stack_states(ANIM_TEXT, cfg, 3)},
+        ],
+        "generation": [
+            {"text": GEN_TEXT, "seed": 42,
+             "opts": {"mode": "top-k", "temperature": 0.1, "k": 5, "p": 0.9, "rounds": 3}},
+            {"text": GEN_TEXT, "seed": 42,
+             "opts": {"mode": "top-p", "temperature": 0.5, "k": 5, "p": 0.9, "rounds": 3}},
+            {"text": "the", "seed": 7,
+             "opts": {"mode": "temperature", "temperature": 1.0, "k": 5, "p": 0.9, "rounds": 8}},
+        ],
+    }
+
+
+def write_animation_fixture_b(out_dir: Path) -> None:
+    fx = animation_fixture_b()
+    for run in fx["generation"]:
+        run["states"] = gen_states(run["text"], dict(ANIM_CONFIG, seed=run["seed"]), run["opts"])
+    path = out_dir / "animations_b.json"
+    with path.open("w", encoding="utf-8") as fh:
+        json.dump(fx, fh, allow_nan=False, separators=(",", ":"))
+        fh.write("\n")
+    print(f"wrote {path}")
+
+
 def main() -> None:
     out_dir = Path(__file__).resolve().parent.parent / "tests" / "unit" / "fixtures"
     config = DEFAULT_CONFIG
@@ -750,6 +971,8 @@ def main() -> None:
     # Animation states (brief 27): a separate file, not in the manifest
     # (verify-maths checks ops; the frame tests read this one).
     write_animation_fixture(out_dir)
+    # Brief 27B: chapters 05-07 and the generation loop, in their own file.
+    write_animation_fixture_b(out_dir)
 
     print("\nAll fixtures written.")
     print("Commit tests/unit/fixtures/ to git.")

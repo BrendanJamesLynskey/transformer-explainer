@@ -57,8 +57,17 @@ export function sampleFromProbs(probs: Vector, rng: RNG = Math.random): number {
   return probs.length - 1;
 }
 
-/** Apply temperature scaling: returns a fresh array. τ ≤ 0 falls back to argmax. */
-function applyTemperature(logits: Vector, t: number): Vector {
+/**
+ * Apply temperature scaling: ℓ_i / τ, as a fresh array. τ ≤ 0 (or not
+ * finite) falls back to argmax: a one-hot of 0 at the argmax and −∞
+ * elsewhere. Exported so the chapter 07 animation can show each of
+ * `sample`'s steps with the sampler's own code.
+ *
+ * @param logits  Logits over the vocabulary, shape [V].
+ * @param t       The temperature τ.
+ * @returns       The scaled logits, shape [V].
+ */
+export function applyTemperature(logits: Vector, t: number): Vector {
   if (!Number.isFinite(t) || t <= 0) {
     // Caller should treat this as "greedy"; we degrade to a one-hot.
     const out = new Array<number>(logits.length).fill(-Infinity);
@@ -70,8 +79,16 @@ function applyTemperature(logits: Vector, t: number): Vector {
   return out;
 }
 
-/** Top-k mask: keep the k largest logits, set the rest to −∞. */
-function topKMask(logits: Vector, k: number): Vector {
+/**
+ * Top-k mask: keep the k largest logits, set the rest to −∞ (ties at the
+ * threshold go to the lower index). k ≤ 0 or k ≥ V keeps everything.
+ * Holtzman et al. (2020) §3 describe top-k and top-p sampling.
+ *
+ * @param logits  Logits over the vocabulary, shape [V].
+ * @param k       How many tokens to keep.
+ * @returns       The masked logits, shape [V].
+ */
+export function topKMask(logits: Vector, k: number): Vector {
   const n = logits.length;
   if (k <= 0) return logits.slice();
   if (k >= n) return logits.slice();
@@ -92,9 +109,17 @@ function topKMask(logits: Vector, k: number): Vector {
   return out;
 }
 
-/** Top-p (nucleus): keep the smallest set of indices whose cumulative
- * probability mass exceeds `p`, mask the rest. Operates on logits. */
-function topPMask(logits: Vector, p: number): Vector {
+/**
+ * Top-p (nucleus): keep the smallest set of indices, most likely first,
+ * whose cumulative probability reaches `p`; mask the rest with −∞.
+ * Operates on logits. p ≤ 0 or p ≥ 1 keeps everything. Holtzman et al.
+ * (2020), "The Curious Case of Neural Text Degeneration", §3.1.
+ *
+ * @param logits  Logits over the vocabulary, shape [V].
+ * @param p       The probability mass to keep, in (0, 1).
+ * @returns       The masked logits, shape [V].
+ */
+export function topPMask(logits: Vector, p: number): Vector {
   const n = logits.length;
   if (p <= 0 || p >= 1) return logits.slice();
   const probs = softmax(logits);
