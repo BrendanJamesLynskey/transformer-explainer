@@ -1,3 +1,12 @@
+Every sub-layer reads a normalised copy of the residual stream and adds its result back. Below, one position's vector is normalised step by step (the mean, the spread, the shift to 0, the rescale to 1, then γ and β), attention reads that copy and returns a small update Δ, and the stream carries on as x + Δ; then the same happens again around the feed-forward network.
+
+<LayerNormAnimation>
+  <Eq
+    label="mu equals the mean of the d numbers x i; sigma squared equals their mean squared deviation; LayerNorm of x equals gamma times x minus mu over the square root of sigma squared plus epsilon, plus beta; h equals x plus attention of LN 1 of x, and y equals h plus FFN of LN 2 of h"
+    tex="\begin{gathered} \htmlClass{hl-mu}{\mu = \tfrac1d \textstyle\sum_i x_i} \\ \htmlClass{hl-sig}{\sigma^2 = \tfrac1d \textstyle\sum_i (x_i - \mu)^2} \\ \htmlClass{hl-gb}{\operatorname{LN}(x) = \gamma \odot \htmlClass{hl-hat}{\frac{x - \mu}{\sqrt{\sigma^2 + \varepsilon}}} + \beta} \\ \htmlClass{hl-res}{h = \htmlClass{hl-x}{x} + \htmlClass{hl-sub}{\operatorname{Attn}(\operatorname{LN}_1(x))}}, \quad \htmlClass{hl-res2}{y = \htmlClass{hl-x2}{h} + \htmlClass{hl-sub2}{\operatorname{FFN}(\operatorname{LN}_2(h))}} \end{gathered}"
+  />
+</LayerNormAnimation>
+
 <Layer kind="concept">
 
 Two ideas glue the rest of the decoder together: **residual connections**

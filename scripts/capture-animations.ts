@@ -50,6 +50,25 @@ const CLIPS: Clip[] = [
     fps: 5,
   },
   { name: "ffn", path: "/learn/04-ffn", widget: "ffn-animation", fps: 4 },
+  // brief 27B
+  {
+    name: "layernorm",
+    path: "/learn/05-layernorm-residuals",
+    widget: "layernorm-animation",
+    fps: 2,
+  },
+  {
+    name: "stacking",
+    path: "/learn/06-stacking",
+    widget: "stacking-animation",
+    fps: 2,
+  },
+  {
+    name: "generation",
+    path: "/learn/07-sampling",
+    widget: "generation-animation",
+    fps: 2,
+  },
 ];
 
 // `pnpm animations attention ffn` records only the named clips

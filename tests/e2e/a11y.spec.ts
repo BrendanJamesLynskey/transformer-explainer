@@ -18,6 +18,9 @@ const PAGES = [
   "/learn/02-embeddings",
   "/learn/03-attention",
   "/learn/04-ffn",
+  "/learn/05-layernorm-residuals",
+  "/learn/06-stacking",
+  "/learn/07-sampling",
   "/playground",
   "/signin",
 ] as const;

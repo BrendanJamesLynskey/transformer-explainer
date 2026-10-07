@@ -59,7 +59,8 @@ which serving lever helps which metric.
 - Walk through the decoder one operation at a time at `/learn`.
 - Toggle three layers — **Concept / Maths / Code** — inside any section to
   control how deep the explanation goes.
-- Run the full pipeline end-to-end on `/playground` with named-seed presets.
+- Run the full pipeline end-to-end on `/playground` with named-seed presets,
+  or step through generation one token at a time.
 - Read the Maths layer as typeset equations (KaTeX), in light or dark
   mode (the site follows your system setting).
 - Sign in with GitHub (at `/signin`) to **save** a configuration as an experiment, share
@@ -79,10 +80,21 @@ PyTorch (float64, on the site's seeded weights) and the frame tests require
 both to agree. Recorded with `pnpm animations` (WebM versions alongside, in
 [`docs/media/`](docs/media/)):
 
-|                                                                          |                                                            |
-| ------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| ![One token's journey through the decoder](docs/media/overview-hero.gif) | ![From a character to a vector](docs/media/embeddings.gif) |
-| ![Attention, one query row at a time](docs/media/attention.gif)          | ![Inside the feed-forward network](docs/media/ffn.gif)     |
+|                                                                          |                                                                   |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| ![One token's journey through the decoder](docs/media/overview-hero.gif) | ![From a character to a vector](docs/media/embeddings.gif)        |
+| ![Attention, one query row at a time](docs/media/attention.gif)          | ![Inside the feed-forward network](docs/media/ffn.gif)            |
+| ![LayerNorm and the residual stream](docs/media/layernorm.gif)           | ![The residual stream through the stack](docs/media/stacking.gif) |
+| ![The generation loop, one token at a time](docs/media/generation.gif)   |                                                                   |
+
+The seven chapters' animations: 01 one token's journey through the whole
+decoder; 02 the embedding lookup and the positional add; 03 attention built
+one query row at a time; 04 the feed-forward network neuron by neuron; 05
+LayerNorm (mean, spread, centre, scale, γ and β) and the residual add; 06
+the residual stream through 1–4 blocks with a logit lens after each; 07 the
+generation loop (logits, temperature, top-k or top-p, a seeded draw,
+append) with the KV cache growing a column per token. The playground's
+"step through generation" runs the same loop.
 
 The weights are random (seeded, N(0, 0.02), as at the start of training),
 so the attention weights are nearly uniform and the next-token
@@ -269,8 +281,12 @@ The same script also writes `tests/unit/fixtures/animations.json`: the
 animations' states, built from a Python port of the site's seeded
 initialiser (mulberry32 + Box–Muller) and the PyTorch ops above in
 float64. `tests/unit/anim-frames.test.ts` and
-`tests/e2e/anim-frames.spec.ts` compare the site's frames with it. The
-other fixtures come out byte-identical when it is re-run.
+`tests/e2e/anim-frames.spec.ts` compare the site's frames with it. Brief
+27B's animations (chapters 05–07) have their own file,
+`tests/unit/fixtures/animations_b.json`, with its own ports of the
+sampler's top-k and top-p masks, checked by `anim-frames-b.test.ts` and
+`anim-frames-b.spec.ts`. The other fixtures come out byte-identical when it
+is re-run.
 
 ## Project layout
 

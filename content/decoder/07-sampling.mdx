@@ -1,3 +1,14 @@
+Generation is a loop: run the model, turn the last position's logits into a distribution, reshape and trim it, draw one token, append it, and go round again. Below, every step of that loop runs on your prompt, and the KV cache grows by one column per block each round. Move the temperature slider at any step to watch the distribution reshape.
+
+<GenerationAnimation>
+  <Eq
+    label="The keys and values of earlier tokens are cached; the logits are LN f of x p times E transposed; the temperature-scaled probability of token v is e to the l v over tau, over the sum over u of e to the l u over tau; top-k or top-p keeps some tokens and renormalises; a uniform u picks the first token whose cumulative probability exceeds u; it is appended to the ids"
+    tex="\begin{gathered} \htmlClass{hl-kv}{K_{\le p},\, V_{\le p} \text{ cached}} \\ \htmlClass{hl-logits}{\ell = \operatorname{LN}_f(x_p)\, E^{\top}} \\ \htmlClass{hl-tau}{p_\tau(v) = \frac{e^{\ell_v / \tau}}{\sum_u e^{\ell_u / \tau}}} \\ \htmlClass{hl-trunc}{\tilde p \propto p_\tau \cdot [v \in \text{top-}k \text{ or top-}p]} \\ \htmlClass{hl-draw}{u \sim \mathcal{U}[0, 1),\;\; t' = \min\{ i : \textstyle\sum_{j \le i} \tilde p_j > u \}} \\ \htmlClass{hl-sample}{\text{ids} \leftarrow \text{ids} \,\|\, t'} \end{gathered}"
+  />
+</GenerationAnimation>
+
+The KV cache is why generation is cheap per token and expensive in memory: each round adds one key and one value column per block, and every later token reads them all. [LLM Inference Explained's KV-cache chapter](https://llm-inference-explained.vercel.app/learn/02-kv-cache) takes it from here: how big the cache gets, and what a server does about it.
+
 <Layer kind="concept">
 
 The decoder gives you **logits** — one number per token in the

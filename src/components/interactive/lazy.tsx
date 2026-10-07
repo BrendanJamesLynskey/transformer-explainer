@@ -47,3 +47,21 @@ export const FFNAnimation = dynamic(() => import("./FFNAnimation"), {
   ssr: false,
   loading: placeholder("min-h-[65rem] sm:min-h-[76rem] md:min-h-[49rem]"),
 });
+export const LayerNormAnimation = dynamic(
+  () => import("./LayerNormAnimation"),
+  {
+    ssr: false,
+    loading: placeholder("min-h-[77rem] sm:min-h-[82rem] md:min-h-[57rem]"),
+  },
+);
+export const StackingAnimation = dynamic(() => import("./StackingAnimation"), {
+  ssr: false,
+  loading: placeholder("min-h-[77rem] sm:min-h-[90rem] md:min-h-[52rem]"),
+});
+export const GenerationAnimation = dynamic(
+  () => import("./GenerationAnimation"),
+  {
+    ssr: false,
+    loading: placeholder("min-h-[93rem] sm:min-h-[102rem] md:min-h-[74rem]"),
+  },
+);
