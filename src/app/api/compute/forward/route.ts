@@ -11,10 +11,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { initModelWeights } from "@/lib/transformer/init";
-import { forwardTyped } from "@/lib/transformer/model";
-import { ALPHABET, VOCAB_SIZE, encode } from "@/lib/transformer/tokenizer";
-import { emptyAttentionTrace, emptyBlockTrace } from "@/lib/transformer/trace";
+import { DEFAULT_PARAMS, computeForward } from "@/lib/compute/traces";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -46,61 +43,16 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  const { text, seed, seqLen, dModel, dFf, nHeads, nBlocks } = parsed.data;
-  if (dModel % nHeads !== 0) {
+  const params = { ...DEFAULT_PARAMS, ...parsed.data };
+  if (params.dModel % params.nHeads !== 0) {
     return NextResponse.json(
       {
         ok: false,
-        error: `dModel (${dModel}) must be divisible by nHeads (${nHeads})`,
+        error: `dModel (${params.dModel}) must be divisible by nHeads (${params.nHeads})`,
       },
       { status: 400 },
     );
   }
 
-  const config = {
-    seq_len: seqLen,
-    d_model: dModel,
-    n_heads: nHeads,
-    d_ff: dFf,
-    n_blocks: nBlocks,
-    vocab_size: VOCAB_SIZE,
-    seed,
-  };
-  const w = initModelWeights(config);
-
-  const tokenIds = encode(text, seqLen);
-  const trace = {
-    tokenIds: [] as number[],
-    tokEmb: [] as number[][],
-    posEmb: [] as number[][],
-    blocks: Array.from({ length: nBlocks }, () => emptyBlockTrace()),
-    xFinal: [] as number[][],
-    logits: [] as number[][],
-  };
-  // Reset block traces — emptyBlockTrace shares an empty matrix between
-  // sibling fields, but forwardTyped overwrites those fields anyway.
-  trace.blocks.forEach((bt) => {
-    bt.attn = emptyAttentionTrace();
-  });
-
-  const out = forwardTyped(tokenIds, config, w, trace);
-
-  // Pull just the per-head softmax-weights matrices for the stacking widget;
-  // the full block trace is also returned for callers that want it.
-  const perBlockWeights = trace.blocks.map((bt) => bt.attn.weights);
-
-  return NextResponse.json({
-    ok: true,
-    data: {
-      alphabet: ALPHABET,
-      tokenIds,
-      tokens: tokenIds.map((id) => ALPHABET[id] ?? "?"),
-      tokEmb: out.tokEmb,
-      posEmb: out.posEmb,
-      xFinal: out.xFinal,
-      logits: out.logits,
-      perBlockAttention: perBlockWeights, // [nBlocks, nHeads, S, S]
-      config,
-    },
-  });
+  return NextResponse.json({ ok: true, data: computeForward(params) });
 }

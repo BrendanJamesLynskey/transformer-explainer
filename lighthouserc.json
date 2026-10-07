@@ -6,15 +6,33 @@
       "url": [
         "http://localhost:3000/",
         "http://localhost:3000/learn",
-        "http://localhost:3000/learn/03-attention"
+        "http://localhost:3000/learn/01-overview",
+        "http://localhost:3000/learn/02-embeddings",
+        "http://localhost:3000/learn/03-attention",
+        "http://localhost:3000/learn/04-ffn"
       ],
       "numberOfRuns": 3
     },
     "assert": {
       "assertions": {
-        "categories:performance": ["error", { "minScore": 0.9 }],
-        "categories:accessibility": ["error", { "minScore": 0.9 }],
-        "categories:best-practices": ["error", { "minScore": 0.9 }]
+        "categories:performance": [
+          "error",
+          {
+            "minScore": 0.9
+          }
+        ],
+        "categories:accessibility": [
+          "error",
+          {
+            "minScore": 0.9
+          }
+        ],
+        "categories:best-practices": [
+          "error",
+          {
+            "minScore": 0.9
+          }
+        ]
       }
     },
     "upload": {

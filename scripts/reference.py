@@ -295,6 +295,333 @@ def write_fixture(path: Path, payload: dict) -> None:
     print(f"wrote {path}")
 
 
+# ---------------------------------------------------------------------------
+# Animation states (brief 27): the site's animations, rebuilt from scratch.
+#
+# The site's widgets do not use the PyTorch-seeded weights above: they draw
+# their weights in the browser with mulberry32 + Box-Muller
+# (src/lib/transformer/random.ts, init.ts). To check what the animations show,
+# this section ports that initialiser, runs the reference ops above in
+# float64 on those weights, and builds the animations' state lists the way
+# src/lib/anim/*-steps.ts describe them. tests/unit/anim-frames.test.ts
+# requires the TypeScript states to match these (to 1e-12) and the captions
+# built from both to be identical; tests/e2e/anim-frames.spec.ts requires the
+# captions on the page to be the ones built from these states.
+#
+# This section adds a file (animations.json); it changes no other fixture.
+# ---------------------------------------------------------------------------
+U32 = 0xFFFFFFFF
+
+
+def mulberry32(seed: int):
+    """Port of src/lib/transformer/random.ts:mulberry32 (uint32 arithmetic)."""
+    state = seed & U32
+
+    def rng() -> float:
+        nonlocal state
+        state = (state + 0x6D2B79F5) & U32
+        t = state
+        t = ((t ^ (t >> 15)) * (t | 1)) & U32
+        t ^= (t + (((t ^ (t >> 7)) * (t | 61)) & U32)) & U32
+        return ((t ^ (t >> 14)) & U32) / 4294967296
+
+    return rng
+
+
+def normal_sampler(rng):
+    """Port of random.ts:normalSampler (Box-Muller, one sample per call)."""
+
+    def sample() -> float:
+        u1 = max(rng(), 1e-12)
+        u2 = rng()
+        return math.sqrt(-2 * math.log(u1)) * math.cos(2 * math.pi * u2)
+
+    return sample
+
+
+def init_weights_site(config: dict) -> dict[str, torch.Tensor]:
+    """Port of src/lib/transformer/init.ts: the weights the site's widgets use.
+
+    Same draw order as the TypeScript (embedding table, then per block
+    W_q, W_k, W_v, W_o, W1, W2), N(0, 0.02), float64, same keys as
+    `init_weights`.
+    """
+    sample = normal_sampler(mulberry32(config["seed"]))
+    d, f, v = config["d_model"], config["d_ff"], config["vocab_size"]
+
+    def normal(rows: int, cols: int) -> torch.Tensor:
+        return torch.tensor(
+            [[sample() * 0.02 for _ in range(cols)] for _ in range(rows)],
+            dtype=torch.float64,
+        )
+
+    ones = lambda n: torch.ones(n, dtype=torch.float64)  # noqa: E731
+    zeros = lambda n: torch.zeros(n, dtype=torch.float64)  # noqa: E731
+    w: dict[str, torch.Tensor] = {"tok_emb": normal(v, d)}
+    for i in range(config["n_blocks"]):
+        p = f"block_{i}"
+        w[f"{p}.ln1.gamma"], w[f"{p}.ln1.beta"] = ones(d), zeros(d)
+        for name in ("W_q", "W_k", "W_v", "W_o"):
+            w[f"{p}.attn.{name}"] = normal(d, d)
+        w[f"{p}.ln2.gamma"], w[f"{p}.ln2.beta"] = ones(d), zeros(d)
+        w[f"{p}.ffn.W1"], w[f"{p}.ffn.b1"] = normal(d, f), zeros(f)
+        w[f"{p}.ffn.W2"], w[f"{p}.ffn.b2"] = normal(f, d), zeros(d)
+    w["ln_final.gamma"], w["ln_final.beta"] = ones(d), zeros(d)
+    return w
+
+
+def positional_encoding_f64(seq_len: int, d_model: int) -> torch.Tensor:
+    """`positional_encoding` in float64 (the site computes in doubles)."""
+    pe = torch.zeros(seq_len, d_model, dtype=torch.float64)
+    position = torch.arange(0, seq_len, dtype=torch.float64).unsqueeze(1)
+    div = torch.exp(
+        torch.arange(0, d_model, 2, dtype=torch.float64)
+        * (-math.log(10000.0) / d_model)
+    )
+    pe[:, 0::2] = torch.sin(position * div)
+    pe[:, 1::2] = torch.cos(position * div)
+    return pe
+
+
+def site_trace(token_ids: list[int], config: dict, w: dict) -> dict:
+    """Forward pass with every intermediate, using the reference ops above."""
+    S, D, H = config["seq_len"], config["d_model"], config["n_heads"]
+    ids = torch.tensor(token_ids, dtype=torch.long)
+    tok_emb = w["tok_emb"][ids]
+    pos_emb = positional_encoding_f64(S, D)
+    x = tok_emb + pos_emb
+    out = {"tok_emb": tok_emb, "pos_emb": pos_emb, "x0": x, "blocks": []}
+    for i in range(config["n_blocks"]):
+        p = f"block_{i}"
+        ln1 = layernorm(x, w[f"{p}.ln1.gamma"], w[f"{p}.ln1.beta"])
+        attn = multi_head_attention(
+            ln1, w[f"{p}.attn.W_q"], w[f"{p}.attn.W_k"], w[f"{p}.attn.W_v"],
+            w[f"{p}.attn.W_o"], H,
+        )
+        h = x + attn["out"]
+        ln2 = layernorm(h, w[f"{p}.ln2.gamma"], w[f"{p}.ln2.beta"])
+        pre = ln2 @ w[f"{p}.ffn.W1"] + w[f"{p}.ffn.b1"]
+        act = gelu(pre)
+        y = h + (act @ w[f"{p}.ffn.W2"] + w[f"{p}.ffn.b2"])
+        out["blocks"].append(
+            {"ln1": ln1, "attn": attn, "h": h, "ln2": ln2, "pre": pre,
+             "act": act, "ffn_out": act @ w[f"{p}.ffn.W2"] + w[f"{p}.ffn.b2"],
+             "y": y}
+        )
+        x = y
+    out["x_final"] = layernorm(x, w["ln_final.gamma"], w["ln_final.beta"])
+    out["logits"] = out["x_final"] @ w["tok_emb"].T
+    return out
+
+
+def vec(t: torch.Tensor) -> list[float]:
+    return [float(v) for v in t.tolist()]
+
+
+def embed_states(text: str, config: dict, w: dict, pos: int) -> list[dict]:
+    """Port of src/lib/anim/embed-steps.ts:embedStates."""
+    S, D = config["seq_len"], config["d_model"]
+    ids = encode(text, S)
+    tr = site_trace(ids, config, w)
+    p = max(0, min(S - 1, pos))
+    tok, pe, x = vec(tr["tok_emb"][p]), vec(tr["pos_emb"][p]), vec(tr["x0"][p])
+    base = {"pos": p, "id": ids[p], "char": ALPHABET[ids[p]], "elem": -1,
+            "tok": tok, "pe": pe, "total": S, "row": -1, "rowChar": ""}
+    empty = lambda: [None] * D  # noqa: E731
+    out = [dict(base, kind=k, sum=empty(), done=[]) for k in ("ids", "lookup", "position")]
+    for e in range(D):
+        out.append(dict(base, kind="add", elem=e,
+                        sum=[x[k] if k <= e else None for k in range(D)],
+                        done=[p] if e == D - 1 else []))
+    done = [p]
+    for q in range(S):
+        if q == p:
+            continue
+        done.append(q)
+        out.append(dict(base, kind="row", sum=list(x), done=list(done),
+                        row=q, rowChar=ALPHABET[ids[q]]))
+    return out
+
+
+def attention_states(text: str, config: dict, w: dict, head, row: int) -> list[dict]:
+    """Port of src/lib/anim/attention-steps.ts:attentionStates (block 0)."""
+    S, D, H = config["seq_len"], config["d_model"], config["n_heads"]
+    dk = D // H
+    tr = site_trace(encode(text, S), config, w)["blocks"][0]["attn"]
+    Q, K, V = tr["Q"], tr["K"], tr["V"]
+    weights = tr["weights"]  # [H, S, S], F.softmax in float64
+
+    def head_states(h: int, r0: int) -> list[dict]:
+        Qh = Q[:, h * dk:(h + 1) * dk]
+        Kh = K[:, h * dk:(h + 1) * dk]
+        Vh = V[:, h * dk:(h + 1) * dk]
+        raw_all = Qh @ Kh.T
+        states, rows_done = [], []
+        for i in range(r0, S):
+            base = {"head": h, "row": i, "dk": dk, "rowsDone": list(rows_done),
+                    "concat": None, "projected": None}
+            raw = vec(raw_all[i])
+            for j in range(S):
+                states.append(dict(base, phase="dot", j=j,
+                                   dots=[v if k <= j else None for k, v in enumerate(raw)],
+                                   scores=None, exps=None, sum=None, weights=None, out=None))
+            scaled = [v / math.sqrt(dk) for v in raw]
+            states.append(dict(base, phase="scale", j=-1, dots=raw, scores=scaled,
+                               exps=None, sum=None, weights=None, out=None))
+            masked = [v if k <= i else None for k, v in enumerate(scaled)]
+            states.append(dict(base, phase="mask", j=-1, dots=raw, scores=masked,
+                               exps=None, sum=None, weights=None, out=None))
+            m = max(scaled[: i + 1])
+            exps = [None if v is None else math.exp(v - m) for v in masked]
+            total = sum(e for e in exps if e is not None)
+            wrow = vec(weights[h, i])
+            wts = [v if k <= i else None for k, v in enumerate(wrow)]
+            soft = dict(base, dots=raw, scores=masked, j=-1, out=None)
+            states.append(dict(soft, phase="exp", exps=exps, sum=None, weights=None))
+            states.append(dict(soft, phase="sum", exps=exps, sum=total, weights=None))
+            states.append(dict(soft, phase="softmax", exps=exps, sum=total, weights=wts))
+            for j in range(i + 1):
+                partial = (weights[h, i, : j + 1].unsqueeze(1) * Vh[: j + 1]).sum(0)
+                states.append(dict(base, phase="wsum", j=j, dots=raw, scores=masked,
+                                   exps=exps, sum=total, weights=wts, out=vec(partial)))
+            rows_done.append(i)
+        return states
+
+    r0 = max(0, min(S - 1, row))
+    heads = list(range(H)) if head == "all" else [max(0, min(H - 1, head))]
+    out = []
+    for h in heads:
+        out.extend(head_states(h, r0))
+    concat = (tr["head_out"].transpose(0, 1).contiguous().view(S, D)).tolist()
+    tail = {"head": -1, "row": S - 1, "dk": dk, "j": -1, "dots": [], "scores": None,
+            "exps": None, "sum": None, "weights": None, "out": None, "rowsDone": [],
+            "concat": concat}
+    out.append(dict(tail, phase="concat", projected=None))
+    out.append(dict(tail, phase="project", projected=tr["out"].tolist()))
+    return out
+
+
+def ffn_states(text: str, config: dict, w: dict, pos: int) -> list[dict]:
+    """Port of src/lib/anim/ffn-steps.ts:ffnStates (block 0)."""
+    S = config["seq_len"]
+    b0 = site_trace(encode(text, S), config, w)["blocks"][0]
+    p = max(0, min(S - 1, pos))
+    x, pre, act, y = (vec(b0[k][p]) for k in ("ln2", "pre", "act", "ffn_out"))
+    base = {"pos": p, "neuron": -1, "x": x, "out": None, "fired": None}
+    out = [dict(base, phase="input", pre=None, act=None),
+           dict(base, phase="expand", pre=pre, act=None)]
+    for n in range(len(pre)):
+        out.append(dict(base, phase="gelu", neuron=n, pre=pre,
+                        act=[v if k <= n else None for k, v in enumerate(act)]))
+    out.append(dict(base, phase="contract", pre=pre, act=list(act), out=y))
+    out.append(dict(base, phase="fired", pre=pre, act=list(act), out=y,
+                    fired=[n for n, u in enumerate(pre) if u > 0]))
+    return out
+
+
+def ts_softmax(x: list[float]) -> list[float]:
+    """Port of src/lib/transformer/softmax.ts (no mask), summed in order."""
+    m = max(x)
+    e = [math.exp(v - m) for v in x]
+    s = 0.0
+    for v in e:
+        s += v
+    return [v / s for v in e]
+
+
+def sample_from_probs(probs: list[float], rng) -> int:
+    """Port of sampling.ts:sampleFromProbs."""
+    total = 0.0
+    for p in probs:
+        total += p
+    u = rng() * total
+    acc = 0.0
+    for i, p in enumerate(probs):
+        acc += p
+        if u < acc:
+            return i
+    return len(probs) - 1
+
+
+def overview_states(text: str, config: dict, w: dict, rounds: int) -> list[dict]:
+    """Port of src/lib/anim/overview-steps.ts:overviewStates."""
+    S = config["seq_len"]
+    rng = mulberry32(config["seed"])
+    t = text[: S - 1] if text else " "
+    context = encode(t, len(t))
+    out: list[dict] = []
+    rnd = 0
+    while rnd < rounds and len(context) < S:
+        p = len(context) - 1
+        tr = site_trace(context + [0] * (S - len(context)), config, w)
+        base = {"round": rnd, "pos": p, "block": -1, "context": list(context),
+                "id": context[p], "top": None, "sampled": None, "prob": None}
+        out.append(dict(base, kind="token", vec=None, delta=None))
+        out.append(dict(base, kind="embed", vec=vec(tr["tok_emb"][p]), delta=None))
+        x = tr["x0"][p]
+        out.append(dict(base, kind="position", vec=vec(x), delta=vec(tr["pos_emb"][p])))
+        for b, bt in enumerate(tr["blocks"]):
+            h, y = bt["h"][p], bt["y"][p]
+            out.append(dict(base, kind="attn", block=b, vec=vec(h), delta=vec(h - x)))
+            out.append(dict(base, kind="ffn", block=b, vec=vec(y), delta=vec(y - h)))
+            x = y
+        xf = vec(tr["x_final"][p])
+        out.append(dict(base, kind="norm", vec=xf, delta=None))
+        logits = vec(tr["logits"][p])
+        probs = ts_softmax(logits)
+        top = sorted(range(len(logits)), key=lambda i: (-probs[i], i))[:5]
+        top = [{"id": i, "logit": logits[i], "prob": probs[i]} for i in top]
+        out.append(dict(base, kind="logits", vec=xf, delta=None, top=top))
+        nxt = sample_from_probs(probs, rng)
+        picked = {"top": top, "sampled": nxt, "prob": probs[nxt]}
+        out.append(dict(base, kind="sample", vec=xf, delta=None, **picked))
+        context = context + [nxt]
+        out.append(dict(base, kind="append", context=list(context), vec=xf, delta=None, **picked))
+        rnd += 1
+    return out
+
+
+# The animations' default inputs (the widgets' defaults).
+ANIM_CONFIG = dict(DEFAULT_CONFIG)  # seq_len 8, d_model 16, 2 heads, d_ff 32, 2 blocks, seed 42
+ANIM_TEXT = "hello!"
+HERO_TEXT = "hello"
+HERO_ROUNDS = 3
+
+
+def animation_fixture() -> dict:
+    config = ANIM_CONFIG
+    w = init_weights_site(config)
+    S = config["seq_len"]
+    tr = site_trace(encode(ANIM_TEXT, S), config, w)
+    return {
+        "note": "Animation states from scripts/reference.py (float64, site weights: mulberry32 init port).",
+        "config": config,
+        "weights_sample": {
+            "tok_emb_row0": vec(w["tok_emb"][0]),
+            "block_1.ffn.W2_last_row": vec(w["block_1.ffn.W2"][-1]),
+        },
+        "embed": {"text": ANIM_TEXT, "pos": 2, "states": embed_states(ANIM_TEXT, config, w, 2)},
+        "attention": [
+            {"text": ANIM_TEXT, "head": 0, "row": 3,
+             "states": attention_states(ANIM_TEXT, config, w, 0, 3)},
+            {"text": ANIM_TEXT, "head": "all", "row": 6,
+             "states": attention_states(ANIM_TEXT, config, w, "all", 6)},
+        ],
+        "ffn": {"text": ANIM_TEXT, "pos": 5, "states": ffn_states(ANIM_TEXT, config, w, 5)},
+        "overview": {"text": HERO_TEXT, "rounds": HERO_ROUNDS,
+                     "states": overview_states(HERO_TEXT, config, w, HERO_ROUNDS)},
+        "logits_hello": vec(tr["logits"][5]),
+    }
+
+
+def write_animation_fixture(out_dir: Path) -> None:
+    path = out_dir / "animations.json"
+    with path.open("w", encoding="utf-8") as fh:
+        json.dump(animation_fixture(), fh, allow_nan=False, separators=(",", ":"))
+        fh.write("\n")
+    print(f"wrote {path}")
+
+
 def main() -> None:
     out_dir = Path(__file__).resolve().parent.parent / "tests" / "unit" / "fixtures"
     config = DEFAULT_CONFIG
@@ -419,6 +746,10 @@ def main() -> None:
             ],
         },
     )
+
+    # Animation states (brief 27): a separate file, not in the manifest
+    # (verify-maths checks ops; the frame tests read this one).
+    write_animation_fixture(out_dir)
 
     print("\nAll fixtures written.")
     print("Commit tests/unit/fixtures/ to git.")

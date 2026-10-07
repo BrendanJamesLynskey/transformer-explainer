@@ -10,13 +10,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { initModelWeights } from "@/lib/transformer/init";
-import {
-  positionalEncoding,
-  tokenEmbedding,
-} from "@/lib/transformer/embeddings";
-import { ALPHABET, VOCAB_SIZE, encode } from "@/lib/transformer/tokenizer";
-import { addMat } from "@/lib/transformer/tensor";
+import { DEFAULT_PARAMS, computeEmbed } from "@/lib/compute/traces";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -47,33 +41,7 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  const { text, seed, seqLen, dModel } = parsed.data;
+  const params = { ...DEFAULT_PARAMS, ...parsed.data };
 
-  const config = {
-    seq_len: seqLen,
-    d_model: dModel,
-    n_heads: 1,
-    d_ff: 1, // unused for embed-only init, but model.ts needs the field
-    n_blocks: 0,
-    vocab_size: VOCAB_SIZE,
-    seed,
-  };
-  const weights = initModelWeights(config);
-
-  const tokenIds = encode(text, seqLen);
-  const tokEmb = tokenEmbedding(tokenIds, weights.tok_emb);
-  const posEmb = positionalEncoding(seqLen, dModel);
-  const xAfterEmb = addMat(tokEmb, posEmb);
-
-  return NextResponse.json({
-    ok: true,
-    data: {
-      alphabet: ALPHABET,
-      tokenIds,
-      tokens: tokenIds.map((id) => ALPHABET[id] ?? "?"),
-      tokEmb,
-      posEmb,
-      xAfterEmb,
-    },
-  });
+  return NextResponse.json({ ok: true, data: computeEmbed(params) });
 }

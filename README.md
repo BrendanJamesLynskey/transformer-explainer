@@ -66,6 +66,28 @@ which serving lever helps which metric.
   the URL, and let others **fork** it to their own account.
 - Drop a comment on any section (Markdown, sanitised server-side).
 - Track per-section progress automatically (scroll + interaction).
+- Watch each mechanism happen: chapters open with an animation driven by
+  the model itself (play, pause, step, scrub, 0.25–4× speed, keyboard;
+  captions read out to screen readers; no autoplay with reduced motion).
+
+## Animations
+
+Each frame is a state computed in your browser by the same TypeScript model
+the API runs (`src/lib/compute/traces.ts` → `src/lib/anim/*-steps.ts`), on
+your input. `scripts/reference.py` rebuilds every state independently with
+PyTorch (float64, on the site's seeded weights) and the frame tests require
+both to agree. Recorded with `pnpm animations` (WebM versions alongside, in
+[`docs/media/`](docs/media/)):
+
+|                                                                          |                                                            |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| ![One token's journey through the decoder](docs/media/overview-hero.gif) | ![From a character to a vector](docs/media/embeddings.gif) |
+| ![Attention, one query row at a time](docs/media/attention.gif)          | ![Inside the feed-forward network](docs/media/ffn.gif)     |
+
+The weights are random (seeded, N(0, 0.02), as at the start of training),
+so the attention weights are nearly uniform and the next-token
+probabilities nearly flat: the animations show the mechanism, not a trained
+model's behaviour.
 
 ## Screenshots
 
@@ -242,6 +264,13 @@ git add tests/unit/fixtures/ && git commit -m "fixtures: regenerate"
 
 `pnpm verify:maths` then re-runs the TS implementation against the new
 JSON and reports the max abs-error per operation (target: `< 1e-5`).
+
+The same script also writes `tests/unit/fixtures/animations.json`: the
+animations' states, built from a Python port of the site's seeded
+initialiser (mulberry32 + Box–Muller) and the PyTorch ops above in
+float64. `tests/unit/anim-frames.test.ts` and
+`tests/e2e/anim-frames.spec.ts` compare the site's frames with it. The
+other fixtures come out byte-identical when it is re-run.
 
 ## Project layout
 

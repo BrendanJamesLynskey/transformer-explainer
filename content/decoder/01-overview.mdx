@@ -1,3 +1,12 @@
+Watch one character go through the whole decoder before reading about any of it. Below, the newest character of your prompt becomes a vector, picks up an update from every attention and feed-forward sub-layer, and comes out as a probability for each of the 64 possible next characters; one is sampled, appended, and the loop goes round again. Press play, or step through it with the arrow keys.
+
+<OverviewHero>
+  <Eq
+    label="One token through the decoder: its id t selects the embedding E sub t, the positional vector P sub p is added, each of N blocks adds an attention update and a feed-forward update, the final LayerNorm and the transposed embedding give the logits, and the next token is sampled from their softmax"
+    tex="\begin{gathered} \htmlClass{hl-tok}{t = \mathrm{id}(c_p)}, \qquad x = \htmlClass{hl-emb}{E_{t}} + \htmlClass{hl-pos}{P_{p}} \\ x \leftarrow x + \htmlClass{hl-attn}{\operatorname{Attn}(\operatorname{LN}_1(x))} \\ x \leftarrow x + \htmlClass{hl-ffn}{\operatorname{FFN}(\operatorname{LN}_2(x))} \quad \text{(each of } N \text{ blocks)} \\ \htmlClass{hl-logits}{\ell = \htmlClass{hl-ln}{\operatorname{LN}_f(x)}\, E^{\top}}, \qquad \htmlClass{hl-sample}{t' \sim \operatorname{softmax}(\ell)} \end{gathered}"
+  />
+</OverviewHero>
+
 <Layer kind="concept">
 
 A **Transformer decoder** is a function that takes a sequence of tokens and

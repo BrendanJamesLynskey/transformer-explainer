@@ -32,6 +32,7 @@
     "db:seed": "tsx scripts/seed-db.ts",
     "verify:maths": "tsx scripts/verify-maths.ts",
     "screenshots": "tsx scripts/capture-screenshots.ts",
+    "animations": "tsx scripts/capture-animations.ts",
     "smoke": "tsx scripts/smoke-check.ts",
     "prepare-fixtures": "echo 'Run scripts/reference.py manually with Python + PyTorch; commits go to tests/unit/fixtures/'"
   },
