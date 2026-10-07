@@ -39,8 +39,8 @@ hub (Transformer Architecture sub-area) and is referenced from the
 full-stack reference application.
 
 It is the first of a family of companion sites, linked from every page's
-header ("Decoder · Inference · Architectures · Kernels · Numerics · Silicon ·
-Trade-offs"):
+header in two groups. The "LLM systems" group (Decoder · Inference ·
+Architectures · Kernels · Numerics · Silicon · Trade-offs):
 [LLM Inference Explained](https://llm-inference-explained.vercel.app/)
 shows how a model is served,
 [LLM Architectures Explained](https://llm-architectures-explained.vercel.app/)
@@ -52,7 +52,10 @@ the number formats and quantisation behind it,
 [Systolic Arrays Explained](https://systolic-arrays-explained.vercel.app/)
 the matrix hardware of TPUs, and
 [Inference Trade-offs Explained](https://inference-tradeoffs-explained.vercel.app/)
-which serving lever helps which metric.
+which serving lever helps which metric. The "Agents" group starts with
+[Agent Harnesses Explained](https://agent-harnesses-explained.vercel.app/),
+the loop, tools, context and permissions that turn a model into an agent;
+five more agent sites are marked "soon".
 
 ## What you can do
 
