@@ -183,7 +183,7 @@ test.describe("learn", () => {
 });
 
 test.describe("companion site", () => {
-  test("the six-way site switch links every live site, this one current", async ({
+  test("the seven-way site switch links every live site, this one current", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -200,6 +200,10 @@ test.describe("companion site", () => {
     await expect(nav.getByRole("link", { name: "Silicon" })).toHaveAttribute(
       "href",
       "https://systolic-arrays-explained.vercel.app",
+    );
+    await expect(nav.getByRole("link", { name: "Trade-offs" })).toHaveAttribute(
+      "href",
+      "https://inference-tradeoffs-explained.vercel.app",
     );
     await expect(nav.getByRole("link", { name: "Inference" })).toHaveAttribute(
       "href",
