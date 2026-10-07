@@ -1,3 +1,12 @@
+Before the decoder can do anything with a character it needs a vector. Below, the character's token id picks one row of the embedding table, a positional vector that depends only on where the character sits is added to it element by element, and the result becomes one row of the matrix that block 1 reads.
+
+<EmbeddingAnimation>
+  <Eq
+    label="x sub p equals row t sub p of the embedding table E plus the positional vector P sub p, whose even elements are sines and odd elements cosines of p over 10000 to the power 2 i over d"
+    tex="\begin{gathered} \htmlClass{hl-xp}{x_p} = \htmlClass{hl-emb}{E_{\htmlClass{hl-tok}{t_p}}} + \htmlClass{hl-pos}{P_p} \\ \htmlClass{hl-pos}{P_{p,2i} = \sin\!\big(p / 10000^{2i/d}\big), \quad P_{p,2i+1} = \cos\!\big(p / 10000^{2i/d}\big)} \end{gathered}"
+  />
+</EmbeddingAnimation>
+
 <Layer kind="concept">
 
 The decoder doesn't know about characters or words — it knows about

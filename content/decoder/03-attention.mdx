@@ -1,3 +1,12 @@
+Attention is computed one query row at a time. Below, one row of the pattern is built exactly as the code builds it: a dot product with every key, a scale, the causal mask, a softmax in three steps, and a weighted sum of the value rows; then it moves on to the next row, and at the end the heads are joined and projected.
+
+<AttentionAnimation>
+  <Eq
+    label="The score s i j is q i dot k j divided by the square root of d k, plus the causal mask; the weight a i j is the exponential of s i j minus the row maximum, divided by the sum of those exponentials; the output o i is the sum of a i j times v j; the heads are concatenated and multiplied by W o"
+    tex="\begin{gathered} s_{ij} = \htmlClass{hl-dot}{q_i \cdot k_j}\, \htmlClass{hl-scale}{/ \sqrt{d_k}} + \htmlClass{hl-mask}{M_{ij}}, \qquad a_{ij} = \frac{\htmlClass{hl-exp}{e^{\,s_{ij} - m_i}}}{\htmlClass{hl-sum}{\sum_{j'} e^{\,s_{ij'} - m_i}}} \\ o_i = \sum_{j \le i} \htmlClass{hl-w}{a_{ij}}\, \htmlClass{hl-v}{v_j}, \qquad \text{out} = \htmlClass{hl-cat}{[\,o^{(0)} \,\|\, o^{(1)}\,]}\, \htmlClass{hl-wo}{W_o} \end{gathered}"
+  />
+</AttentionAnimation>
+
 <Layer kind="concept">
 
 **Attention** is how the decoder looks back at earlier tokens. For every

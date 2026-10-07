@@ -5,7 +5,8 @@
  * block CI (they tend to flag colour-contrast on neutrals that we tune
  * deliberately). Every page is scanned in light and in dark mode
  * (`darkMode: "media"`, so Playwright's colorScheme switches it): the dark
- * palette needs its own contrast check.
+ * palette needs its own contrast check. The animated chapters (brief 27)
+ * are scanned at 390 px too, where their phone layouts apply.
  */
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
@@ -13,14 +14,21 @@ import { expect, test } from "@playwright/test";
 const PAGES = [
   "/",
   "/learn",
+  "/learn/01-overview",
+  "/learn/02-embeddings",
   "/learn/03-attention",
+  "/learn/04-ffn",
   "/playground",
   "/signin",
 ] as const;
 
-for (const scheme of ["light", "dark"] as const) {
+for (const scheme of ["light", "dark", "dark-390"] as const) {
   test.describe(scheme, () => {
-    test.use({ colorScheme: scheme });
+    test.use(
+      scheme === "dark-390"
+        ? { colorScheme: "dark", viewport: { width: 390, height: 900 } }
+        : { colorScheme: scheme },
+    );
     for (const path of PAGES) {
       test(`a11y (${scheme}): ${path} has no serious or critical violations`, async ({
         page,

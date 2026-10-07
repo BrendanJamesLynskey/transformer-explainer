@@ -728,3 +728,41 @@ why local and CI builds passed.
 - Raw HTML in a comment is now dropped, not sanitised and kept (the
   textarea always said "No raw HTML"). Inline tags vanish and their text
   stays as plain text.
+
+---
+
+## Brief 27A — model-driven animations, chapters 01–04 (2026-10-07)
+
+Brings the first four chapters up to the family's visual standard
+(`explained_sites_visual_standard.md`). Chapters 05–07 and the playground's
+"step through generation" mode are brief 27B.
+
+- [x] Client-side trace path: `src/lib/compute/traces.ts` holds the traces
+      the `/api/compute/*` routes return; the routes now validate and call
+      it, and the animations call it in the browser. Every route's response
+      is byte-identical to before (checked against `main` on 20 requests),
+      and `tests/unit/compute-traces.test.ts` requires route JSON = client
+      trace for 4 inputs × 5 routes.
+- [x] Shared stepper, controls and captions copied from Systolic Arrays
+      Explained (`src/components/anim/`, `src/lib/anim/clock.ts`,
+      `useSvgFont`, `Eq`), with the e2e pause-race fix from Inference
+      Trade-offs Explained.
+- [x] Animations: 01 hero (one token's journey, 3 sampled rounds), 02
+      lookup + positional add, 03 attention built row by row (dot, scale,
+      mask, exp, sum, weights, weighted sum; all heads; concat; W_o),
+      04 FFN (expand, GELU per neuron on the curve, contract, fired).
+- [x] Frame tests: `scripts/reference.py` writes
+      `tests/unit/fixtures/animations.json` (new; the other fixtures are
+      byte-identical); every state matches to 1e-12 and every caption
+      matches; e2e checks the page's captions at key frames.
+- [x] README GIFs (`pnpm animations`).
+
+**Deviations:**
+
+- The FFN expands d → 2d (SPEC §4's `d_ff = 32`), not the 4d of GPT-2; the
+  animation says so. No model numbers changed.
+- Each animated chapter has a short server-rendered lead paragraph above
+  the animation, so the page's largest paint is not client-rendered
+  (Lighthouse LCP), and the placeholders reserve the panels' height (CLS).
+- LHCI now also audits `/learn/01-overview`, `/learn/02-embeddings` and
+  `/learn/04-ffn`.

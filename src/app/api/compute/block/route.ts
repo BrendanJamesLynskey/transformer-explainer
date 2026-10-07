@@ -10,15 +10,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { block } from "@/lib/transformer/block";
-import {
-  positionalEncoding,
-  tokenEmbedding,
-} from "@/lib/transformer/embeddings";
-import { initModelWeights } from "@/lib/transformer/init";
-import { addMat } from "@/lib/transformer/tensor";
-import { ALPHABET, VOCAB_SIZE, encode } from "@/lib/transformer/tokenizer";
-import { emptyBlockTrace } from "@/lib/transformer/trace";
+import { DEFAULT_PARAMS, computeBlock } from "@/lib/compute/traces";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -49,49 +41,16 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  const { text, seed, seqLen, dModel, dFf, nHeads } = parsed.data;
-  if (dModel % nHeads !== 0) {
+  const params = { ...DEFAULT_PARAMS, ...parsed.data };
+  if (params.dModel % params.nHeads !== 0) {
     return NextResponse.json(
       {
         ok: false,
-        error: `dModel (${dModel}) must be divisible by nHeads (${nHeads})`,
+        error: `dModel (${params.dModel}) must be divisible by nHeads (${params.nHeads})`,
       },
       { status: 400 },
     );
   }
 
-  const config = {
-    seq_len: seqLen,
-    d_model: dModel,
-    n_heads: nHeads,
-    d_ff: dFf,
-    n_blocks: 1,
-    vocab_size: VOCAB_SIZE,
-    seed,
-  };
-  const w = initModelWeights(config);
-
-  const tokenIds = encode(text, seqLen);
-  const x0 = addMat(
-    tokenEmbedding(tokenIds, w.tok_emb),
-    positionalEncoding(seqLen, dModel),
-  );
-
-  const trace = emptyBlockTrace();
-  const out = block(x0, w.blocks[0]!, nHeads, trace);
-
-  return NextResponse.json({
-    ok: true,
-    data: {
-      alphabet: ALPHABET,
-      tokenIds,
-      tokens: tokenIds.map((id) => ALPHABET[id] ?? "?"),
-      input: x0,
-      ln1: trace.ln1,
-      attnOut: trace.attnOut,
-      ln2: trace.ln2,
-      ffnOut: trace.ffnOut,
-      output: out,
-    },
-  });
+  return NextResponse.json({ ok: true, data: computeBlock(params) });
 }

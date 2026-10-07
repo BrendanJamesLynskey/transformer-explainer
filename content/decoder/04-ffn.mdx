@@ -1,3 +1,12 @@
+The feed-forward network works on one position at a time. Below, one position's vector is expanded to twice its width, every hidden neuron is passed through GELU in turn (the dot on the curve), the result is projected back down, and the neurons that fired are picked out.
+
+<FFNAnimation>
+  <Eq
+    label="u equals x W 1 plus b 1, with d ff numbers; g n equals GELU of u n, approximately one half u n times one plus tanh of root two over pi times u n plus 0.044715 u n cubed; y equals g W 2 plus b 2, back to d numbers"
+    tex="\begin{gathered} \htmlClass{hl-up}{u = \htmlClass{hl-x}{x}\, W_1 + b_1} \;\; [d_\text{ff}], \qquad \htmlClass{hl-down}{y = g\, W_2 + b_2} \;\; [d] \\ \htmlClass{hl-gelu}{g_n = \operatorname{GELU}(u_n)} \\ \htmlClass{hl-gelu}{\approx \tfrac12 u_n \big(1 + \tanh\big(\sqrt{2/\pi}\,(u_n + 0.044715\,u_n^3)\big)\big)} \end{gathered}"
+  />
+</FFNAnimation>
+
 <Layer kind="concept">
 
 After attention has mixed information across positions, the

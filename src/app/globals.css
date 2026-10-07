@@ -80,3 +80,84 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Animation panels (brief 27, from the companion sites): the equation
+ * beside each animation, with the term being animated highlighted. A term
+ * is wrapped in \htmlClass{hl-<key>}{…} (src/components/mdx/Eq.tsx); its
+ * underline is the colour of that part of the decoder (src/lib/viz/
+ * palette.ts), and it is highlighted while the animation is on it (the
+ * panel's `data-hl`). Outside @layer: the classes only appear in
+ * generated HTML. */
+.eq-panel .katex-display {
+  margin: 0.25rem 0;
+}
+.eq-panel [class*="hl-"] {
+  border-bottom: 2px solid transparent;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.eq-panel .hl-tok,
+.eq-panel .hl-emb,
+.eq-panel .hl-x,
+.eq-panel .hl-dot,
+.eq-panel .hl-xp {
+  border-color: #0072b2;
+}
+.eq-panel .hl-pos {
+  border-color: #e69f00;
+}
+.eq-panel .hl-attn,
+.eq-panel .hl-scale,
+.eq-panel .hl-mask,
+.eq-panel .hl-sum,
+.eq-panel .hl-exp,
+.eq-panel .hl-w,
+.eq-panel .hl-v,
+.eq-panel .hl-cat,
+.eq-panel .hl-wo {
+  border-color: #d55e00;
+}
+.eq-panel .hl-ffn,
+.eq-panel .hl-up,
+.eq-panel .hl-gelu,
+.eq-panel .hl-down {
+  border-color: #009e73;
+}
+.eq-panel .hl-ln {
+  border-color: #56b4e9;
+}
+.eq-panel .hl-logits,
+.eq-panel .hl-sample {
+  border-color: #cc79a7;
+}
+.eq-panel[data-hl~="tok"] .hl-tok,
+.eq-panel[data-hl~="emb"] .hl-emb,
+.eq-panel[data-hl~="pos"] .hl-pos,
+.eq-panel[data-hl~="xp"] .hl-xp,
+.eq-panel[data-hl~="sum"] .hl-sum,
+.eq-panel[data-hl~="attn"] .hl-attn,
+.eq-panel[data-hl~="ffn"] .hl-ffn,
+.eq-panel[data-hl~="ln"] .hl-ln,
+.eq-panel[data-hl~="logits"] .hl-logits,
+.eq-panel[data-hl~="sample"] .hl-sample,
+.eq-panel[data-hl~="dot"] .hl-dot,
+.eq-panel[data-hl~="scale"] .hl-scale,
+.eq-panel[data-hl~="mask"] .hl-mask,
+.eq-panel[data-hl~="exp"] .hl-exp,
+.eq-panel[data-hl~="w"] .hl-w,
+.eq-panel[data-hl~="v"] .hl-v,
+.eq-panel[data-hl~="cat"] .hl-cat,
+.eq-panel[data-hl~="wo"] .hl-wo,
+.eq-panel[data-hl~="x"] .hl-x,
+.eq-panel[data-hl~="up"] .hl-up,
+.eq-panel[data-hl~="gelu"] .hl-gelu,
+.eq-panel[data-hl~="down"] .hl-down {
+  background-color: rgb(0 114 178 / 0.18);
+  border-color: #0072b2;
+}
+/* Phones: shrink the animation equations so they fit the panel. */
+@media (max-width: 639px) {
+  .eq-panel .katex-display > .katex {
+    font-size: 0.82em;
+  }
+}
