@@ -222,7 +222,11 @@ test.describe("companion site", () => {
     await expect(
       agents.getByRole("link", { name: "Protocols" }),
     ).toHaveAttribute("href", "https://agent-protocols-explained.vercel.app");
-    for (const soon of ["Context", "Orchestration", "Evals", "Security"]) {
+    await expect(agents.getByRole("link", { name: "Context" })).toHaveAttribute(
+      "href",
+      "https://agent-context-explained.vercel.app",
+    );
+    for (const soon of ["Orchestration", "Evals", "Security"]) {
       await expect(agents.getByText(soon)).toBeVisible();
       await expect(agents.getByRole("link", { name: soon })).toHaveCount(0);
     }
@@ -252,6 +256,9 @@ test.describe("companion site", () => {
     await expect(
       compact.getByRole("link", { name: "Protocols" }),
     ).toHaveAttribute("href", "https://agent-protocols-explained.vercel.app");
+    await expect(
+      compact.getByRole("link", { name: "Context" }),
+    ).toHaveAttribute("href", "https://agent-context-explained.vercel.app");
     await expect(compact.getByText("Security")).toBeVisible();
     await expect(compact.getByRole("link", { name: "Security" })).toHaveCount(
       0,
