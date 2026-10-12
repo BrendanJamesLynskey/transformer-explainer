@@ -833,7 +833,7 @@ Training becomes Part 2 of this site (`29_decoder_site_training_brief.md`).
       schedules, data, BPE, trainer), matched to the fixtures: 200 steps to
       1e-9, the whole 2,000-step default run to 1e-7 (unit tests). Starts from
       `init.ts`. Runs in a Web Worker (`src/workers/train.worker.ts`).
-- [x] Corpus: *Alice's Adventures in Wonderland* (Gutenberg #11, public
+- [x] Corpus: _Alice's Adventures in Wonderland_ (Gutenberg #11, public
       domain; `public/training/CORPUS.md`); character BPE (Python = TS).
 - [x] `/training` index + `/training/[slug]` via a shared `ChapterArticle`
       (also used by `/learn/[slug]`, unchanged URLs); header sections
