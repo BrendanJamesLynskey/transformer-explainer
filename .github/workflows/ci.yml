@@ -15,6 +15,8 @@ concurrency:
 #   - Phase 2 added `e2e-tests` (needs Drizzle schema + auth + a home page).
 #   - Phase 11 added `lighthouse` (Lighthouse CI: performance, accessibility
 #     and best practices must each score >= 90; see lighthouserc.json).
+#   - Brief 29A added `training-reference` (the Part 2 trainer's PyTorch
+#     checks and fixtures) and `cit-concept-audit`.
 
 jobs:
   lint-and-typecheck:
@@ -77,6 +79,38 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify:maths
+
+  training-reference:
+    name: Training reference (PyTorch checks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # CPU-only PyTorch, pinned: the gradient checks compare the hand-written
+      # backward pass with torch.autograd, the optimisers with torch.optim.
+      - run: pip install -r scripts/training/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+      # Recomputes every training fixture, results.json/results.md and the
+      # default run's weights, and fails on a failed check or a difference.
+      - run: python scripts/training/make_fixtures.py --check
+
+  cit-concept-audit:
+    name: CiT concept audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Every training concept the Compute in Transit results site relies
+      # on must be explained by a shipped Training chapter (offline: the term
+      # list is committed; chapters not shipped yet are reported as pending).
+      - run: python scripts/cit_concept_audit.py
 
   e2e-tests:
     name: E2E Tests

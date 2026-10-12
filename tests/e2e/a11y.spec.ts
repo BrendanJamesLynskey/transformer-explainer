@@ -23,6 +23,12 @@ const PAGES = [
   "/learn/07-sampling",
   "/playground",
   "/signin",
+  "/training",
+  "/training/01-training-loop",
+  "/training/02-data-and-tokens",
+  "/training/03-objective",
+  "/training/04-backprop",
+  "/training/05-optimisers",
 ] as const;
 
 for (const scheme of ["light", "dark", "dark-390"] as const) {

@@ -42,7 +42,12 @@ describe("the backward pass's matrix products", () => {
   it("mmTB = matmul(A, transpose(B)), exactly", () =>
     expect(mmTB(C, B)).toEqual(matmul(C, transpose(B))));
   it("colSums and addInto", () => {
-    expect(colSums([[1, 2], [3, 4]])).toEqual([4, 6]);
+    expect(
+      colSums([
+        [1, 2],
+        [3, 4],
+      ]),
+    ).toEqual([4, 6]);
     expect(addInto([[1, 2]], [[3, 4]])).toEqual([[4, 6]]);
   });
 });
@@ -56,9 +61,16 @@ describe("GELU' and the softmax backward", () => {
     }
   });
   it("softmax backward: each row of dS sums to 0", () => {
-    const P = [[0.2, 0.3, 0.5], [1, 0, 0]];
-    const dS = softmaxBackward(P, [[1, 2, 3], [5, 6, 7]]);
-    for (const row of dS) expect(Math.abs(row.reduce((a, b) => a + b))).toBeLessThan(1e-15);
+    const P = [
+      [0.2, 0.3, 0.5],
+      [1, 0, 0],
+    ];
+    const dS = softmaxBackward(P, [
+      [1, 2, 3],
+      [5, 6, 7],
+    ]);
+    for (const row of dS)
+      expect(Math.abs(row.reduce((a, b) => a + b))).toBeLessThan(1e-15);
     expect(dS[1]).toEqual([0, 0, 0]); // a one-hot row passes nothing back
   });
 });
@@ -67,7 +79,9 @@ describe("cross-entropy", () => {
   it("is ln V for equal logits, with gradient (1/V − y)/n", () => {
     const { perPosition, probs } = crossEntropy([[0, 0, 0, 0]], [2]);
     expect(perPosition[0]).toBeCloseTo(Math.log(4), 15);
-    expect(crossEntropyGrad(probs, [2], 2)).toEqual([[0.125, 0.125, -0.375, 0.125]]);
+    expect(crossEntropyGrad(probs, [2], 2)).toEqual([
+      [0.125, 0.125, -0.375, 0.125],
+    ]);
   });
 });
 

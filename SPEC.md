@@ -6,10 +6,12 @@ The product spec. Read `CLAUDE.md` first for conventions and workflow.
 
 ## 1. One-line description
 
-A graphical, interactive web explainer of the Transformer decoder, where users
-type tokens and watch every operation — embeddings, masked self-attention, FFN,
-layernorm, residuals, multi-block stacking, sampling — execute on the server and
-visualise step-by-step in the browser.
+A graphical, interactive web explainer of how a decoder-only transformer runs,
+and how it is trained. Part 1 (Inference, `/learn`): users type tokens and watch
+every operation — embeddings, masked self-attention, FFN, layernorm, residuals,
+multi-block stacking, sampling — execute and visualise step-by-step in the
+browser. Part 2 (Training, `/training`, §15): the same model is trained, in the
+browser, with every step of the loop (loss, backprop, optimiser) shown.
 
 ---
 
@@ -29,7 +31,6 @@ visualise step-by-step in the browser.
 ### Non-goals
 
 - Performance / scale. The maths runs in pure TS. Inputs are tiny.
-- Training. We only do forward passes with hand-set or seeded weights.
 - Tokeniser fidelity. A toy char-level or tiny-BPE tokeniser is fine.
 - Mobile-first design. Desktop / tablet first; mobile graceful degradation.
 - Internationalisation. English only.
@@ -82,6 +83,8 @@ basic punctuation, space). Documented as a deliberate simplification.
 /account                Signed-in user's experiments, progress, notes
 /admin                  Analytics dashboard (auth + admin-list gated)
 /about                  Credits, references, methodology
+/training               Part 2 (Training): index of chapters (§15)
+/training/[slug]        A Training chapter (MDX + animations)
 ```
 
 ### Explainer sections (order matters — pedagogical progression)
@@ -96,6 +99,8 @@ basic punctuation, space). Documented as a deliberate simplification.
 7. `07-sampling` — From logits to next token; greedy / temperature / top-k / top-p.
 
 ---
+
+Part 2's chapters are listed in §15.
 
 ## 6. Feature catalogue
 
@@ -422,3 +427,49 @@ behaviour is given in brackets; flag in `PROGRESS.md` if you change.
 4. Do we want a "Show me an example" button that fills the playground with
    one of the curated character-seeds? [yes — adds in Phase 6]
 5. Licence. [MIT]
+
+---
+
+## 15. Part 2 — Training (brief 29, from 2026-10-12)
+
+How Part 1's model is trained, in depth, at `/training` and
+`/training/NN-slug` (`content/training/NN-*.mdx`, rendered by the same chapter
+page as `/learn/[slug]`). Part 1's URLs do not change. The header has two
+sections, **Inference** (`/learn`) and **Training** (`/training`).
+
+### 15.1 The trainer
+
+- `scripts/training/` (NumPy float64): Part 1's model with a hand-written
+  backward pass for every op; its gradients are checked against PyTorch
+  autograd and central finite differences, its optimisers (SGD, momentum,
+  Adam, Adam + L2, AdamW, global-norm clipping) against `torch.optim`, its
+  cosine schedule against `CosineAnnealingLR`. `make_fixtures.py` writes the
+  fixtures, `src/data/training/results.json`, `results.md` and the default
+  run's final weights; CI re-runs it with `--check`.
+- `src/lib/training/` (TypeScript): the same trainer, matched to the
+  fixtures step for step, run in a Web Worker in the browser. It starts from
+  Part 1's initialiser (`init.ts`), so the model trained is Part 1's model.
+- Corpus: _Alice's Adventures in Wonderland_ (Project Gutenberg #11, public
+  domain), reduced to the 64-character alphabet (`public/training/`).
+- BPE: a character-level BPE trainer (Python and TS, identical merges), for
+  chapter 2; the model itself keeps Part 1's character tokenizer.
+- No server-side training and no database change: comments, progress and
+  analytics for Training chapters use keys `training-<slug>` in the existing
+  text columns.
+
+### 15.2 Chapters
+
+1 The training loop · 2 Data and tokenisation · 3 The objective · 4 Backprop
+· 5 Optimisers (brief 29A) · 6 Learning rate, batch size and schedules · 7
+Initialisation, normalisation and µP · 8 Stability · 9 Mixed precision · 10
+Memory · 11 Parallelism I: data · 12 Parallelism II: model · 13 Training over
+slow links · 14 Scaling laws · 15 Running a real job · 16 After pretraining
+(29B, 29C). Each chapter opens with a model-driven animation (the visual
+standard), and every number on it comes from `results.md`.
+
+### 15.3 Concept coverage
+
+`scripts/cit_concept_audit.py` lists the training concepts the Compute in
+Transit results site relies on, each mapped to the Training chapter that
+explains it; CI runs it (chapters not shipped yet are reported as pending
+until 29C).

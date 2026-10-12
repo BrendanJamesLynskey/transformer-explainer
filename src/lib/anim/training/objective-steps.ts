@@ -24,7 +24,13 @@ import { pct, showChar, sig } from "../format";
 
 export const WINDOW_TEXT = "alice was";
 
-export type ObjectivePhase = "logits" | "softmax" | "target" | "loss" | "grad" | "mean";
+export type ObjectivePhase =
+  | "logits"
+  | "softmax"
+  | "target"
+  | "loss"
+  | "grad"
+  | "mean";
 
 export type ObjectiveState = {
   phase: ObjectivePhase;
@@ -42,7 +48,10 @@ export type ObjectiveState = {
 };
 
 /** The window's input and target ids. */
-export function windowIds(text = WINDOW_TEXT): { inputs: number[]; targets: number[] } {
+export function windowIds(text = WINDOW_TEXT): {
+  inputs: number[];
+  targets: number[];
+} {
   const ids = encodeChars(text);
   return { inputs: ids.slice(0, -1), targets: ids.slice(1) };
 }
@@ -72,7 +81,13 @@ export function objectiveStates(params: ParamMap): ObjectiveState[] {
     };
     out.push({ ...base, phase: "logits", losses: losses.slice() });
     out.push({ ...base, phase: "softmax", probs: p, losses: losses.slice() });
-    out.push({ ...base, phase: "target", probs: p, pTarget: p[tgt]!, losses: losses.slice() });
+    out.push({
+      ...base,
+      phase: "target",
+      probs: p,
+      pTarget: p[tgt]!,
+      losses: losses.slice(),
+    });
     losses[i] = perPosition[i]!;
     const l = { ...base, probs: p, pTarget: p[tgt]!, loss: perPosition[i]! };
     out.push({ ...l, phase: "loss", losses: losses.slice() });

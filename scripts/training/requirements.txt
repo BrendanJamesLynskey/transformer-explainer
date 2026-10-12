@@ -1,0 +1,4 @@
+# The training reference (scripts/training/make_fixtures.py), CPU only.
+# Install: pip install -r scripts/training/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+numpy==2.4.4
+torch==2.11.0

@@ -1,0 +1,89 @@
+Backpropagation is the chain rule, applied one operation at a time from the loss back to the first layer. Each operation turns "how the loss changes with my output" into "how the loss changes with my inputs and my weights", using only its own local derivative and what it saved during the forward pass. Below, the gradient for the window "alice was" travels back through Part 1's model, stop by stop.
+
+<BackpropAnimation>
+  <Eq
+    label="The gradient starts at the loss as p minus y; through the tied head it becomes the gradient with respect to the final LayerNorm's output; each block is crossed in reverse, the residual connections passing the gradient straight through and adding each branch's gradient; a weight's gradient is the input it saw transposed times the gradient of its output"
+    tex="\begin{gathered} \htmlClass{hl-loss}{\delta_z = \tfrac{1}{N}(p - \mathbf 1_y)}, \qquad \htmlClass{hl-head}{\delta_{x_f} = \delta_z E}, \quad \htmlClass{hl-ln}{\delta_x = \operatorname{LN}'(\delta_{x_f})} \\ \htmlClass{hl-res}{\delta_h = \delta_y + \operatorname{LN}_2'\big(\htmlClass{hl-ffn}{\mathrm{FFN}'(\delta_y)}\big)}, \qquad \delta_x = \delta_h + \operatorname{LN}_1'\big(\htmlClass{hl-attn}{\mathrm{Attn}'(\delta_h)}\big) \\ Y = XW \;\Rightarrow\; \partial L/\partial W = X^{\top} \delta_Y, \quad \delta_X = \delta_Y W^{\top} \end{gathered}"
+  />
+</BackpropAnimation>
+
+<Layer kind="concept">
+
+<span id="t-gradient" />
+**What a gradient is.** For every one of the model's weights, the gradient is
+one number: how fast the loss would change if that weight alone were nudged up a
+little. Positive means "increasing this weight increases the loss", so the
+optimiser moves the weight the other way. The gradient therefore has exactly the
+shape of the weights, one number per parameter, and it is computed fresh on
+every batch: a *stochastic* estimate of the gradient over all the text. In
+distributed training this is what the workers exchange.
+
+<span id="t-backprop" />
+**The order.** Backpropagation computes every weight's gradient in one backward
+pass. The forward pass went embedding → block 0 → block 1 → final LayerNorm →
+logits → loss. The backward pass goes the other way, and every stop above is one
+link of the chain rule. A weight's gradient is finished at the stop where its
+operation is crossed; the embedding table $E$ gets its gradient twice, once at
+the start (it is also the output head, [tied](/learn/01-overview)) and once at
+the very end.
+
+**The residual highway.** At each `x + Sublayer(LN(x))` the gradient is simply _copied_ into both paths: straight down the residual stream, and into the sublayer. So the gradient reaching block 0 is the gradient at the top plus whatever each sublayer adds on the way. This is why deep residual networks train at all: there is always a path from the loss to every layer along which the gradient is not multiplied by anything ([Part 1, chapter 5](/learn/05-layernorm-residuals)). Watch the size of each row: it does not shrink as the gradient passes from block 1 to block 0.
+
+**Through a linear layer** $Y = XW$: the weight's gradient is $X^{\top}\delta_Y$, the input the layer saw times the gradient of what it produced, and the gradient that continues back is $\delta_Y W^{\top}$. Every matrix in the model (the attention projections, the FFN, the head) works this way; it is also why the backward pass costs about twice the forward pass: two matrix products per linear layer instead of one.
+
+**Through GELU** the gradient is multiplied, element by element, by the slope of GELU at the value the neuron saw ([Part 1, chapter 4](/learn/04-ffn)): neurons that were far below zero pass almost nothing back.
+
+**Through attention** ([Part 1, chapter 3](/learn/03-attention)) the softmax is the interesting step. Its backward pass is $dS = P \odot (dP - \textstyle\sum_k dP_k P_k)$ row by row: a score's gradient is its weight times how much better than average its value vector would have been. Masked (future) positions have weight 0, so they receive no gradient: the causal mask holds on the way back too. The picture at that stop is head 0's $dS$, one row per query.
+
+**Through LayerNorm** the gradient is projected: LayerNorm's output does not change if its input is shifted or scaled, so its backward pass removes those directions (the mean of the gradient, and its component along the normalised input).
+
+**What must be saved.** Every stop says what it needs from the forward pass: the input of each linear layer, the pre-activation of GELU, the attention weights, each LayerNorm's input. Training must keep all of these, for every position of every sequence in the batch, until the backward pass reaches them. For a large model this _activation memory_ is often larger than the weights; trainers trade it for compute by keeping only some of the activations and recomputing the rest during the backward pass (_activation checkpointing_, [Chen et al. 2016](https://arxiv.org/abs/1604.06174)), the subject of chapter 10.
+
+**Backpropagation** in this form, reverse-mode differentiation of a network, was popularised for neural networks by [Rumelhart, Hinton & Williams (1986)](https://doi.org/10.1038/323533a0). Frameworks such as PyTorch record the forward operations and run exactly this walk automatically (_autograd_); here every step is written out, and checked against PyTorch's autograd and against finite differences ([results.md §3](https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md#3-correctness-checks)).
+
+</Layer>
+
+<Layer kind="maths">
+
+Write $\delta_T = \partial L / \partial T$. For the model's operations:
+
+$$
+\begin{aligned}
+z &= x_f E^{\top}: & \delta_{x_f} &= \delta_z E, & \partial L/\partial E &\mathrel{+}= \delta_z^{\top} x_f \\
+y &= xW + b: & \delta_x &= \delta_y W^{\top}, & \partial L/\partial W &= x^{\top}\delta_y,\ \ \partial L/\partial b = \textstyle\sum_{\text{rows}} \delta_y \\
+a &= \operatorname{GELU}(u): & \delta_u &= \delta_a \odot \operatorname{GELU}'(u) \\
+P &= \operatorname{softmax}(S): & \delta_S &= P \odot \big(\delta_P - (\delta_P \odot P)\mathbf 1\big) \\
+\hat x &= (x - \mu)\,r,\ y = \gamma \odot \hat x + \beta: & \delta_x &= r\big(g - \bar g - \hat x\,\overline{g \odot \hat x}\big), & g &= \gamma \odot \delta_y
+\end{aligned}
+$$
+
+with $r = 1/\sqrt{\sigma^2 + \varepsilon}$ and bars for means over the row. In attention, with $S = QK^{\top}/\sqrt{d_k}$ and $O = PV$: $\delta_V = P^{\top}\delta_O$, $\delta_P = \delta_O V^{\top}$, $\delta_Q = \delta_S K/\sqrt{d_k}$, $\delta_K = \delta_S^{\top} Q/\sqrt{d_k}$. At a residual $h = x + f(x)$: $\delta_x = \delta_h + f'(x)^{\top}\delta_h$.
+
+</Layer>
+
+<Layer kind="code">
+
+The block's backward pass, from `src/lib/training/model-grad.ts` (FFN half; the attention half follows the same pattern):
+
+```ts
+// y = h + FFN(LN2(h)), FFN(z) = GELU(z W1 + b1) W2 + b2
+const l2 = linearBackward(b.ffn.act, m(params, `${p}.ffn.W2`), dx);
+addTo(m(grads, `${p}.ffn.W2`), l2.dW);
+addVecTo(v(grads, `${p}.ffn.b2`), colSums(dx));
+record?.push({ name: `${p}.dact`, value: l2.dX });
+const dpre = geluBackward(b.ffn.pre, l2.dX);
+record?.push({ name: `${p}.dpre`, value: dpre });
+const l1 = linearBackward(b.ln2, m(params, `${p}.ffn.W1`), dpre);
+addTo(m(grads, `${p}.ffn.W1`), l1.dW);
+addVecTo(v(grads, `${p}.ffn.b1`), colSums(dpre));
+record?.push({ name: `${p}.dln2`, value: l1.dX });
+const n2 = layernormBackward(b.h, v(params, `${p}.ln2.gamma`), l1.dX);
+addVecTo(v(grads, `${p}.ln2.gamma`), n2.dGamma);
+addVecTo(v(grads, `${p}.ln2.beta`), n2.dBeta);
+// the residual: the gradient reaches h directly and through the FFN
+const dh = addInto(dx, n2.dX);
+```
+
+The `record` calls are what the animation draws. The NumPy twin is `scripts/training/model.py:backward`; `checks.py` compares it with `torch.autograd` on the same forward pass (agreement <R k="checks.gradients.autograd_perturbed.max_scaled_err" />, relative) and with central differences on <R k="checks.gradients.fd_perturbed.entries" /> sampled weights (largest error <R k="checks.gradients.fd_perturbed.max_abs_err" />).
+
+</Layer>

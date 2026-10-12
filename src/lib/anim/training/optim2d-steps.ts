@@ -13,7 +13,14 @@ import {
   type OptimizerState,
 } from "@/lib/training/optimizers";
 
-export const VALLEY = { a: 1, b: 50, xStar: 2, yStar: 1, start: [-2.5, -1.5], steps: 60 };
+export const VALLEY = {
+  a: 1,
+  b: 50,
+  xStar: 2,
+  yStar: 1,
+  start: [-2.5, -1.5],
+  steps: 60,
+};
 
 export type Optim2dSpec = {
   kind: OptimizerKind;
@@ -44,9 +51,9 @@ export function valleyLoss([x, y]: [number, number]): number {
   return 0.5 * (v.a * (x - v.xStar) ** 2 + v.b * (y - v.yStar) ** 2);
 }
 
-function valleyGrad([x, y]: number[]): number[][] {
+function valleyGrad(theta: number[]): number[][] {
   const v = VALLEY;
-  return [[v.a * (x - v.xStar), v.b * (y - v.yStar)]];
+  return [[v.a * (theta[0]! - v.xStar), v.b * (theta[1]! - v.yStar)]];
 }
 
 /** Every optimiser's position after each step (t = 0 … steps). */
@@ -62,7 +69,9 @@ export function optim2dStates(specs: Optim2dSpec[] = OPTIM2D): Optim2dState[] {
   const adam = specs.findIndex((s) => s.kind === "adam");
   const out: Optim2dState[] = [];
   for (let t = 0; t <= VALLEY.steps; t++) {
-    const points = params.map((p) => [p.theta[0]![0]!, p.theta[0]![1]!] as [number, number]);
+    const points = params.map(
+      (p) => [p.theta[0]![0]!, p.theta[0]![1]!] as [number, number],
+    );
     out.push({
       t,
       points,
@@ -72,15 +81,26 @@ export function optim2dStates(specs: Optim2dSpec[] = OPTIM2D): Optim2dState[] {
     });
     if (t === VALLEY.steps) break;
     specs.forEach((s, i) => {
-      optimizerStep(opts[i]!, params[i]!, { theta: valleyGrad(params[i]!.theta[0]!) }, s.lr);
+      optimizerStep(
+        opts[i]!,
+        params[i]!,
+        { theta: valleyGrad(params[i]!.theta[0]!) },
+        s.lr,
+      );
     });
   }
   return out;
 }
 
-export function optim2dCaption(s: Optim2dState, specs: Optim2dSpec[] = OPTIM2D): string {
+export function optim2dCaption(
+  s: Optim2dState,
+  specs: Optim2dSpec[] = OPTIM2D,
+): string {
   if (s.t === 0)
     return `Step 0: all four start at (−2.5, −1.5). The valley is 50× steeper across (y) than along (x); the minimum is at (2, 1).`;
-  const parts = specs.map((sp, i) => `${sp.label} ${s.losses[i]! < 1e-3 ? s.losses[i]!.toExponential(1) : s.losses[i]!.toFixed(3)}`);
+  const parts = specs.map(
+    (sp, i) =>
+      `${sp.label} ${s.losses[i]! < 1e-3 ? s.losses[i]!.toExponential(1) : s.losses[i]!.toFixed(3)}`,
+  );
   return `Step ${s.t}: loss ${parts.join(" · ")}.`;
 }

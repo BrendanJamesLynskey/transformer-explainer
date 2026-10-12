@@ -16,13 +16,22 @@
  */
 import { sampleBatch, splitIds } from "@/lib/training/data";
 import { crossEntropy } from "@/lib/training/loss";
-import { forwardCached, lossAndGrads, lossOnly } from "@/lib/training/model-grad";
+import {
+  forwardCached,
+  lossAndGrads,
+  lossOnly,
+} from "@/lib/training/model-grad";
 import {
   clipByGlobalNorm,
   createOptimizer,
   optimizerStep,
 } from "@/lib/training/optimizers";
-import { cloneParams, fromWeights, sumSquares, type ParamMap } from "@/lib/training/params";
+import {
+  cloneParams,
+  fromWeights,
+  sumSquares,
+  type ParamMap,
+} from "@/lib/training/params";
 import { PART1_MODEL } from "@/lib/training/trainer";
 import { initModelWeights } from "@/lib/transformer/init";
 import { mulberry32 } from "@/lib/transformer/random";
@@ -108,7 +117,9 @@ function diff(a: ParamMap, b: ParamMap): ParamMap {
     const x = a[k]!;
     const y = b[k]!;
     out[k] = Array.isArray(x[0])
-      ? (x as number[][]).map((r, i) => r.map((v, j) => v - (y as number[][])[i]![j]!))
+      ? (x as number[][]).map((r, i) =>
+          r.map((v, j) => v - (y as number[][])[i]![j]!),
+        )
       : (x as number[]).map((v, j) => v - (y as number[])[j]!);
   }
   return out;
@@ -130,16 +141,26 @@ export function heroStates(corpusIds: number[]): HeroState[] {
   for (let t = 0; t < HERO.steps; t++) {
     const b = sampleBatch(train, HERO.batch, S, rng);
     const pTarget = b.inputs.map((ids, i) => {
-      const { probs } = crossEntropy(forwardCached(params, PART1_MODEL, ids).logits, b.targets[i]!);
+      const { probs } = crossEntropy(
+        forwardCached(params, PART1_MODEL, ids).logits,
+        b.targets[i]!,
+      );
       return probs.map((p, s) => p[b.targets[i]![s]!]!);
     });
-    const { loss, grads, perPosition } = lossAndGrads(params, PART1_MODEL, b.inputs, b.targets);
+    const { loss, grads, perPosition } = lossAndGrads(
+      params,
+      PART1_MODEL,
+      b.inputs,
+      b.targets,
+    );
     const norms = GROUPS.map((g) => groupNorm(grads, g.names));
     const clip = clipByGlobalNorm(grads, HERO.clip);
     const before = cloneParams(params);
     optimizerStep(opt, params, grads, HERO.lr);
     const delta = diff(params, before);
-    const ratios = GROUPS.map((g) => groupNorm(delta, g.names) / groupNorm(before, g.names));
+    const ratios = GROUPS.map(
+      (g) => groupNorm(delta, g.names) / groupNorm(before, g.names),
+    );
     const after = lossOnly(params, PART1_MODEL, b.inputs, b.targets);
     const base: HeroState = {
       step: t,

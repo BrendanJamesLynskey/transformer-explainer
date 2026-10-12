@@ -64,7 +64,13 @@ export const DEFAULT_TRAIN: TrainConfig = {
   model: PART1_MODEL,
   batch: 16,
   steps: 2000,
-  optimizer: { kind: "adamw", beta1: 0.9, beta2: 0.99, eps: 1e-8, weightDecay: 0.01 },
+  optimizer: {
+    kind: "adamw",
+    beta1: 0.9,
+    beta2: 0.99,
+    eps: 1e-8,
+    weightDecay: 0.01,
+  },
   schedule: { kind: "cosine", lr: 0.01, warmup: 50, minRatio: 0.1 },
   clip: 1.0,
   dataSeed: 1,
@@ -109,8 +115,14 @@ export function createTrainer(cfg: TrainConfig, corpusIds: number[]): Trainer {
 /** One training step; returns what it measured. */
 export function trainStep(tr: Trainer, batch?: Batch): StepLog {
   const { cfg } = tr;
-  const b = batch ?? sampleBatch(tr.train, cfg.batch, cfg.model.seq_len, tr.rng);
-  const { loss, grads } = lossAndGrads(tr.params, cfg.model, b.inputs, b.targets);
+  const b =
+    batch ?? sampleBatch(tr.train, cfg.batch, cfg.model.seq_len, tr.rng);
+  const { loss, grads } = lossAndGrads(
+    tr.params,
+    cfg.model,
+    b.inputs,
+    b.targets,
+  );
   const { norm, scale } =
     cfg.clip === null
       ? { norm: NaN, scale: 1 }
@@ -150,7 +162,11 @@ export function sampleText(
   for (let k = 0; k < n; k++) {
     const ctx = ids.slice(-model.seq_len);
     const { logits } = forwardCached(params, model, ctx);
-    const next = sample(logits[logits.length - 1]!, { kind: "temperature", temperature }, rng);
+    const next = sample(
+      logits[logits.length - 1]!,
+      { kind: "temperature", temperature },
+      rng,
+    );
     ids.push(next);
     out += ALPHABET[next]!;
   }

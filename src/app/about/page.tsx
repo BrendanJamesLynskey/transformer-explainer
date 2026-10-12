@@ -6,7 +6,7 @@ import Link from "next/link";
 export const metadata = {
   title: "About",
   description:
-    "Why this project exists, the references it draws on, and the licence.",
+    "How a decoder-only transformer runs, and how it is trained: why this project exists, the references it draws on, and the licence.",
 };
 
 export default function AboutPage(): JSX.Element {
@@ -23,10 +23,28 @@ export default function AboutPage(): JSX.Element {
 
       <section className="prose prose-neutral dark:prose-invert max-w-none">
         <p>
-          This is a graphical, interactive explainer of the Transformer decoder.
-          Type your own tokens, watch every operation execute, and sample the
-          next token end-to-end. Every matrix you see is the actual value the
-          server computed — the visualisations are not a separate model.
+          This is a graphical, interactive explainer of how a decoder-only
+          transformer runs, and how it is trained. Part 1 (Inference): type your
+          own tokens, watch every operation execute, and sample the next token
+          end-to-end. Part 2 (Training): train that same model, from the same
+          initial weights, on a public-domain book in your browser, and follow
+          the loss, the gradients and the optimiser step by step. Every matrix
+          you see is the actual value the model computed — the visualisations
+          are not a separate model.
+        </p>
+        <p>
+          Part 2&rsquo;s trainer has a hand-written backward pass for every
+          operation. A NumPy reference of it matches PyTorch autograd and finite
+          differences, its optimisers match <code>torch.optim</code>, and the
+          TypeScript trainer matches the reference step for step (the checks and
+          their tolerances are in{" "}
+          <a
+            href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md"
+            className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+          >
+            results.md
+          </a>
+          ).
         </p>
         <p>
           It exists for two readers. End users learning the Transformer get a
@@ -115,6 +133,52 @@ export default function AboutPage(): JSX.Element {
             . Reference implementations checked against during development.
           </li>
           <li>
+            Kingma &amp; Ba, 2014 —{" "}
+            <a
+              href="https://arxiv.org/abs/1412.6980"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Adam: A Method for Stochastic Optimization
+            </a>
+            , and Loshchilov &amp; Hutter, 2017 —{" "}
+            <a
+              href="https://arxiv.org/abs/1711.05101"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Decoupled Weight Decay Regularization
+            </a>{" "}
+            (AdamW). The optimisers in `lib/training/optimizers.ts`.
+          </li>
+          <li>
+            Sennrich, Haddow &amp; Birch, 2015 —{" "}
+            <a
+              href="https://arxiv.org/abs/1508.07909"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Neural Machine Translation of Rare Words with Subword Units
+            </a>
+            . Byte-pair encoding, in `lib/training/bpe.ts`.
+          </li>
+          <li>
+            Lewis Carroll, 1865 —{" "}
+            <a
+              href="https://www.gutenberg.org/ebooks/11"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Alice&rsquo;s Adventures in Wonderland
+            </a>{" "}
+            (Project Gutenberg eBook #11, public domain). Part 2&rsquo;s
+            training text, lower-cased to the 64-character alphabet.
+          </li>
+          <li>
             3blue1brown —{" "}
             <a
               href="https://www.3blue1brown.com/topics/neural-networks"
@@ -150,7 +214,14 @@ export default function AboutPage(): JSX.Element {
           href="/learn"
           className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
         >
-          → Start learning
+          → Part 1: Inference
+        </Link>{" "}
+        ·{" "}
+        <Link
+          href="/training"
+          className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+        >
+          Part 2: Training
         </Link>
       </p>
     </main>

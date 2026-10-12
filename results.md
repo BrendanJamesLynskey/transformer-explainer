@@ -41,7 +41,7 @@ Part 1's model: seq_len 8, d_model 16, 2 heads, d_ff 32, 2 blocks, vocabulary 64
 
 ## 4. The default run (chapter 1)
 
-2,000 steps of 16 windows of 8 characters; adamw (beta1 0.9, beta2 0.99, weight decay 0.01); learning rate 0.01, 50 warmup steps, cosine to 0.1 of it; clip at global norm 1.0; data seed 1. 8.3 s on the machine above (NumPy).
+2,000 steps of 16 windows of 8 characters; adamw (beta1 0.9, beta2 0.99, weight decay 0.01); learning rate 0.01, 50 warmup steps, cosine to 0.1 of it; clip at global norm 1.0; data seed 1. 8.2 s on the machine above (NumPy).
 
 | Step | Validation loss | Training loss (this step's batch) |
 |---:|---:|---:|

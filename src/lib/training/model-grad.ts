@@ -18,13 +18,19 @@
  * MDX:       /training/04-backprop.
  */
 import { multiHeadAttention } from "@/lib/transformer/attention";
-import { positionalEncoding, tokenEmbedding } from "@/lib/transformer/embeddings";
+import {
+  positionalEncoding,
+  tokenEmbedding,
+} from "@/lib/transformer/embeddings";
 import { ffn, type FFNTrace } from "@/lib/transformer/ffn";
 import { layernormRows } from "@/lib/transformer/layernorm";
 import { matmul, transpose } from "@/lib/transformer/matmul";
 import type { ModelConfig } from "@/lib/transformer/model";
 import { addMat } from "@/lib/transformer/tensor";
-import { emptyAttentionTrace, type AttentionTrace } from "@/lib/transformer/trace";
+import {
+  emptyAttentionTrace,
+  type AttentionTrace,
+} from "@/lib/transformer/trace";
 import type { Matrix, Vector } from "@/lib/transformer/types";
 
 import {
@@ -79,7 +85,11 @@ export function forwardCached(
   const blocks: BlockCache[] = [];
   for (let i = 0; i < config.n_blocks; i++) {
     const p = `block_${i}`;
-    const ln1 = layernormRows(x, v(params, `${p}.ln1.gamma`), v(params, `${p}.ln1.beta`));
+    const ln1 = layernormRows(
+      x,
+      v(params, `${p}.ln1.gamma`),
+      v(params, `${p}.ln1.beta`),
+    );
     const attn = emptyAttentionTrace();
     const a = multiHeadAttention(
       ln1,
@@ -93,7 +103,11 @@ export function forwardCached(
       attn,
     );
     const h = addMat(x, a);
-    const ln2 = layernormRows(h, v(params, `${p}.ln2.gamma`), v(params, `${p}.ln2.beta`));
+    const ln2 = layernormRows(
+      h,
+      v(params, `${p}.ln2.gamma`),
+      v(params, `${p}.ln2.beta`),
+    );
     const f: FFNTrace = { pre: [], act: [], out: [] };
     const out = ffn(
       ln2,
@@ -108,7 +122,11 @@ export function forwardCached(
     blocks.push({ x, ln1, attn, h, ln2, ffn: f });
     x = addMat(h, out);
   }
-  const xf = layernormRows(x, v(params, "ln_final.gamma"), v(params, "ln_final.beta"));
+  const xf = layernormRows(
+    x,
+    v(params, "ln_final.gamma"),
+    v(params, "ln_final.beta"),
+  );
   const logits = matmul(xf, transpose(E));
   return { ids, blocks, xLast: x, xf, logits };
 }
@@ -192,12 +210,18 @@ export function backwardSequence(
     for (let hd = 0; hd < H; hd++) {
       heads.push(mm(b.attn.weights[hd]!, cols(b.attn.V, hd * dk, dk)));
     }
-    const C = b.attn.weights.length === 0 ? [] : heads[0]!.map((_, r) => heads.flatMap((o) => o[r]!));
+    const C = heads[0]!.map((_, r) => heads.flatMap((o) => o[r]!));
     const lo = linearBackward(C, m(params, `${p}.attn.W_o`), dh);
     addTo(m(grads, `${p}.attn.W_o`), lo.dW);
-    const dQ: Matrix = Array.from({ length: S }, () => new Array<number>(D).fill(0));
-    const dK: Matrix = Array.from({ length: S }, () => new Array<number>(D).fill(0));
-    const dV: Matrix = Array.from({ length: S }, () => new Array<number>(D).fill(0));
+    const dQ: Matrix = Array.from({ length: S }, () =>
+      new Array<number>(D).fill(0),
+    );
+    const dK: Matrix = Array.from({ length: S }, () =>
+      new Array<number>(D).fill(0),
+    );
+    const dV: Matrix = Array.from({ length: S }, () =>
+      new Array<number>(D).fill(0),
+    );
     for (let hd = 0; hd < H; hd++) {
       const P = b.attn.weights[hd]!;
       const dOh = cols(lo.dX, hd * dk, dk);
@@ -260,7 +284,14 @@ export function lossAndGrads(
     perPosition.push(ce.perPosition);
     for (const l of ce.perPosition) total += l;
     const dl = crossEntropyGrad(ce.probs, targets[bi]!, n);
-    backwardSequence(params, config, c, dl, grads, bi === 0 ? record : undefined);
+    backwardSequence(
+      params,
+      config,
+      c,
+      dl,
+      grads,
+      bi === 0 ? record : undefined,
+    );
   });
   return { loss: total / n, grads, perPosition };
 }
@@ -276,7 +307,8 @@ export function lossOnly(
   let total = 0;
   inputs.forEach((ids, bi) => {
     const c = forwardCached(params, config, ids);
-    for (const l of crossEntropy(c.logits, targets[bi]!).perPosition) total += l;
+    for (const l of crossEntropy(c.logits, targets[bi]!).perPosition)
+      total += l;
   });
   return total / n;
 }

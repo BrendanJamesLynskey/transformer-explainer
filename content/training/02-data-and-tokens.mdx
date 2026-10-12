@@ -1,0 +1,116 @@
+A language model learns from text, turned into numbers. Part 1's model reads characters; most real models read _tokens_, frequent fragments learnt from the text itself by byte-pair encoding (BPE). Below, BPE learns its first merges on this part's training text, the whole of _Alice's Adventures in Wonderland_, in your browser.
+
+<BpeAnimation>
+  <Eq
+    label="Count every adjacent pair of tokens a, b in the corpus; the most frequent pair becomes a new token a b, added to the vocabulary; every occurrence is replaced and the counting starts again"
+    tex="\begin{gathered} \htmlClass{hl-pair}{(a^\ast, b^\ast) = \arg\max_{(a,b)} \operatorname{count}(a\,b)} \\ \htmlClass{hl-merge}{V \leftarrow V \cup \{a^\ast b^\ast\}}, \quad \text{replace every } a^\ast\,b^\ast \text{ by } a^\ast b^\ast \end{gathered}"
+  />
+</BpeAnimation>
+
+<Layer kind="concept">
+
+**The corpus.** Part 2 trains on Lewis Carroll's _Alice's Adventures in Wonderland_ (1865, [Project Gutenberg eBook #11](https://www.gutenberg.org/ebooks/11), public domain), reduced to Part 1's 64-character alphabet: lower case, straight quotes, no italics marks. That leaves <R k="corpus.chars" sep /> characters. The last 10% (<R k="corpus.valChars" sep /> characters, the end of the book) is held out as _validation_ text; the model trains on the first <R k="corpus.trainChars" sep />. A held-out split matters because a model can lower its training loss by memorising; only text it has never seen shows whether it learnt something that carries over.
+
+<span id="t-context-length" />
+**Windows and teacher forcing.** A training example is a window of $S + 1 = 9$
+consecutive characters; $S = 8$ is the model's *context length*, how many tokens
+it can see at once (real models: thousands). The first 8 are the input; the
+target at each position is the character after it. So one window is 8
+predictions at once, and the model always predicts from the *true* text so far,
+never from its own earlier guesses (*teacher forcing*). The causal mask from
+[Part 1's attention chapter](/learn/03-attention) is what makes this honest:
+position $i$ cannot look at the character it is predicting. Each step draws 16
+windows (sequences) at random places in the training text, so the *batch* is 16
+sequences of 8 tokens: 128 tokens, and 128 predictions, per step.
+
+**Packing documents.** Real corpora are many documents of different lengths. Rather than pad short ones, trainers concatenate them into one long stream with a separator token and cut fixed-length windows, so no compute is wasted on padding. A window can then straddle two documents, and some runs mask attention across the boundary so a document never attends to the one before it; Llama 3's report describes doing this, and finds it matters most for very long sequences ([Grattafiori et al. 2024, §3.2](https://arxiv.org/abs/2407.21783)). With a single book, there is no boundary here.
+
+<span id="t-bpe" />
+**Why tokens rather than characters.** With characters the model must spend its
+context and its layers assembling "the" from three pieces every time. BPE
+([Sennrich, Haddow & Birch 2015](https://arxiv.org/abs/1508.07909)) starts from
+single symbols and repeatedly merges the most frequent adjacent pair into a new
+symbol. On this book, 64 merges (a vocabulary of 128) turn
+<R k="corpus.chars" sep /> characters into <R k="corpus.bpeTokens" sep />
+tokens, <R k="derived.charsPerBpeToken" d={2} /> characters per token, so the
+same 8-token context sees about two thirds more text. GPT-2 runs the same
+algorithm over bytes rather than characters, so any text can be encoded, with a
+vocabulary of 50,257 ([Radford et al.
+2019](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)).
+The first merges are the language's commonest fragments: " t", "he", " a", " s",
+"in", and by the sixth, " the" (a space and the whole word). Part 2 keeps
+training on characters, so that the model is exactly Part 1's; the tokeniser is
+here to show how real models see text.
+
+<span id="t-dataset" />
+**Data at scale.** Small experiments often use small, simple corpora such as
+TinyStories, short stories written by language models in a child's vocabulary,
+on which models of a few million parameters already write fluent English ([Eldan
+& Li 2023](https://arxiv.org/abs/2305.07759)). Real pretraining corpora are web
+crawls plus books, code and papers, measured in trillions of tokens. Most of the
+work is deciding what to keep: removing near-duplicates (duplicated text is
+memorised and wastes compute; [Lee et al.
+2021](https://arxiv.org/abs/2107.06499)), filtering for quality, and choosing
+the *mixture* of sources ([FineWeb, Penedo et al.
+2024](https://arxiv.org/abs/2406.17557), documents one such pipeline in detail).
+How much data a model of a given size should see is a scaling question (chapter
+14): the Chinchilla analysis found about 20 tokens per parameter compute-optimal
+([Hoffmann et al. 2022](https://arxiv.org/abs/2203.15556)). This toy has
+<R k="derived.trainTokensPerParam" d={1} /> training characters per parameter,
+by coincidence in the same range.
+
+</Layer>
+
+<Layer kind="maths">
+
+For a window $w_1 \dots w_{S+1}$ the inputs are $x_i = w_i$ and the targets $y_i = w_{i+1}$, $i = 1 \dots S$; the model is trained to maximise
+
+$$
+\log p_\theta(w_2, \dots, w_{S+1} \mid w_1) = \sum_{i=1}^{S} \log p_\theta(w_{i+1} \mid w_1, \dots, w_i),
+$$
+
+the chain rule of probability, which is why one window gives $S$ training signals. A window starts at $\lfloor u\,(N - S - 1) \rfloor$ for $u$ uniform in $[0, 1)$ from the seeded generator, $N$ the number of training characters.
+
+BPE: with the corpus split into words $w$ with counts $n_w$, each word a sequence of symbols, the count of a pair is $\operatorname{count}(a\,b) = \sum_w n_w \cdot \#\{i : w_i = a, w_{i+1} = b\}$. Each merge removes exactly $\operatorname{count}(a^\ast b^\ast)$ symbols from the corpus (fewer if the pair overlaps itself, as in "a a a"). Ties go to the smaller pair of ids, so the Python reference and the browser learn identical merges.
+
+</Layer>
+
+<Layer kind="code">
+
+The tokeniser's training loop, `src/lib/training/bpe.ts` (checked merge for merge against `scripts/training/data.py`):
+
+```ts
+for (let step = 0; step < nMerges; step++) {
+  const ranked = [...pairCounts(words).values()].sort(byRank);
+  if (ranked.length === 0) break;
+  const best = ranked[0]!;
+  const [a, b] = best.pair;
+  const id = vocab.length;
+  vocab.push(vocab[a]! + vocab[b]!);
+  merges.push([a, b]);
+  const merged = new Map<string, Word>();
+  for (const w of words) {
+    const ids = mergeWord(w.ids, a, b, id);
+    const k = key(ids);
+    const e = merged.get(k);
+    if (e) e.count += w.count;
+    else merged.set(k, { ids, count: w.count });
+  }
+  words = [...merged.values()];
+  // … (records the history the animation shows)
+}
+```
+
+And a batch, `src/lib/training/data.ts`:
+
+```ts
+for (let b = 0; b < B; b++) {
+  const start = Math.floor(rng() * (train.length - S - 1));
+  const w = train.slice(start, start + S + 1);
+  starts.push(start);
+  inputs.push(w.slice(0, S));
+  targets.push(w.slice(1));
+}
+```
+
+</Layer>

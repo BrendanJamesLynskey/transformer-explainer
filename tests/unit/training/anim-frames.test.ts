@@ -19,9 +19,20 @@ import { mismatch } from "../helpers/close";
 
 import { CORPUS_IDS, CORPUS_TEXT } from "./corpus";
 
-import { backpropCaption, backpropStates } from "@/lib/anim/training/backprop-steps";
-import { bpeCaption, bpeStates, type BpeState } from "@/lib/anim/training/bpe-steps";
-import { heroCaption, heroStates, type HeroState } from "@/lib/anim/training/hero-steps";
+import {
+  backpropCaption,
+  backpropStates,
+} from "@/lib/anim/training/backprop-steps";
+import {
+  bpeCaption,
+  bpeStates,
+  type BpeState,
+} from "@/lib/anim/training/bpe-steps";
+import {
+  heroCaption,
+  heroStates,
+  type HeroState,
+} from "@/lib/anim/training/hero-steps";
 import {
   objectiveCaption,
   objectiveStates,
@@ -40,10 +51,15 @@ import { initModelWeights } from "@/lib/transformer/init";
 import { ALPHABET } from "@/lib/transformer/tokenizer";
 
 const checkpoint = JSON.parse(
-  readFileSync(join(__dirname, "../../../public/training/default-run-weights.json"), "utf8"),
+  readFileSync(
+    join(__dirname, "../../../public/training/default-run-weights.json"),
+    "utf8",
+  ),
 ) as { params: ParamMap; steps: number };
 const trained = (): ParamMap =>
-  Object.fromEntries(paramNames(PART1_MODEL).map((k) => [k, checkpoint.params[k]!]));
+  Object.fromEntries(
+    paramNames(PART1_MODEL).map((k) => [k, checkpoint.params[k]!]),
+  );
 const init = () => fromWeights(initModelWeights(PART1_MODEL));
 
 describe("chapter 1 hero: three real training steps", () => {
@@ -76,10 +92,14 @@ describe("chapter 2: BPE merges", () => {
   });
   it("every caption = the caption of Python's state; the first merge is pinned", () => {
     states.forEach((s, i) =>
-      expect(bpeCaption(s, vocab)).toBe(bpeCaption(bx.states[i] as BpeState, vocab)),
+      expect(bpeCaption(s, vocab)).toBe(
+        bpeCaption(bx.states[i] as BpeState, vocab),
+      ),
     );
     expect(bpeCaption(states[1]!, vocab)).toMatch(/^Merge 1: /);
-    expect(states.at(-1)!.excerpt.length).toBeLessThan(states[0]!.excerpt.length);
+    expect(states.at(-1)!.excerpt.length).toBeLessThan(
+      states[0]!.excerpt.length,
+    );
   });
 });
 
@@ -92,11 +112,15 @@ describe("chapter 3: cross-entropy position by position", () => {
       const states = objectiveStates(params());
       const want = ox[name] as ObjectiveState[];
       expect(mismatch(states, want, 1e-12)).toBeNull();
-      states.forEach((s, i) => expect(objectiveCaption(s)).toBe(objectiveCaption(want[i]!)));
+      states.forEach((s, i) =>
+        expect(objectiveCaption(s)).toBe(objectiveCaption(want[i]!)),
+      );
     });
   }
   it("the gradient over the vocabulary sums to 0 at each position", () => {
-    for (const s of objectiveStates(trained()).filter((x) => x.phase === "grad")) {
+    for (const s of objectiveStates(trained()).filter(
+      (x) => x.phase === "grad",
+    )) {
       expect(Math.abs(s.grad!.reduce((a, b) => a + b, 0))).toBeLessThan(1e-15);
     }
   });
@@ -114,14 +138,20 @@ describe("chapter 4: the gradient on its way back", () => {
     it(`${name}: every recorded gradient and every weight's ‖g‖ = Python's`, () => {
       const states = backpropStates(params());
       const want = bpx[name];
-      expect(states.slice(0, -1).map((s) => s.name)).toEqual(want.record.map((r) => r.name));
+      expect(states.slice(0, -1).map((s) => s.name)).toEqual(
+        want.record.map((r) => r.name),
+      );
       states.slice(0, -1).forEach((s, i) => {
         expect(mismatch(s.value, want.record[i]!.value, 1e-12)).toBeNull();
       });
       for (const s of states) {
         for (const p of s.params) {
           expect(
-            mismatch(p.norm, (want.gradNorms as Record<string, number>)[p.name], 1e-12),
+            mismatch(
+              p.norm,
+              (want.gradNorms as Record<string, number>)[p.name],
+              1e-12,
+            ),
           ).toBeNull();
         }
         expect(mismatch(s.loss, want.loss, 1e-12)).toBeNull();
@@ -129,7 +159,9 @@ describe("chapter 4: the gradient on its way back", () => {
       // every parameter's gradient is finished at exactly one stop
       const done = states.flatMap((s) => s.params.map((p) => p.name)).sort();
       expect(done).toEqual(paramNames(PART1_MODEL).slice().sort());
-      states.forEach((s, i) => expect(backpropCaption(s, i, states.length)).toMatch(/^Stop /));
+      states.forEach((s, i) =>
+        expect(backpropCaption(s, i, states.length)).toMatch(/^Stop /),
+      );
     });
   }
 });
@@ -138,10 +170,14 @@ describe("chapter 5: four optimisers on a 2-D valley", () => {
   const states = optim2dStates();
   it("every trajectory and Adam's moments = Python's", () => {
     expect(qx.valley.steps).toBe(VALLEY.steps);
-    expect(qx.optimisers.map((o) => o.kind)).toEqual(OPTIM2D.map((o) => o.kind));
+    expect(qx.optimisers.map((o) => o.kind)).toEqual(
+      OPTIM2D.map((o) => o.kind),
+    );
     expect(mismatch(states, qx.states, 1e-12)).toBeNull();
     states.forEach((s, i) =>
-      expect(optim2dCaption(s)).toBe(optim2dCaption(qx.states[i] as Optim2dState)),
+      expect(optim2dCaption(s)).toBe(
+        optim2dCaption(qx.states[i] as Optim2dState),
+      ),
     );
   });
   it("momentum beats SGD in 60 steps; AdamW's decay pulls it towards the origin", () => {

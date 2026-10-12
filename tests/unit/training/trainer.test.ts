@@ -23,7 +23,10 @@ import { encodeChars } from "@/lib/training/data";
 
 describe("the default run, first 200 steps", () => {
   it("matches the Python run step for step", () => {
-    const tr = createTrainer({ ...DEFAULT_TRAIN, steps: tx.config.steps }, CORPUS_IDS);
+    const tr = createTrainer(
+      { ...DEFAULT_TRAIN, steps: tx.config.steps },
+      CORPUS_IDS,
+    );
     const loss: number[] = [];
     const norms: number[] = [];
     const lrs: number[] = [];
@@ -41,17 +44,52 @@ describe("the default run, first 200 steps", () => {
     expect(mismatch(lrs, tx.lr, 1e-15)).toBeNull();
     expect(mismatch(evals, tx.evals, 1e-9)).toBeNull();
     const p = snapshot(tr);
-    expect(mismatch((p["tok_emb"] as number[][])[0], tx.tok_emb_row0, 1e-9)).toBeNull();
     expect(
-      mismatch((p["block_1.ffn.W2"] as number[][]).at(-1), tx.ffn_W2_last, 1e-9),
+      mismatch((p["tok_emb"] as number[][])[0], tx.tok_emb_row0, 1e-9),
     ).toBeNull();
-    expect(sampleText(p, DEFAULT_TRAIN.model, encodeChars("alice "), 40, 0.8, 7)).toBe(tx.sample);
+    expect(
+      mismatch(
+        (p["block_1.ffn.W2"] as number[][]).at(-1),
+        tx.ffn_W2_last,
+        1e-9,
+      ),
+    ).toBeNull();
+    expect(
+      sampleText(p, DEFAULT_TRAIN.model, encodeChars("alice "), 40, 0.8, 7),
+    ).toBe(tx.sample);
   }, 60_000);
 
   it("can run without clipping", () => {
-    const tr = createTrainer({ ...DEFAULT_TRAIN, clip: null, steps: 2, batch: 2 }, CORPUS_IDS);
+    const tr = createTrainer(
+      { ...DEFAULT_TRAIN, clip: null, steps: 2, batch: 2 },
+      CORPUS_IDS,
+    );
     const s = trainStep(tr);
     expect(Number.isNaN(s.gradNorm)).toBe(true);
     expect(s.clipScale).toBe(1);
   });
+});
+
+describe("the whole default run", () => {
+  it("ends within 1e-7 of the recorded weights (public/training/default-run-weights.json)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const ck = JSON.parse(
+      readFileSync(
+        join(__dirname, "../../../public/training/default-run-weights.json"),
+        "utf8",
+      ),
+    ) as { steps: number; params: Record<string, number[] | number[][]> };
+    const tr = createTrainer(DEFAULT_TRAIN, CORPUS_IDS);
+    expect(ck.steps).toBe(DEFAULT_TRAIN.steps);
+    for (let t = 0; t < DEFAULT_TRAIN.steps; t++) trainStep(tr);
+    let worst = 0;
+    for (const [k, v] of Object.entries(ck.params)) {
+      const a = (tr.params[k] as (number | number[])[]).flat();
+      (v as (number | number[])[]).flat().forEach((x, i) => {
+        worst = Math.max(worst, Math.abs(a[i]! - x));
+      });
+    }
+    expect(worst).toBeLessThan(1e-7);
+  }, 300_000);
 });

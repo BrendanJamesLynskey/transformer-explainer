@@ -25,7 +25,7 @@ import {
   renderCommentHtml,
 } from "@/lib/comments";
 import { runOrFallback } from "@/lib/db-fallback";
-import { isValidSlug } from "@/lib/mdx/sections";
+import { isCommentableSlug } from "@/lib/mdx/sections";
 
 export const runtime = "nodejs";
 // The list changes whenever someone posts: never cache or prerender it.
@@ -37,7 +37,7 @@ export async function GET(
   _req: Request,
   ctx: { params: { slug: string } },
 ): Promise<Response> {
-  if (!isValidSlug(ctx.params.slug)) {
+  if (!isCommentableSlug(ctx.params.slug)) {
     return NextResponse.json(
       { ok: false, error: "Unknown section" },
       { status: 404 },
@@ -79,7 +79,7 @@ export async function POST(
   if (!userId) {
     return NextResponse.json({ ok: false, error: "Sign in." }, { status: 401 });
   }
-  if (!isValidSlug(ctx.params.slug)) {
+  if (!isCommentableSlug(ctx.params.slug)) {
     return NextResponse.json(
       { ok: false, error: "Unknown section" },
       { status: 404 },

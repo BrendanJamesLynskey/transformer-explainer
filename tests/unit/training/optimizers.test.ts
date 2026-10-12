@@ -22,7 +22,10 @@ import { PART1_MODEL } from "@/lib/training/trainer";
 import { initModelWeights } from "@/lib/transformer/init";
 
 function options(spec: Record<string, unknown>): OptimizerOptions {
-  const kind = spec["kind"] === "adam_l2" ? "adam" : (spec["kind"] as OptimizerOptions["kind"]);
+  const kind =
+    spec["kind"] === "adam_l2"
+      ? "adam"
+      : (spec["kind"] as OptimizerOptions["kind"]);
   return {
     kind,
     momentum: (spec["momentum"] as number | undefined) ?? 0.9,
@@ -50,7 +53,12 @@ describe("10 steps of each optimiser = the Python reference", () => {
       const norms: number[] = [];
       const lrs: number[] = [];
       fx.batches.forEach((b, t) => {
-        const { loss, grads } = lossAndGrads(params, PART1_MODEL, b.inputs, b.targets);
+        const { loss, grads } = lossAndGrads(
+          params,
+          PART1_MODEL,
+          b.inputs,
+          b.targets,
+        );
         norms.push(clipByGlobalNorm(grads, fx.clip).norm);
         const lr = lrAt(t, sched(fx.schedule));
         optimizerStep(opt, params, grads, lr);
@@ -80,7 +88,9 @@ describe("clipping", () => {
 describe("schedules = the Python reference", () => {
   for (const s of sx.schedules) {
     it(`${s.spec.kind} (lr ${s.spec.lr}, warmup ${"warmup" in s.spec ? s.spec.warmup : 0})`, () => {
-      const got = Array.from({ length: s.spec.total }, (_, t) => lrAt(t, sched(s.spec)));
+      const got = Array.from({ length: s.spec.total }, (_, t) =>
+        lrAt(t, sched(s.spec)),
+      );
       expect(mismatch(got, s.lr, 1e-15)).toBeNull();
     });
   }

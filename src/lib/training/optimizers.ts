@@ -92,7 +92,8 @@ export function optimizerStep(
   const o = state.opts;
   state.t += 1;
   const t = state.t;
-  if (o.kind === "momentum" && state.buf === null) state.buf = zerosLike(params);
+  if (o.kind === "momentum" && state.buf === null)
+    state.buf = zerosLike(params);
   const bc1 = 1 - Math.pow(o.beta1, t);
   const bc2 = 1 - Math.pow(o.beta2, t);
   for (const k of Object.keys(params)) {

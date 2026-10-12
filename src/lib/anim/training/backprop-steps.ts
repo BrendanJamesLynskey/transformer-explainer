@@ -17,7 +17,13 @@ import { windowIds } from "./objective-steps";
 /** What each stop is, and which weights' gradients are finished there. */
 export const STOPS: Record<
   string,
-  { title: string; op: string; params: (b: string) => string[]; saved: string; hl: string }
+  {
+    title: string;
+    op: string;
+    params: (b: string) => string[];
+    saved: string;
+    hl: string;
+  }
 > = {
   dlogits: {
     title: "∂L/∂logits = (p − y)/n",
@@ -69,7 +75,8 @@ export const STOPS: Record<
     hl: "res",
   },
   dscores_h0: {
-    title: "inside attention, head 0: softmax backward, dS = P ⊙ (dP − Σ dP ⊙ P)",
+    title:
+      "inside attention, head 0: softmax backward, dS = P ⊙ (dP − Σ dP ⊙ P)",
     op: "P = softmax(QKᵀ/√d_k + mask)",
     params: (b) => [`${b}.attn.W_o`],
     saved: "P, Q, K, V",
@@ -83,7 +90,8 @@ export const STOPS: Record<
     hl: "attn",
   },
   dx: {
-    title: "the residual again: ∂L/∂x = ∂L/∂h + the attention branch's gradient",
+    title:
+      "the residual again: ∂L/∂x = ∂L/∂h + the attention branch's gradient",
     op: "h = x + Attn(LN₁(x))",
     params: (b) => [`${b}.ln1.gamma`, `${b}.ln1.beta`],
     saved: "x (LayerNorm 1's input)",
@@ -109,7 +117,13 @@ export type BackpropState = {
 export function backpropStates(params: ParamMap): BackpropState[] {
   const { inputs, targets } = windowIds();
   const rec: GradRecord[] = [];
-  const { loss, grads } = lossAndGrads(params, PART1_MODEL, [inputs], [targets], rec);
+  const { loss, grads } = lossAndGrads(
+    params,
+    PART1_MODEL,
+    [inputs],
+    [targets],
+    rec,
+  );
   const gnorm = (n: string) => Math.sqrt(sumSquares(grads[n]!));
   const out: BackpropState[] = rec.map((r) => {
     const m = r.name.match(/^(block_(\d+))\.(.+)$/);
@@ -121,7 +135,10 @@ export function backpropStates(params: ParamMap): BackpropState[] {
       block: m ? `block ${m[2]}` : "",
       value: r.value,
       rowNorms: r.value.map((row) => norm(row)),
-      params: STOPS[kind]!.params(bname).map((n) => ({ name: n, norm: gnorm(n) })),
+      params: STOPS[kind]!.params(bname).map((n) => ({
+        name: n,
+        norm: gnorm(n),
+      })),
       loss,
     };
   });
@@ -138,7 +155,11 @@ export function backpropStates(params: ParamMap): BackpropState[] {
   return out;
 }
 
-export function backpropCaption(s: BackpropState, i: number, n: number): string {
+export function backpropCaption(
+  s: BackpropState,
+  i: number,
+  n: number,
+): string {
   const total = s.rowNorms.reduce((a, b) => a + b * b, 0);
   const size = `‖∂L‖ = ${sig(Math.sqrt(total))}`;
   if (s.kind === "embedding")

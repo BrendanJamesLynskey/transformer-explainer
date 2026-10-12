@@ -8,7 +8,12 @@ import results from "@/data/training/results.json";
 import { CORPUS_IDS, CORPUS_TEXT } from "./corpus";
 
 import { bpeEncode, bpeTrain, mergeWord, wordsOf } from "@/lib/training/bpe";
-import { encodeChars, sampleBatch, splitIds, valBatch } from "@/lib/training/data";
+import {
+  encodeChars,
+  sampleBatch,
+  splitIds,
+  valBatch,
+} from "@/lib/training/data";
 import { mulberry32 } from "@/lib/transformer/random";
 
 describe("the corpus and its split", () => {

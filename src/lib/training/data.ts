@@ -30,7 +30,8 @@ export function encodeChars(text: string): number[] {
   const out = new Array<number>(text.length);
   for (let i = 0; i < text.length; i++) {
     const id = CHAR_TO_ID.get(text[i]!);
-    if (id === undefined) throw new Error(`encodeChars: '${text[i]}' is not in the alphabet`);
+    if (id === undefined)
+      throw new Error(`encodeChars: '${text[i]}' is not in the alphabet`);
     out[i] = id;
   }
   return out;
@@ -42,7 +43,11 @@ export function splitIds(ids: number[]): { train: number[]; val: number[] } {
   return { train: ids.slice(0, cut), val: ids.slice(cut) };
 }
 
-export type Batch = { inputs: number[][]; targets: number[][]; starts: number[] };
+export type Batch = {
+  inputs: number[][];
+  targets: number[][];
+  starts: number[];
+};
 
 /** B random windows of S + 1 tokens, starts ⌊u (N − S − 1)⌋ with u from `rng`. */
 export function sampleBatch(

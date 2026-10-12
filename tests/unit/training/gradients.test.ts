@@ -8,7 +8,11 @@ import { describe, expect, it } from "vitest";
 import fx from "../fixtures/training/gradients.json";
 import { mismatch } from "../helpers/close";
 
-import { forwardCached, lossAndGrads, lossOnly } from "@/lib/training/model-grad";
+import {
+  forwardCached,
+  lossAndGrads,
+  lossOnly,
+} from "@/lib/training/model-grad";
 import { fromWeights, paramNames, type ParamMap } from "@/lib/training/params";
 import { initModelWeights } from "@/lib/transformer/init";
 import { forwardTyped } from "@/lib/transformer/model";
@@ -17,14 +21,18 @@ import { PART1_MODEL } from "@/lib/training/trainer";
 
 const init = () => fromWeights(initModelWeights(PART1_MODEL));
 const ordered = (p: ParamMap): ParamMap =>
-  Object.fromEntries(paramNames(PART1_MODEL).map((k) => [k, structuredClone(p[k]!)]));
+  Object.fromEntries(
+    paramNames(PART1_MODEL).map((k) => [k, structuredClone(p[k]!)]),
+  );
 
 describe("forwardCached is Part 1's forward pass", () => {
   it("gives exactly forwardTyped's logits", () => {
     const ids = fx.inputs[0]!;
     const w = initModelWeights(PART1_MODEL);
     const want = forwardTyped(ids, PART1_MODEL, w).logits;
-    expect(forwardCached(fromWeights(w), PART1_MODEL, ids).logits).toEqual(want);
+    expect(forwardCached(fromWeights(w), PART1_MODEL, ids).logits).toEqual(
+      want,
+    );
   });
 });
 
@@ -32,7 +40,8 @@ describe("loss and gradients = the Python reference", () => {
   for (const c of fx.cases) {
     it(`${c.name}: loss, per-position losses and every gradient`, () => {
       // the fixture's keys are sorted; the trainer walks paramNames order
-      const params: ParamMap = "params" in c ? ordered(c.params as ParamMap) : init();
+      const params: ParamMap =
+        "params" in c ? ordered(c.params as ParamMap) : init();
       const r = lossAndGrads(params, PART1_MODEL, fx.inputs, fx.targets);
       expect(mismatch(r.loss, c.loss)).toBeNull();
       expect(mismatch(r.perPosition, c.perPosition)).toBeNull();

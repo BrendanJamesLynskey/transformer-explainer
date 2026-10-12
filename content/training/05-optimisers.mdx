@@ -1,0 +1,103 @@
+The gradient says which way is downhill; the optimiser decides how far to step, and in which direction exactly. Below, four optimisers, the same code that trains the model in chapter 1, start from the same point in a long, narrow valley.
+
+<Optim2dAnimation>
+  <Eq
+    label="SGD steps by the learning rate times the gradient; momentum keeps a running sum b of past gradients and steps along it; Adam keeps running means m of the gradient and v of its square, corrects their start-up bias and steps by m over the square root of v; AdamW also shrinks the weights by a factor one minus learning rate times lambda"
+    tex="\begin{gathered} \text{SGD: } \theta \leftarrow \theta - \eta\, \htmlClass{hl-grad}{g} \qquad \text{momentum: } b \leftarrow \mu b + g,\ \ \theta \leftarrow \theta - \eta b \\ \htmlClass{hl-m}{m \leftarrow \beta_1 m + (1 - \beta_1) g}, \quad \htmlClass{hl-v2}{v \leftarrow \beta_2 v + (1 - \beta_2) g^{2}} \\ \htmlClass{hl-update}{\theta \leftarrow \theta - \eta\, \frac{m / (1 - \beta_1^{t})}{\sqrt{v / (1 - \beta_2^{t})} + \epsilon}} \;\; \htmlClass{hl-wd}{\text{AdamW: first } \theta \leftarrow \theta (1 - \eta \lambda)} \end{gathered}"
+  />
+</Optim2dAnimation>
+
+<Layer kind="concept">
+
+<span id="t-sgd" />
+**SGD** (stochastic gradient descent) steps straight downhill, by the *learning
+rate* times the gradient: the learning rate $\eta$ sets the size of every step,
+and is the most important number to tune. In a valley much steeper across than
+along, the learning rate must be small enough not to overshoot across the steep
+walls, and is then far too small for the gentle slope along the floor: SGD
+zig-zags and crawls. Real loss surfaces are full of such directions, with
+curvatures that differ by orders of magnitude.
+
+<span id="t-momentum" />
+**Momentum** keeps a running sum of past gradients and steps along it. Across
+the valley successive gradients point in opposite directions and cancel; along
+it they agree and add up, so the optimiser builds speed where it is useful. The
+running sum is the *momentum buffer*: one number per weight, kept from step to
+step as part of the optimiser's state (Adam keeps two). Methods that compress
+what workers exchange, such as DeMo (chapter 13), work on this buffer rather
+than on a single step's gradient.
+
+<span id="t-adam" />
+**Adam** ([Kingma & Ba 2014](https://arxiv.org/abs/1412.6980)) keeps two running
+averages for every single weight: $m$, of the gradient (momentum), and $v$, of
+its square (how large that weight's gradients usually are). It steps by $m/\sqrt
+v$, so each coordinate moves by roughly the learning rate whatever the scale of
+its gradient: the steep direction and the gentle one get similar step sizes. The
+numbers under the picture are Adam's $m$ and $v$ for $x$ and $y$; $v$ for $y$ is
+far larger, because the valley is steeper in $y$. The *bias correction* divides
+by $1 - \beta^t$ because $m$ and $v$ start at zero and would otherwise be too
+small for the first steps. Near the minimum, a constant-learning-rate Adam keeps
+taking steps of about the learning rate and jitters around it: this is one
+reason runs decay their learning rate at the end (chapter 6).
+
+<span id="t-adamw" />
+**AdamW** ([Loshchilov & Hutter 2017](https://arxiv.org/abs/1711.05101)) adds
+weight decay the direct way: each step first shrinks every weight by a factor $1
+- \eta\lambda$. With plain Adam, adding the decay $\lambda\theta$ to the
+gradient (an L2 penalty) puts it through the $1/\sqrt v$ rescaling, so weights
+with large gradients are barely decayed at all; decoupling it makes the decay
+the same for every weight. In the valley the decay pulls AdamW's end point
+towards the origin, away from the minimum of the loss alone: weight decay is a
+preference for small weights, traded against the loss. Here $\lambda$ is set
+very high so that you can see it; in the default run it is 0.01, and it is
+applied only to the weight matrices, not to LayerNorm's $\gamma, \beta$ or the
+biases.
+
+**On the real model.** The chart below trains Part 1's model with each optimiser at the best of three learning rates (constant, 1,500 steps, the same batches; [results.md §5](https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md#5-optimisers-on-the-real-model-chapter-5)). Adam and AdamW end lowest; momentum is close; SGD needs a learning rate around 1 to do as well as it does. With other learning rates, or other models, the order can change: comparing optimisers fairly means tuning each one's learning rate (chapter 6).
+
+<OptimizerRuns />
+
+**Newer optimisers**, for context rather than measured here: Lion keeps only the sign of a momentum ([Chen et al. 2023](https://arxiv.org/abs/2302.06675)); Shampoo ([Gupta et al. 2018](https://arxiv.org/abs/1802.09568)) and SOAP ([Vyas et al. 2024](https://arxiv.org/abs/2409.11321)) precondition each weight matrix with its gradient's row and column statistics instead of per-weight scales; Muon orthogonalises each matrix's momentum update ([Liu et al. 2025](https://arxiv.org/abs/2502.16982) report it at scale). AdamW remains the default for large language models.
+
+</Layer>
+
+<Layer kind="maths">
+
+For a weight $\theta$ with gradient $g_t$ at step $t$ (all operations element by element):
+
+$$
+\begin{aligned}
+&\text{SGD:} && \theta_t = \theta_{t-1} - \eta\, g_t \\
+&\text{momentum:} && b_t = \mu\, b_{t-1} + g_t,\ \ b_1 = g_1; \quad \theta_t = \theta_{t-1} - \eta\, b_t \\
+&\text{Adam:} && m_t = \beta_1 m_{t-1} + (1-\beta_1) g_t,\quad v_t = \beta_2 v_{t-1} + (1-\beta_2) g_t^2 \\
+& && \theta_t = \theta_{t-1} - \eta\, \hat m_t / (\sqrt{\hat v_t} + \epsilon),\quad \hat m_t = m_t/(1-\beta_1^t),\ \hat v_t = v_t/(1-\beta_2^t) \\
+&\text{Adam + L2:} && g_t \leftarrow g_t + \lambda\, \theta_{t-1} \text{ first (coupled)} \\
+&\text{AdamW:} && \theta_{t-1} \leftarrow (1 - \eta\lambda)\,\theta_{t-1} \text{ first (decoupled)}
+\end{aligned}
+$$
+
+Defaults: $\mu = 0.9$, $\beta_1 = 0.9$, $\beta_2 = 0.999$ (0.99 in the default run), $\epsilon = 10^{-8}$. The valley is $f(x, y) = \tfrac12\big((x-2)^2 + 50(y-1)^2\big)$: SGD is stable only for $\eta < 2/50$, and then its error along $x$ shrinks by a factor $1 - \eta$ per step. These are PyTorch's definitions: each optimiser is checked against `torch.optim` over 25 steps on the model (largest difference <R k="checks.optimizers.adamw.max_abs_err" /> for AdamW).
+
+</Layer>
+
+<Layer kind="code">
+
+The Adam/AdamW update for one row of a weight, `src/lib/training/optimizers.ts`:
+
+```ts
+for (let j = 0; j < row.length; j++) {
+  let pj = row[j]!;
+  let gj = g[j]!;
+  if (o.kind === "adamw") pj = pj * (1 - lr * wd);
+  else if (wd) gj = gj + wd * pj;
+  m[j] = o.beta1 * m[j]! + (1 - o.beta1) * gj;
+  v[j] = o.beta2 * v[j]! + (1 - o.beta2) * gj * gj;
+  const mhat = m[j]! / bc1;
+  const vhat = v[j]! / bc2;
+  row[j] = pj - (lr * mhat) / (Math.sqrt(vhat) + o.eps);
+}
+```
+
+The two moment buffers are why Adam needs two extra numbers per weight: with FP32 master weights and gradients, this is where the "16 bytes per parameter" of mixed-precision training comes from (chapter 10).
+
+</Layer>

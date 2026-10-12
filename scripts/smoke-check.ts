@@ -32,7 +32,7 @@
  *
  * Needs no secrets and touches no database directly.
  */
-import { SECTIONS } from "@/lib/mdx/sections";
+import { SECTIONS, TRAINING_SECTIONS } from "@/lib/mdx/sections";
 
 /** Section whose comment list is checked (it must have a visible comment). */
 const DEFAULT_COMMENTS_SECTION = "07-sampling";
@@ -41,6 +41,11 @@ const PAGES = [
   "/",
   "/learn",
   ...SECTIONS.map((s) => `/learn/${s.slug}`),
+  "/training",
+  // Part 2 chapters shipped so far (brief 29A); later chapters join as they ship
+  ...TRAINING_SECTIONS.slice(0, 5).map((s) => `/training/${s.slug}`),
+  "/training/corpus.txt",
+  "/training/default-run-weights.json",
   "/playground",
   "/experiments",
   "/about",

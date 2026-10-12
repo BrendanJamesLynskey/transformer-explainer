@@ -14,8 +14,10 @@ Writes:
 
 --check recomputes everything in memory, fails if a correctness check
 fails, and compares the result with the committed files: numbers must agree
-to 1e-9 relative (BLAS and libm can differ in the last bits between machines;
-training runs amplify that a little), everything else exactly.
+to 1e-9 relative in the fixtures and 1e-7 in results.json and the final
+weights (BLAS and libm can differ in the last bits between machines, and
+thousands of training steps amplify that), with a 1e-12 absolute floor;
+everything else exactly. results.md must be the rendering of results.json.
 
 Determinism: NumPy float64, single-threaded BLAS is not required (no
 randomness comes from NumPy except the seeded perturbation in checks.py),
@@ -321,6 +323,19 @@ def results(ids, checks_g, checks_o, bpe) -> dict:
             compare.append({"kind": kind, "lr": lr, "steps": r["steps"], "loss": r["loss"],
                             "evals": r["evals"], "final": r["evals"][-1]["val"], "seconds": r["seconds"]})
     out["optimizerCompare"] = compare
+    S, B, steps = PART1["seq_len"], DEFAULT_TRAIN["batch"], DEFAULT_TRAIN["steps"]
+    n_params = out["model"]["params"]
+    final_val = run["evals"][-1]["val"]
+    out["derived"] = {
+        "predictionsPerStep": B * S,
+        "tokensSeen": B * S * steps,
+        "epochs": B * S * steps / len(train),
+        "trainTokensPerParam": len(train) / n_params,
+        "charsPerBpeToken": len(text) / bpe["corpusTokens"],
+        "valPerplexity": math.exp(final_val),
+        "initPerplexity": math.exp(run["evals"][0]["val"]),
+        "unigramPerplexity": math.exp(out["corpus"]["unigramEntropy"]),
+    }
     out["checks"] = {"gradients": strip(checks_g), "optimizers": checks_o}
     out["environment"] = {"python": platform.python_version(), "numpy": np.__version__,
                           "torch": torch.__version__, "machine": platform.machine()}
@@ -448,7 +463,10 @@ def main() -> None:
         problems = []
         for path, payload in files.items():
             committed = json.loads(path.read_text())
-            problems += compare(jsonable(payload), committed, str(path.relative_to(ROOT)))
+            # long training runs (results.json, the final weights) amplify
+            # last-bit differences between BLAS builds; fixtures are short
+            rel = 1e-7 if path in (RESULTS_JSON, CHECKPOINT) else 1e-9
+            problems += compare(jsonable(payload), committed, str(path.relative_to(ROOT)), rel)
         committed_md = render_committed_md()
         if RESULTS_MD.read_text() != committed_md:
             problems.append("results.md is not the rendering of the committed results.json")

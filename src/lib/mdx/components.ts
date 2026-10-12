@@ -25,6 +25,16 @@ import { LayerNormWidget } from "@/components/interactive/LayerNormWidget";
 import { SamplingWidget } from "@/components/interactive/SamplingWidget";
 import { StackingWidget } from "@/components/interactive/StackingWidget";
 import { Eq } from "@/components/mdx/Eq";
+import {
+  BackpropAnimation,
+  BpeAnimation,
+  ObjectiveAnimation,
+  Optim2dAnimation,
+  TrainingLoopHero,
+} from "@/components/training/lazy";
+import { LiveTrainerPanel } from "@/components/training/LiveTrainerPanel";
+import { OptimizerRuns } from "@/components/training/OptimizerRuns";
+import { R } from "@/components/training/R";
 
 export const mdxComponents: NonNullable<MDXRemoteProps["components"]> = {
   Layer,
@@ -44,4 +54,13 @@ export const mdxComponents: NonNullable<MDXRemoteProps["components"]> = {
   LayerNormAnimation,
   StackingAnimation,
   GenerationAnimation,
+  // Part 2 (Training): animations, the live trainer, recorded results.
+  TrainingLoopHero,
+  LiveTrainerPanel,
+  BpeAnimation,
+  ObjectiveAnimation,
+  BackpropAnimation,
+  Optim2dAnimation,
+  OptimizerRuns,
+  R,
 };

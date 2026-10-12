@@ -49,7 +49,12 @@ function wordCounts(text: string): Word[] {
 }
 
 /** Replace every non-overlapping (a, b), left to right, by `id`. */
-export function mergeWord(word: number[], a: number, b: number, id: number): number[] {
+export function mergeWord(
+  word: number[],
+  a: number,
+  b: number,
+  id: number,
+): number[] {
   const out: number[] = [];
   let i = 0;
   while (i < word.length) {
@@ -112,7 +117,8 @@ export function bpeTrain(text: string, nMerges: number, top = 5): BpeModel {
   const vocab = ALPHABET.split("");
   const merges: [number, number][] = [];
   const history: MergeRecord[] = [];
-  const tokens = (ws: Word[]) => ws.reduce((s, w) => s + w.ids.length * w.count, 0);
+  const tokens = (ws: Word[]) =>
+    ws.reduce((s, w) => s + w.ids.length * w.count, 0);
   let total = tokens(words);
   for (let step = 0; step < nMerges; step++) {
     const ranked = [...pairCounts(words).values()].sort(byRank);
@@ -139,7 +145,9 @@ export function bpeTrain(text: string, nMerges: number, top = 5): BpeModel {
       count: best.count,
       new: id,
       token: vocab[id]!,
-      top: ranked.slice(0, top).map((p) => ({ pair: [p.pair[0], p.pair[1]], count: p.count })),
+      top: ranked
+        .slice(0, top)
+        .map((p) => ({ pair: [p.pair[0], p.pair[1]], count: p.count })),
       tokensBefore: before,
       tokensAfter: total,
     });

@@ -41,7 +41,9 @@ export function mm(A: Matrix, B: Matrix): Matrix {
 export function mmTA(A: Matrix, B: Matrix): Matrix {
   const M = A[0]?.length ?? 0;
   const N = B[0]?.length ?? 0;
-  const C: Matrix = Array.from({ length: M }, () => new Array<number>(N).fill(0));
+  const C: Matrix = Array.from({ length: M }, () =>
+    new Array<number>(N).fill(0),
+  );
   for (let i = 0; i < M; i++) {
     const c = C[i]!;
     for (let k = 0; k < A.length; k++) {
@@ -155,7 +157,9 @@ const C_GELU = Math.sqrt(2 / Math.PI);
  */
 export function geluGrad(u: number): number {
   const t = Math.tanh(C_GELU * (u + 0.044715 * u * u * u));
-  return 0.5 * (1 + t) + 0.5 * u * (1 - t * t) * C_GELU * (1 + 3 * 0.044715 * u * u);
+  return (
+    0.5 * (1 + t) + 0.5 * u * (1 - t * t) * C_GELU * (1 + 3 * 0.044715 * u * u)
+  );
 }
 
 /** Backward of the element-wise GELU: dU = dY ⊙ GELU'(U). */

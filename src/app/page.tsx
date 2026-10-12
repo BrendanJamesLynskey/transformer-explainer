@@ -9,10 +9,17 @@ const PREVIEW_TEXT = "the cat sat";
 const ENTRY_POINTS = [
   {
     href: "/learn",
-    title: "Lessons",
+    title: "Part 1 · Inference",
     blurb:
-      "Seven short sections, from token embeddings to sampling. Toggle the Concept, Maths and Code layers to choose your depth.",
-    cta: "Start the lessons →",
+      "How the decoder runs: seven short chapters, from token embeddings to sampling. Toggle the Concept, Maths and Code layers to choose your depth.",
+    cta: "Start Part 1 →",
+  },
+  {
+    href: "/training",
+    title: "Part 2 · Training",
+    blurb:
+      "How it is trained: the loss, backprop and optimisers, with the same model training in your browser, checked step by step against a PyTorch-verified reference.",
+    cta: "Start Part 2 →",
   },
   {
     href: "/playground",
@@ -31,8 +38,9 @@ const ENTRY_POINTS = [
 ] as const;
 
 /**
- * Landing page: what the explainer is, one real visualisation, and the
- * three ways in (lessons, playground, saved experiments).
+ * Landing page: what the explainer is (how a decoder-only transformer runs,
+ * and how it is trained), one real visualisation, and the ways in (Part 1,
+ * Part 2, the playground, saved experiments).
  *
  * Server Component with no client JavaScript of its own: the attention
  * preview is computed on the server by the same maths library the lessons
@@ -49,21 +57,29 @@ export default function HomePage(): JSX.Element {
             Transformer Decoder Explainer
           </p>
           <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-            Watch a decoder think, one matrix at a time.
+            How a decoder-only transformer runs, and how it is trained.
           </h1>
           <p className="mt-6 max-w-2xl text-lg text-neutral-600 dark:text-neutral-300">
-            Type in your own text and follow it through every operation of a
-            GPT-style decoder: embeddings, masked self-attention, the
-            feed-forward network, LayerNorm and residuals, stacked blocks, and
-            next-token sampling. The numbers you see are computed on the server
-            by a small, readable TypeScript implementation.
+            Part 1 follows your own text through every operation of a GPT-style
+            decoder: embeddings, masked self-attention, the feed-forward
+            network, LayerNorm and residuals, stacked blocks, and next-token
+            sampling. Part 2 trains that same model: the loss, backpropagation
+            and the optimiser, step by step, in your browser. Every number comes
+            from a small, readable TypeScript implementation, checked against
+            PyTorch.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/learn"
               className="focus-ring rounded bg-accent px-4 py-2 text-sm font-medium text-accent-fg hover:opacity-90"
             >
-              Start the lessons →
+              Part 1: Inference →
+            </Link>
+            <Link
+              href="/training"
+              className="focus-ring rounded border border-neutral-300 px-4 py-2 text-sm font-medium hover:border-accent dark:border-neutral-700"
+            >
+              Part 2: Training →
             </Link>
             <Link
               href="/playground"
@@ -92,7 +108,10 @@ export default function HomePage(): JSX.Element {
         </figure>
       </section>
 
-      <nav aria-label="Ways in" className="mt-16 grid gap-4 sm:grid-cols-3">
+      <nav
+        aria-label="Ways in"
+        className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      >
         {ENTRY_POINTS.map((e) => (
           <Link
             key={e.href}

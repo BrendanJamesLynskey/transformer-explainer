@@ -201,3 +201,50 @@
     font-size: 0.82em;
   }
 }
+
+/* Part 2 (Training) equation terms: the batch and data blue, the forward
+ * pass and logits purple, the loss vermillion, gradients orange, updates and
+ * the optimiser's state green. */
+.eq-panel .hl-batch,
+.eq-panel .hl-y,
+.eq-panel .hl-pair,
+.eq-panel .hl-merge {
+  border-color: #0072b2;
+}
+.eq-panel .hl-fwd,
+.eq-panel .hl-z,
+.eq-panel .hl-p,
+.eq-panel .hl-head {
+  border-color: #cc79a7;
+}
+.eq-panel .hl-loss,
+.eq-panel .hl-mean {
+  border-color: #d55e00;
+}
+.eq-panel .hl-grad {
+  border-color: #e69f00;
+}
+.eq-panel .hl-update,
+.eq-panel .hl-m,
+.eq-panel .hl-v2,
+.eq-panel .hl-wd {
+  border-color: #009e73;
+}
+.eq-panel[data-hl~="batch"] .hl-batch,
+.eq-panel[data-hl~="y"] .hl-y,
+.eq-panel[data-hl~="pair"] .hl-pair,
+.eq-panel[data-hl~="merge"] .hl-merge,
+.eq-panel[data-hl~="fwd"] .hl-fwd,
+.eq-panel[data-hl~="z"] .hl-z,
+.eq-panel[data-hl~="p"] .hl-p,
+.eq-panel[data-hl~="head"] .hl-head,
+.eq-panel[data-hl~="loss"] .hl-loss,
+.eq-panel[data-hl~="mean"] .hl-mean,
+.eq-panel[data-hl~="grad"] .hl-grad,
+.eq-panel[data-hl~="update"] .hl-update,
+.eq-panel[data-hl~="m"] .hl-m,
+.eq-panel[data-hl~="v2"] .hl-v2,
+.eq-panel[data-hl~="wd"] .hl-wd {
+  background-color: rgb(0 114 178 / 0.18);
+  border-color: #0072b2;
+}
