@@ -5,7 +5,12 @@
  * before and after, and the excerpt re-tokenised with the merges so far.
  * scripts/training/anim.py:bpe_states builds the same list.
  */
-import { bpeEncode, bpeTrain, type PairCount } from "@/lib/training/bpe";
+import {
+  bpeEncode,
+  bpeTrainSteps,
+  type BpeModel,
+  type PairCount,
+} from "@/lib/training/bpe";
 
 export const BPE_ANIM_MERGES = 24;
 export const BPE_EXCERPT = 96;
@@ -23,7 +28,18 @@ export type BpeState = {
 
 /** All states for `text` (the corpus). */
 export function bpeStates(text: string, merges = BPE_ANIM_MERGES): BpeState[] {
-  const model = bpeTrain(text, merges);
+  const it = bpeStatesSteps(text, merges);
+  let r = it.next();
+  while (!r.done) r = it.next();
+  return r.value;
+}
+
+/** `bpeStates` in slices (a generator over `bpeTrainSteps`), for the page. */
+export function* bpeStatesSteps(
+  text: string,
+  merges = BPE_ANIM_MERGES,
+): Generator<void, BpeState[]> {
+  const model: BpeModel = yield* bpeTrainSteps(text, merges);
   const excerpt = text.slice(0, BPE_EXCERPT);
   const tokens = (k: number) =>
     bpeEncode(excerpt, model.merges.slice(0, k)).map((i) => model.vocab[i]!);

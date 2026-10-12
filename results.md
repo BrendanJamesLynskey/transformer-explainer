@@ -41,7 +41,7 @@ Part 1's model: seq_len 8, d_model 16, 2 heads, d_ff 32, 2 blocks, vocabulary 64
 
 ## 4. The default run (chapter 1)
 
-2,000 steps of 16 windows of 8 characters; adamw (beta1 0.9, beta2 0.99, weight decay 0.01); learning rate 0.01, 50 warmup steps, cosine to 0.1 of it; clip at global norm 1.0; data seed 1. 8.2 s on the machine above (NumPy).
+2,000 steps of 16 windows of 8 characters; adamw (beta1 0.9, beta2 0.99, weight decay 0.01); learning rate 0.01, 50 warmup steps, cosine to 0.1 of it; clip at global norm 1.0; data seed 1. 8.1 s on the machine above (NumPy).
 
 | Step | Validation loss | Training loss (this step's batch) |
 |---:|---:|---:|
@@ -76,20 +76,24 @@ $ =2;- uqab@=;b?!)%s%:*?=j%7.k0o/>-:%`
 
 ## 5. Optimisers on the real model (chapter 5)
 
-Each optimiser at three constant learning rates, 1,500 steps, the same batches
-(data seed 1, 16 windows), clip 1.0, beta2 0.99 for Adam and AdamW, AdamW weight decay 0.01.
+Each optimiser at three constant learning rates, 1,500 steps of 16 windows, clip 1.0,
+beta2 0.99 for Adam and AdamW, AdamW weight decay 0.01; three data seeds (1, 2, 3) per
+setting. Mean ± standard deviation of the final validation loss over the seeds.
+Single runs at the higher learning rates are chaotic: recomputed on another CPU, a run's
+final loss moved by up to 0.12 (last-bit differences in the matrix products, amplified),
+so only differences well beyond the spread mean anything.
 
-| Optimiser | Learning rate | Validation loss at 1,500 | Best for this optimiser |
-|---|---:|---:|:---:|
-| sgd | 0.1 | 2.8987 |  |
-| sgd | 0.3 | 2.3699 |  |
-| sgd | 1.0 | 2.2512 | yes |
-| momentum | 0.03 | 2.3601 |  |
-| momentum | 0.1 | 2.2047 | yes |
-| momentum | 0.3 | 2.3157 |  |
-| adam | 0.003 | 2.3272 |  |
-| adam | 0.01 | 2.1681 | yes |
-| adam | 0.03 | 2.2707 |  |
-| adamw | 0.003 | 2.3343 |  |
-| adamw | 0.01 | 2.1923 | yes |
-| adamw | 0.03 | 2.3443 |  |
+| Optimiser | Learning rate | Final validation loss (mean ± sd) | Seeds 1, 2, 3 | Best for this optimiser |
+|---|---:|---:|---|:---:|
+| sgd | 0.1 | 2.897 ± 0.005 | 2.899, 2.891, 2.901 |  |
+| sgd | 0.3 | 2.374 ± 0.014 | 2.370, 2.362, 2.390 |  |
+| sgd | 1.0 | 2.241 ± 0.034 | 2.251, 2.202, 2.268 | yes |
+| momentum | 0.03 | 2.342 ± 0.021 | 2.360, 2.319, 2.347 |  |
+| momentum | 0.1 | 2.213 ± 0.008 | 2.205, 2.220, 2.215 | yes |
+| momentum | 0.3 | 2.253 ± 0.055 | 2.316, 2.229, 2.215 |  |
+| adam | 0.003 | 2.310 ± 0.031 | 2.327, 2.329, 2.274 |  |
+| adam | 0.01 | 2.185 ± 0.041 | 2.168, 2.231, 2.155 | yes |
+| adam | 0.03 | 2.301 ± 0.026 | 2.271, 2.317, 2.316 |  |
+| adamw | 0.003 | 2.311 ± 0.038 | 2.334, 2.331, 2.267 |  |
+| adamw | 0.01 | 2.230 ± 0.041 | 2.192, 2.225, 2.273 | yes |
+| adamw | 0.03 | 2.357 ± 0.029 | 2.344, 2.337, 2.390 |  |

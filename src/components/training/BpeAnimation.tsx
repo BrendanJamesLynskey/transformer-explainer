@@ -4,10 +4,11 @@
  * Chapter 2: BPE learning its first 24 merges on the corpus, live. Each
  * step shows the five most frequent adjacent pairs (the winner is merged),
  * the new token, the corpus's token count shrinking, and the book's first
- * line re-tokenised with the merges so far. States from `bpeStates`, which
- * runs the tokeniser trainer (bpe.ts) in the browser.
+ * line re-tokenised with the merges so far. States from `bpeStatesSteps`,
+ * which runs the tokeniser trainer (bpe.ts) in the browser, one merge per
+ * task so the page stays responsive.
  */
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { AnimationPanel } from "@/components/anim/AnimationPanel";
 import { useStepper } from "@/components/anim/useStepper";
@@ -19,8 +20,9 @@ import { useSvgFont } from "@/components/viz/useSvgFont";
 import {
   BPE_ANIM_MERGES,
   bpeCaption,
-  bpeStates,
+  bpeStatesSteps,
   showToken,
+  type BpeState,
 } from "@/lib/anim/training/bpe-steps";
 import { ALPHABET } from "@/lib/transformer/tokenizer";
 import { OKABE_ITO } from "@/lib/viz/palette";
@@ -36,10 +38,23 @@ export default function BpeAnimation({
 }): JSX.Element {
   const corpus = useCorpus();
   const text = corpus && "text" in corpus ? corpus.text : null;
-  const states = useMemo(() => (text ? bpeStates(text) : []), [text]);
+  // trained a slice per task (one merge each), so the page never freezes
+  const [states, setStates] = useState<BpeState[]>([]);
+  useEffect(() => {
+    if (!text) return;
+    const it = bpeStatesSteps(text);
+    let timer = 0;
+    const slice = () => {
+      const r = it.next();
+      if (r.done) setStates(r.value);
+      else timer = window.setTimeout(slice, 0);
+    };
+    timer = window.setTimeout(slice, 0);
+    return () => window.clearTimeout(timer);
+  }, [text]);
   const st = useStepper(Math.max(1, states.length), {
     stepMs: 1100,
-    resetKey: text ? "ready" : "",
+    resetKey: states.length ? "ready" : "",
   });
   const [hover, setHover] = useState<string | null>(null);
   const box = useContainerWidth();

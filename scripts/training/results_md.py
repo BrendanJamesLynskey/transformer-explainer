@@ -97,17 +97,22 @@ def render(r: dict) -> str:
     w("")
     w("## 5. Optimisers on the real model (chapter 5)")
     w("")
-    w("Each optimiser at three constant learning rates, 1,500 steps, the same batches")
-    w("(data seed 1, 16 windows), clip 1.0, beta2 0.99 for Adam and AdamW, AdamW weight decay 0.01.")
+    w("Each optimiser at three constant learning rates, 1,500 steps of 16 windows, clip 1.0,")
+    w("beta2 0.99 for Adam and AdamW, AdamW weight decay 0.01; three data seeds (1, 2, 3) per")
+    w("setting. Mean ± standard deviation of the final validation loss over the seeds.")
+    w("Single runs at the higher learning rates are chaotic: recomputed on another CPU, a run's")
+    w("final loss moved by up to 0.12 (last-bit differences in the matrix products, amplified),")
+    w("so only differences well beyond the spread mean anything.")
     w("")
-    w("| Optimiser | Learning rate | Validation loss at 1,500 | Best for this optimiser |")
-    w("|---|---:|---:|:---:|")
+    w("| Optimiser | Learning rate | Final validation loss (mean ± sd) | Seeds 1, 2, 3 | Best for this optimiser |")
+    w("|---|---:|---:|---|:---:|")
     best = {}
     for row in r["optimizerCompare"]:
         if row["kind"] not in best or row["final"] < best[row["kind"]]["final"]:
             best[row["kind"]] = row
     for row in r["optimizerCompare"]:
         mark = "yes" if best[row["kind"]] is row else ""
-        w(f"| {row['kind']} | {row['lr']} | {f(row['final'])} | {mark} |")
+        seeds = ", ".join(f(x["final"], 3) for x in row["runs"])
+        w(f"| {row['kind']} | {row['lr']} | {f(row['final'], 3)} ± {f(row['sd'], 3)} | {seeds} | {mark} |")
     w("")
     return "\n".join(L)

@@ -17,7 +17,7 @@ const LABEL: Record<string, string> = {
 
 export function LiveTrainerPanel(): JSX.Element {
   const run = results.defaultRun;
-  const best = new Map<string, { kind: string; lr: number; final: number }>();
+  const best = new Map<string, { lr: number; final: number }>();
   for (const r of results.optimizerCompare) {
     const b = best.get(r.kind);
     if (!b || r.final < b.final) best.set(r.kind, r);

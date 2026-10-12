@@ -35,7 +35,7 @@ export function OptimizerRuns(): JSX.Element {
   const H = 300;
   const left = 44;
   const bottom = 34;
-  const steps = best[0]!.evals[best[0]!.evals.length - 1]!.step;
+  const steps = best[0]!.evalSteps[best[0]!.evalSteps.length - 1]!;
   const yLo = 2.0;
   const yHi = 4.3;
   const x = (t: number) => left + ((W - left - 10) * t) / steps;
@@ -98,10 +98,10 @@ export function OptimizerRuns(): JSX.Element {
         </text>
         {best.map((b) => {
           const k = b.kind as keyof typeof COLOUR;
-          const d = b.evals
+          const d = b.meanEvals
             .map(
-              (e, i) =>
-                `${i ? "L" : "M"}${x(e.step).toFixed(1)},${y(e.val).toFixed(1)}`,
+              (v, i) =>
+                `${i ? "L" : "M"}${x(b.evalSteps[i]!).toFixed(1)},${y(v).toFixed(1)}`,
             )
             .join("");
           return (
@@ -123,11 +123,13 @@ export function OptimizerRuns(): JSX.Element {
             <span key={k}>
               {i ? " · " : ""}
               <span style={{ color: COLOUR[k] }}>━</span> {LABEL[k]} (lr {b.lr}
-              ): {b.final.toFixed(3)}
+              ): {b.final.toFixed(3)} ± {b.sd.toFixed(3)}
             </span>
           );
         })}
-        . Constant learning rate, 1,500 steps, the same batches; results.md §5.
+        . Mean over three data seeds (± their standard deviation) at each
+        optimiser&rsquo;s best of three constant learning rates, 1,500 steps;
+        results.md §5.
       </figcaption>
     </figure>
   );

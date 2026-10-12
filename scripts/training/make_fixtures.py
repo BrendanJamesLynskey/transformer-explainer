@@ -285,6 +285,7 @@ def train_fixture(ids) -> dict:
 # ---------------------------------------------------------------------------
 # Measured results (results.json / results.md)
 # ---------------------------------------------------------------------------
+COMPARE_SEEDS = [1, 2, 3]
 OPT_COMPARE = {
     "sgd": [0.1, 0.3, 1.0],
     "momentum": [0.03, 0.1, 0.3],
@@ -321,18 +322,28 @@ def results(ids, checks_g, checks_o, bpe) -> dict:
     out["defaultRun"] = run
     out["defaultRunParams"] = params  # popped by build(): written as the checkpoint
     # optimiser comparison: each optimiser at three learning rates, constant LR,
-    # same batches (data seed 1), 1,500 steps; the best final validation loss
+    # 1,500 steps, three data seeds (the batches differ; the initial weights
+    # are Part 1's in every run); mean and standard deviation of the final
+    # validation loss over the seeds
     compare = []
     for kind, lrs in OPT_COMPARE.items():
         for lr in lrs:
             spec = {"kind": kind, "beta2": 0.99}
             if kind == "adamw":
                 spec["weight_decay"] = 0.01
-            cfg = dict(DEFAULT_TRAIN, steps=1500, optimizer=spec,
-                       schedule=dict(kind="constant", lr=lr))
-            r = train_run(cfg, ids, log_every=10)
-            compare.append({"kind": kind, "lr": lr, "steps": r["steps"], "loss": r["loss"],
-                            "evals": r["evals"], "final": r["evals"][-1]["val"], "seconds": r["seconds"]})
+            runs = []
+            for seed in COMPARE_SEEDS:
+                cfg = dict(DEFAULT_TRAIN, steps=1500, optimizer=spec, data_seed=seed,
+                           schedule=dict(kind="constant", lr=lr))
+                r = train_run(cfg, ids, log_every=10)
+                runs.append({"seed": seed, "evals": r["evals"], "final": r["evals"][-1]["val"],
+                             "seconds": r["seconds"]})
+            finals = np.array([r["final"] for r in runs])
+            compare.append({"kind": kind, "lr": lr, "runs": runs, "final": float(finals.mean()),
+                            "sd": float(finals.std(ddof=1)),
+                            "evalSteps": [e["step"] for e in runs[0]["evals"]],
+                            "meanEvals": [float(np.mean([r["evals"][i]["val"] for r in runs]))
+                                          for i in range(len(runs[0]["evals"]))]})
     out["optimizerCompare"] = compare
     S, B, steps = PART1["seq_len"], DEFAULT_TRAIN["batch"], DEFAULT_TRAIN["steps"]
     n_params = out["model"]["params"]
@@ -400,8 +411,11 @@ VOLATILE = {"seconds", "environment"}
 # tolerances are enforced by the checks themselves.
 RULES = [
     (r"\.checks\..*\.(max_abs_err|max_scaled_err|max_ratio|loss_err|loss_ours|loss_torch)$", ("skip", 0)),
-    (r"optimizerCompare\[\d+\]\.loss\[\d+\]$", ("skip", 0)),
-    (r"optimizerCompare\[\d+\]\.(final|evals\[\d+\]\.val)$", ("abs", 0.05)),
+    # chaotic at the higher learning rates: a CPU's last-bit differences
+    # moved single runs' final losses by up to 0.12 (measured in CI,
+    # 2026-10-12), so this is a sanity check, and the pages quote the mean
+    # and spread over three seeds, not single runs
+    (r"optimizerCompare\[\d+\]\.", ("abs", 0.25)),
     (r"results\.json\.(defaultRun|derived)\.", ("rel", 1e-6)),
     (r"default-run-weights\.json\.params\.", ("abs", 1e-6)),
 ]

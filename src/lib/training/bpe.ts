@@ -36,9 +36,12 @@ function key(ids: number[]): string {
   return ids.join(",");
 }
 
-function wordCounts(text: string): Word[] {
+function* wordCounts(text: string): Generator<void, Word[]> {
   const map = new Map<string, Word>();
+  let n = 0;
   for (const w of wordsOf(text)) {
+    // give the browser a chance to paint now and then (see bpeTrainSteps)
+    if (++n % 4000 === 0) yield;
     const ids = encodeChars(w);
     const k = key(ids);
     const e = map.get(k);
@@ -113,7 +116,23 @@ export type BpeModel = {
 
 /** Learn `nMerges` merges from `text` (records the top `top` pairs each time). */
 export function bpeTrain(text: string, nMerges: number, top = 5): BpeModel {
-  let words = wordCounts(text);
+  const it = bpeTrainSteps(text, nMerges, top);
+  let r = it.next();
+  while (!r.done) r = it.next();
+  return r.value;
+}
+
+/**
+ * `bpeTrain` in slices: a generator that pauses after each merge (and every
+ * few thousand words while counting), so a page can run it a slice per
+ * task without freezing (each slice takes a few milliseconds).
+ */
+export function* bpeTrainSteps(
+  text: string,
+  nMerges: number,
+  top = 5,
+): Generator<void, BpeModel> {
+  let words = yield* wordCounts(text);
   const vocab = ALPHABET.split("");
   const merges: [number, number][] = [];
   const history: MergeRecord[] = [];
@@ -151,6 +170,7 @@ export function bpeTrain(text: string, nMerges: number, top = 5): BpeModel {
       tokensBefore: before,
       tokensAfter: total,
     });
+    yield;
   }
   return { vocab, merges, history };
 }
