@@ -112,7 +112,11 @@ export default function ObjectiveAnimation({
     .map((v, j) => [Math.abs(v), j] as const)
     .sort((a, b) => b[0] - a[0])
     .slice(0, 3)
-    .map(([, j]) => j);
+    .map(([, j]) => j)
+    // the right answer is labelled under the chart instead
+    .filter(
+      (j) => !(j === s.target && s.phase !== "logits" && s.phase !== "softmax"),
+    );
 
   const visual = (
     <div ref={box.ref} className="min-w-0">

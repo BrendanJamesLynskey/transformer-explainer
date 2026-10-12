@@ -94,15 +94,12 @@ jobs:
       # backward pass with torch.autograd, the optimisers with torch.optim.
       - run: pip install -r scripts/training/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
       # Recomputes every training fixture, results.json/results.md and the
-      # default run's weights, and fails on a failed check or a difference.
-      # The committed files were made on an AVX-only CPU (Ivy Bridge): use
-      # the same OpenBLAS kernel and NumPy SIMD paths here, or the chaotic
-      # high-learning-rate runs drift apart from the last bit up.
+      # default run's weights, and fails on a failed check or a difference
+      # beyond the tolerances in make_fixtures.py (RULES: the fixtures to
+      # 1e-9; the long runs looser, since another CPU's last-bit differences
+      # grow over thousands of training steps). It prints the largest
+      # difference it saw for each rule.
       - run: python scripts/training/make_fixtures.py --check
-        env:
-          OPENBLAS_NUM_THREADS: "1"
-          OPENBLAS_CORETYPE: Sandybridge
-          NPY_DISABLE_CPU_FEATURES: "X86_V3 X86_V4 AVX512_ICL AVX512_SPR"
 
   cit-concept-audit:
     name: CiT concept audit
