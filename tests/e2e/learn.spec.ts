@@ -245,7 +245,7 @@ test.describe("companion site", () => {
     await expect(training.getByRole("link", { name: "Training" })).toHaveCount(
       0,
     );
-    // the decoder site leaves Compute in transit out of its switch (`hideOn`)
+    // Compute in transit is `unlisted`: no site's switch shows it
     await expect(training.getByText("Compute in transit")).toHaveCount(0);
     await full.locator("label[for='site-switch-agents']").click();
     await expect(agents).toBeVisible();
