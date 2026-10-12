@@ -45,7 +45,7 @@ export function LrSweepChart(): JSX.Element {
           Mean ± standard deviation over three seeds; best mean at {x.bestLr}.
           {div.length
             ? ` Diverged: ${div.map((r) => `${r.diverged} of 3 at ${r.lr}`).join(", ")}.`
-            : " No run diverged: clipping and Adam's normalised step keep even 1.0 finite, but it learns little."}{" "}
+            : " None diverged here, though 1.0 is on the edge (results.md §6)."}{" "}
           results.md §6a.
         </>
       }

@@ -140,6 +140,17 @@ def finals(row, d=3) -> str:
 def render_b(r: dict, w) -> None:
     """Brief 29B's sections (chapters 6-10), each only if its key is present."""
     if "lrSweep" in r:
+        w("## Chapters 6-10: how to read these numbers")
+        w("")
+        w("Every setting below ran with three data seeds; the pages quote the mean and the standard")
+        w("deviation. Most of these runs are chaotic: whether and when a run leaves the plateau of")
+        w("chapter 1 depends on the last bits of its arithmetic, so recomputing them on another CPU")
+        w("moved single seeds' final losses by up to about 0.35, step counts by up to a factor of 2,")
+        w("and made one run at learning rate 1.0 diverge. CI recomputes every group, sanity-checks")
+        w("the means, and re-checks each claim the chapters make (`CLAIMS` in `make_fixtures.py`);")
+        w("the deterministic parts (scale through depth, the coordinate check, the noise scale,")
+        w("memory, rounding) are checked to 1e-7 or better.")
+        w("")
         x = r["lrSweep"]
         w("## 6. Learning rate, schedules and batch size (chapter 6)")
         w("")

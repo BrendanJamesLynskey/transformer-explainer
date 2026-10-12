@@ -99,6 +99,17 @@ so only differences well beyond the spread mean anything.
 | adamw | 0.01 | 2.230 ± 0.041 | 2.192, 2.225, 2.273 | yes |
 | adamw | 0.03 | 2.357 ± 0.029 | 2.344, 2.337, 2.390 |  |
 
+## Chapters 6-10: how to read these numbers
+
+Every setting below ran with three data seeds; the pages quote the mean and the standard
+deviation. Most of these runs are chaotic: whether and when a run leaves the plateau of
+chapter 1 depends on the last bits of its arithmetic, so recomputing them on another CPU
+moved single seeds' final losses by up to about 0.35, step counts by up to a factor of 2,
+and made one run at learning rate 1.0 diverge. CI recomputes every group, sanity-checks
+the means, and re-checks each claim the chapters make (`CLAIMS` in `make_fixtures.py`);
+the deterministic parts (scale through depth, the coordinate check, the noise scale,
+memory, rounding) are checked to 1e-7 or better.
+
 ## 6. Learning rate, schedules and batch size (chapter 6)
 
 ### 6a. Learning-rate sweep

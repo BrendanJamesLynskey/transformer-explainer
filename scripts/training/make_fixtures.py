@@ -538,21 +538,93 @@ RULES = [
     (r"optimizerCompare\[\d+\]\.(meanEvals\[\d+\]|runs\[\d+\]\.evals\[\d+\]\.val)$", ("skip", 0)),
     (r"optimizerCompare\[\d+\]\.", ("abs", 0.25)),
     (r"results\.json\.(defaultRun|derived)\.", ("rel", 1e-6)),
-    # brief 29B. The same story for its sweeps: every run longer than a few
-    # hundred steps at the higher learning rates is chaotic, so curves are
-    # skipped and finals, means and spreads are sanity-checked; the
-    # deterministic parts (depth scale, coordinate check over 10 steps,
-    # memory, the noise scale along the default run) are checked tightly.
-    (r"\.(evals\[\d+\]\.val|meanEvals\[\d+\]|meanStats\[\d+\]\.\w+|stats\[\d+\]\.\w+)$", ("skip", 0)),
-    (r"\.(lrSweep|schedules|prePost|normKind|mupTransfer|attnGrowth|precision|gradQuant)\.", ("abs", 0.3)),
-    (r"\.badBatch\.", ("rel", 0.5)),
-    (r"\.batchSize\.", ("rel", 0.6)),
+    # brief 29B. The same story for its sweeps, only more so: whether a run
+    # leaves chapter 1's plateau, and when, depends on last bits, so on
+    # another CPU a single seed's final loss moved by up to 0.35, a step
+    # count by a factor of 2, and one run at learning rate 1.0 diverged
+    # (measured in CI, 2026-10-12). So per-seed values, curves, spreads and
+    # divergence flags are not compared; the means over seeds are sanity-
+    # checked; and the claims the chapters make are re-checked on the
+    # recomputed numbers (CLAIMS below). The deterministic parts (depth
+    # scale, the 10-step coordinate check, the noise scale along the default
+    # run, memory, rounding) are checked tightly.
+    (r"\.(lrSweep|schedules|prePost|normKind|mupTransfer|attnGrowth|precision|gradQuant|badBatch|batchSize)\."
+     r"(.*\.)?(runs|finals|perLr|stats|meanStats|evals|meanEvals|steps|before|after|final)(\[\d+\])?(\.|$)", ("skip", 0)),
+    (r"\.(sd|diverged|divergedAt|skipped|gradFlushedToZero|updatesLost|bestLr)$", ("skip", 0)),
+    (r"\.(lrSweep|schedules|prePost|normKind|mupTransfer|attnGrowth|precision|gradQuant)\..*\.mean$", ("abs", 0.35)),
+    (r"\.batchSize\.(rows|fit)", ("skip", 0)),
     (r"\.attnRun\.", ("skip", 0)),
     (r"attention-snapshots\.json\.params\.", ("skip", 0)),
     (r"\.noiseScale\.", ("rel", 1e-4)),
     (r"\.coordCheck\.", ("rel", 1e-7)),
     (r"default-run-weights\.json\.params\.", ("abs", 1e-6)),
 ]
+
+
+def _rows(r, key, **match):
+    return [x for x in r[key]["rows"] if all(x.get(k) == v for k, v in match.items())]
+
+
+def _mean(r, key, **match):
+    return _rows(r, key, **match)[0]["mean"]
+
+
+# What chapters 6-10 claim about the chaotic experiments, re-checked on the
+# recomputed numbers in CI (each claim is robust to the CPU drift above:
+# the margins are several times the spread over seeds). A claim whose
+# experiment group was not recomputed is skipped.
+CLAIMS = [
+    ("lrSweep", "the best peak learning rate is 0.01 or 0.03",
+     lambda r: r["lrSweep"]["bestLr"] in (0.01, 0.03)),
+    ("lrSweep", "lr 0.001 is still on the plateau (> 2.9) and 1.0 learns far less than 0.01",
+     lambda r: _mean(r, "lrSweep", lr=0.001) > 2.9
+     and (_mean(r, "lrSweep", lr=1.0) is None or _mean(r, "lrSweep", lr=1.0) > _mean(r, "lrSweep", lr=0.01) + 0.3)),
+    ("schedules", "every schedule leaves the plateau (mean < 2.6)",
+     lambda r: all(x["mean"] < 2.6 for x in r["schedules"]["rows"])),
+    ("batchSize", "64 windows need under half the steps of 4 windows, and B_crit is between 2 and 100 windows",
+     lambda r: r["batchSize"]["rows"][-1]["steps"] < 0.5 * r["batchSize"]["rows"][0]["steps"]
+     and 2 < r["batchSize"]["fit"]["bCrit"] < 100),
+    ("noiseScale", "the noise scale grows over the run",
+     lambda r: r["noiseScale"]["points"][-1]["bSimple"] > 10 * r["noiseScale"]["points"][0]["bSimple"]),
+    ("prePost", "post-LN without warmup stays on the plateau (> 2.9); pre-LN without warmup trains (< 2.6)",
+     lambda r: _mean(r, "prePost", norm="post", warmup=0) > 2.9 and _mean(r, "prePost", norm="pre", warmup=0) < 2.6),
+    ("normKind", "RMSNorm trains as well as LayerNorm (within 0.2)",
+     lambda r: _mean(r, "normKind", kind="rms") < _mean(r, "normKind", kind="layer") + 0.2),
+    ("coordCheck", "the logits move > 2.5x more at width 256 than 16 under SP, and within 10% under muP",
+     lambda r: r["coordCheck"]["sp"][-1]["logitsDelta"] > 2.5 * r["coordCheck"]["sp"][0]["logitsDelta"]
+     and abs(r["coordCheck"]["mup"][-1]["logitsDelta"] / r["coordCheck"]["mup"][0]["logitsDelta"] - 1) < 0.1),
+    ("mupTransfer", "at width 64, muP's best mean beats the standard parameterisation's best",
+     lambda r: min(x["mean"] for x in _rows(r, "mupTransfer", param="mup", width=64))
+     < min(x["mean"] for x in _rows(r, "mupTransfer", param="sp", width=64))),
+    ("badBatch", "unclipped momentum diverges after the bad batch in every seed; clipped and skipped runs finish below 2.6",
+     lambda r: all(v is None for v in r["badBatch"]["rows"][0]["final"])
+     and all(v is not None and v < 2.6 for row in r["badBatch"]["rows"][1:3] for v in row["final"])),
+    ("attnGrowth", "at lr 0.1 the baseline's largest score exceeds 1,000 and QK-norm's stays under 100; QK-norm's loss is lower by > 0.2",
+     lambda r: _rows(r, "attnGrowth", lr=0.1, name="baseline")[0]["meanStats"][-1]["maxScore"] > 1000
+     and _rows(r, "attnGrowth", lr=0.1, name="QK-norm")[0]["meanStats"][-1]["maxScore"] < 100
+     and _mean(r, "attnGrowth", lr=0.1, name="QK-norm") < _mean(r, "attnGrowth", lr=0.1, name="baseline") - 0.2),
+    ("precision", "FP32, BF16 with master weights and FP16 with loss scaling end within 0.15 of float64; unscaled FP8 stays on the plateau",
+     lambda r: all(abs(_mean(r, "precision", name=n) - _mean(r, "precision", name="float64 (reference)")) < 0.15
+                   for n in ("FP32", "BF16, FP32 master weights", "FP16, dynamic loss scaling"))
+     and _mean(r, "precision", name="FP8 (E4M3 / E5M2), no scaling") > 2.85),
+    ("gradQuant", "2-bit gradients end worse than 8-bit ones",
+     lambda r: _mean(r, "gradQuant", bits=2) > _mean(r, "gradQuant", bits=8) + 0.2),
+]
+
+
+def check_claims(r: dict) -> list[str]:
+    """The CLAIMS whose experiment is in r that do not hold."""
+    bad = []
+    for key, text, ok in CLAIMS:
+        if key in r:
+            try:
+                good = bool(ok(r))
+            except (TypeError, KeyError, IndexError):
+                good = False
+            print(f"  claim {'OK  ' if good else 'FAIL'} {key}: {text}")
+            if not good:
+                bad.append(f"claim does not hold: {key}: {text}")
+    return bad
 
 
 def rule_for(path: str):
@@ -571,6 +643,12 @@ def compare(a, b, path="", problems=None, stats=None):
     `stats[rule] = largest difference seen`, printed by --check."""
     if problems is None:
         problems = []
+    if rule_for(path)[1][0] == "skip" and path.split(".")[-1].split("[")[0] not in ("checks",):
+        # chaotic values (RULES): not compared at all, even in shape
+        if stats is not None and _num(a) and _num(b):
+            name = rule_for(path)[0]
+            stats[name] = max(stats.get(name, 0.0), abs(a - b))
+        return problems
     if isinstance(a, dict) and isinstance(b, dict):
         if set(a) != set(b):
             problems.append(f"{path}: keys differ {sorted(set(a) ^ set(b))}")
@@ -729,6 +807,8 @@ def main() -> None:
         for rx, (kind, tol) in RULES + [("default", ("rel", 1e-9))]:
             if rx in stats:
                 print(f"  {stats[rx]:.3e}  ({kind} {tol})  {rx}")
+        print("the chapters' claims, on the recomputed numbers:")
+        problems += check_claims(jsonable(files[RESULTS_JSON]))
         committed_md = render_committed_md()
         if RESULTS_MD.read_text() != committed_md:
             problems.append("results.md is not the rendering of the committed results.json")
@@ -749,6 +829,9 @@ def main() -> None:
         merged.update(jsonable(res))
         res = merged
     files[RESULTS_JSON] = res
+    bad = check_claims(jsonable(res))
+    if bad:
+        print("WARNING: " + "; ".join(bad))
     for path, payload in files.items():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(dump(payload))
