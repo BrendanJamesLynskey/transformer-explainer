@@ -95,9 +95,6 @@ export default function TrainingLoopHero({
   const lossY = Math.max(gy + gridH, stackY + stackH) + fs(12) + 22;
   const H = lossY + 34;
 
-  let maxLoss = 0;
-  for (const r of s.perPosition ?? [])
-    for (const v of r) maxLoss = Math.max(maxLoss, v);
   const maxNorm = Math.max(1e-12, ...s.gradNorms.map((n) => n ?? 0));
 
   const visual = (
@@ -110,7 +107,9 @@ export default function TrainingLoopHero({
         aria-label="A batch of four windows of characters as a grid, each cell coloured by the model's probability for the right next character or by its loss; beside it the model's six groups of weights, from the embedding at the bottom to the final LayerNorm at the top, each showing its gradient's size and, after the update, how much it moved; below, the batch's loss before and after the step"
       >
         <text x={gx} y={gy - 10} fontSize={fs(12)} fill="currentColor">
-          {`batch: ${B} windows × ${S} characters (small: the target, the next character)`}
+          {phone
+            ? `batch: ${B} windows × ${S} characters`
+            : `batch: ${B} windows × ${S} characters (small: the target, the next character)`}
         </text>
         {s.inputs.map((row, b) =>
           row.map((id, i) => {
@@ -122,8 +121,9 @@ export default function TrainingLoopHero({
               fill = OKABE_ITO.purple;
               op = 0.1 + 0.85 * Math.min(1, pT / 0.2);
             } else if (s.phase !== "batch" && l !== undefined) {
+              // on an absolute scale: ln 64 (a uniform guess) is 0.6
               fill = OKABE_ITO.vermillion;
-              op = 0.08 + 0.85 * (maxLoss > 0 ? l / maxLoss : 0);
+              op = 0.05 + 0.55 * Math.min(1.4, l / Math.log(64));
             }
             return (
               <g key={`${b}-${i}`} data-testid={`cell-${b}-${i}`}>
@@ -245,7 +245,7 @@ export default function TrainingLoopHero({
           <text
             x={phone ? stackX + stackW / 2 : stackX - 30}
             y={phone ? stackY + stackH + fs(12) : stackY + stackH / 2}
-            fontSize={fs(18)}
+            fontSize={fs(phone ? 14 : 26)}
             textAnchor="middle"
             fill={s.phase === "forward" ? OKABE_ITO.purple : OKABE_ITO.orange}
           >

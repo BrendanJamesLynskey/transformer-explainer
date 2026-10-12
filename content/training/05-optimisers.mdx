@@ -3,7 +3,7 @@ The gradient says which way is downhill; the optimiser decides how far to step, 
 <Optim2dAnimation>
   <Eq
     label="SGD steps by the learning rate times the gradient; momentum keeps a running sum b of past gradients and steps along it; Adam keeps running means m of the gradient and v of its square, corrects their start-up bias and steps by m over the square root of v; AdamW also shrinks the weights by a factor one minus learning rate times lambda"
-    tex="\begin{gathered} \text{SGD: } \theta \leftarrow \theta - \eta\, \htmlClass{hl-grad}{g} \qquad \text{momentum: } b \leftarrow \mu b + g,\ \ \theta \leftarrow \theta - \eta b \\ \htmlClass{hl-m}{m \leftarrow \beta_1 m + (1 - \beta_1) g}, \quad \htmlClass{hl-v2}{v \leftarrow \beta_2 v + (1 - \beta_2) g^{2}} \\ \htmlClass{hl-update}{\theta \leftarrow \theta - \eta\, \frac{m / (1 - \beta_1^{t})}{\sqrt{v / (1 - \beta_2^{t})} + \epsilon}} \;\; \htmlClass{hl-wd}{\text{AdamW: first } \theta \leftarrow \theta (1 - \eta \lambda)} \end{gathered}"
+    tex="\begin{gathered} \text{SGD: } \theta \leftarrow \theta - \eta\, \htmlClass{hl-grad}{g} \\ \text{momentum: } b \leftarrow \mu b + g,\ \ \theta \leftarrow \theta - \eta b \\ \htmlClass{hl-m}{m \leftarrow \beta_1 m + (1 - \beta_1) g}, \quad \htmlClass{hl-v2}{v \leftarrow \beta_2 v + (1 - \beta_2) g^{2}} \\ \htmlClass{hl-update}{\theta \leftarrow \theta - \eta\, \frac{m / (1 - \beta_1^{t})}{\sqrt{v / (1 - \beta_2^{t})} + \epsilon}} \\ \htmlClass{hl-wd}{\text{AdamW: first } \theta \leftarrow \theta (1 - \eta \lambda)} \end{gathered}"
   />
 </Optim2dAnimation>
 
@@ -42,8 +42,8 @@ reason runs decay their learning rate at the end (chapter 6).
 
 <span id="t-adamw" />
 **AdamW** ([Loshchilov & Hutter 2017](https://arxiv.org/abs/1711.05101)) adds
-weight decay the direct way: each step first shrinks every weight by a factor $1
-- \eta\lambda$. With plain Adam, adding the decay $\lambda\theta$ to the
+weight decay the direct way: each step first shrinks every weight by a factor
+$1-\eta\lambda$. With plain Adam, adding the decay $\lambda\theta$ to the
 gradient (an L2 penalty) puts it through the $1/\sqrt v$ rescaling, so weights
 with large gradients are barely decayed at all; decoupling it makes the decay
 the same for every weight. In the valley the decay pulls AdamW's end point

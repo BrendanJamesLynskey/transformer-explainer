@@ -19,11 +19,13 @@ export function PartNav(): JSX.Element {
     {
       href: "/learn",
       label: "Inference",
+      part: "Part 1",
       title: "Part 1: how the decoder runs",
     },
     {
       href: "/training",
       label: "Training",
+      part: "Part 2",
       title: "Part 2: how it is trained",
     },
   ];
@@ -36,6 +38,9 @@ export function PartNav(): JSX.Element {
             key={p.href}
             href={p.href}
             title={p.title}
+            // the site switch also has "Inference" and "Training": keep
+            // the names distinct (and still containing the visible word)
+            aria-label={`${p.part}: ${p.label}`}
             aria-current={on ? "page" : undefined}
             className={`${LINK} ${on ? CURRENT : ""}`}
           >

@@ -230,9 +230,9 @@ export default function LiveTrainer({
             className={SELECT}
             aria-label="Steps"
           >
-            {[200, 500, 1000, 2000].map((n) => (
+            {[200, 2000, 4000].map((n) => (
               <option key={n} value={n}>
-                {n.toLocaleString("en-GB")}
+                {n === 200 ? "200 (a quick check)" : n.toLocaleString("en-GB")}
               </option>
             ))}
           </select>
@@ -283,7 +283,7 @@ export default function LiveTrainer({
         {error
           ? `The trainer failed: ${error}`
           : state === "idle"
-            ? "Press Train. The weights start as Part 1's (seed 42); the loss starts near ln 64 = 4.16."
+            ? "Press Train. The weights start as Part 1's (seed 42); the loss starts near ln 64 = 4.16. Expect a long plateau before the model learns which characters follow which: a run shorter than about 1,000 steps ends on it."
             : `Step ${logs.length.toLocaleString("en-GB")} of ${steps.toLocaleString("en-GB")}${last ? ` · batch loss ${sig(last.loss, 3)} · lr ${sig(last.lr, 2)}` : ""}${lastEval ? ` · validation ${lastEval.val.toFixed(3)}` : ""}${rate ? ` · ${Math.round(rate)} steps/s` : ""}${state === "done" ? " · done" : state === "paused" ? " · paused" : ""}`}
       </p>
 

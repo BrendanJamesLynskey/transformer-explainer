@@ -138,8 +138,7 @@ export default function BackpropAnimation({
   const gridH = S * cellH;
   const maxV = Math.max(1e-30, ...s.value.flat().map((v) => Math.abs(v)));
   const maxN = Math.max(1e-30, ...s.rowNorms);
-  const infoY = Math.max(phone ? 0 : diagH, hy + gridH) + fs(12) + 16;
-  const H = infoY + fs(11) * 2 + 14;
+  const H = Math.max(phone ? 0 : diagH, hy + gridH) + fs(12) + 12;
 
   const visual = (
     <div ref={box.ref} className="min-w-0">
@@ -249,25 +248,6 @@ export default function BackpropAnimation({
         >
           ‖row‖
         </text>
-        <text
-          x={0}
-          y={infoY}
-          fontSize={fs(11)}
-          fill="currentColor"
-          data-testid="backprop-op"
-        >
-          {s.kind === "embedding" ? "op: x₀ = E[ids] + P" : `op: ${stop!.op}`}
-        </text>
-        <text
-          x={0}
-          y={infoY + fs(11) + 8}
-          fontSize={fs(11)}
-          fill="currentColor"
-        >
-          {s.kind === "embedding"
-            ? "needs: the token ids"
-            : `needs, saved from the forward pass: ${stop!.saved}`}
-        </text>
       </svg>
     </div>
   );
@@ -286,17 +266,24 @@ export default function BackpropAnimation({
       onEquationHover={setHover}
       params={select}
       stats={
-        s.params.length > 0 ? (
-          <p
-            className="text-xs text-neutral-700 dark:text-neutral-300"
-            data-testid="backprop-params"
-          >
-            Finished here:{" "}
-            {s.params
-              .map((p) => `∂L/∂${p.name} (‖·‖ ${sig(p.norm)})`)
-              .join(", ")}
+        <div className="space-y-1 text-xs text-neutral-700 dark:text-neutral-300">
+          <p data-testid="backprop-op">
+            <span className="font-medium">Operation:</span>{" "}
+            {s.kind === "embedding" ? "x₀ = E[ids] + P" : stop!.op}.{" "}
+            <span className="font-medium">
+              Needs, saved from the forward pass:
+            </span>{" "}
+            {s.kind === "embedding" ? "the token ids" : stop!.saved}.
           </p>
-        ) : undefined
+          {s.params.length > 0 && (
+            <p data-testid="backprop-params">
+              <span className="font-medium">Finished here:</span>{" "}
+              {s.params
+                .map((p) => `∂L/∂${p.name} (‖·‖ ${sig(p.norm)})`)
+                .join(", ")}
+            </p>
+          )}
+        </div>
       }
     />
   );

@@ -97,7 +97,7 @@ export default function Optim2dAnimation({
   const xLo = -3;
   const xHi = 3;
   const yLo = -2;
-  const yHi = 2;
+  const yHi = 3.2;
   const pad = 6;
   const k = (W - 2 * pad) / (xHi - xLo);
   const plotH = (yHi - yLo) * k;
@@ -193,10 +193,17 @@ export default function Optim2dAnimation({
             );
           })}
         </g>
+        <circle
+          cx={px(VALLEY.xStar)}
+          cy={py(VALLEY.yStar)}
+          r={3}
+          fill="currentColor"
+        />
         <text
-          x={px(VALLEY.xStar) + 8}
-          y={py(VALLEY.yStar) - 8}
+          x={px(VALLEY.xStar)}
+          y={py(VALLEY.yStar) - 34}
           fontSize={fs(11)}
+          textAnchor="middle"
           fill="currentColor"
         >
           minimum (2, 1)

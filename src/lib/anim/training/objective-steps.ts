@@ -126,7 +126,7 @@ export function objectiveCaption(s: ObjectiveState): string {
     case "loss":
       return `${at}: loss = −log ${sig(s.pTarget!)} = ${sig(s.loss!)}.`;
     case "grad":
-      return `${at}: gradient p − y (÷ 8): ${c(s.target)}'s logit is pushed up by ${sig(-s.grad![s.target]!)}, every other one down by its probability ÷ 8.`;
+      return `${at}: gradient (p − y) ÷ 8: the logit of ${c(s.target)} is pushed up by ${sig(-s.grad![s.target]!)}, every other logit down by its probability ÷ 8.`;
     case "mean":
       return `The loss is the mean over the 8 positions: ${sig(s.mean!, 4)} (perplexity e^loss = ${sig(Math.exp(s.mean!))}).`;
   }

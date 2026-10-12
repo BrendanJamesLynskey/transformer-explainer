@@ -108,6 +108,11 @@ export default function ObjectiveAnimation({
   const mid = signed ? chartY + chartH / 2 : chartY + chartH;
   const scale = signed ? chartH / 2 - 4 : chartH - 4;
   const lmax = Math.max(Math.log(64), ...s.losses.map((l) => l ?? 0));
+  const top3 = values
+    .map((v, j) => [Math.abs(v), j] as const)
+    .sort((a, b) => b[0] - a[0])
+    .slice(0, 3)
+    .map(([, j]) => j);
 
   const visual = (
     <div ref={box.ref} className="min-w-0">
@@ -219,12 +224,36 @@ export default function ObjectiveAnimation({
             />
           );
         })}
+        {/* the three largest bars, named */}
+        {top3.map((j) => {
+          const v = values[j]!;
+          const h = (scale * Math.abs(v)) / vmax;
+          return (
+            <text
+              key={`l${j}`}
+              x={(j + 0.5) * bw}
+              y={v >= 0 ? mid - h - 4 : mid + h + fs(11) + 2}
+              fontSize={fs(11)}
+              textAnchor="middle"
+              fill="currentColor"
+              fontFamily="monospace"
+            >
+              {showChar(ALPHABET[j]!)}
+            </text>
+          );
+        })}
         {s.phase !== "logits" && s.phase !== "softmax" && (
           <text
             x={Math.min(W - 4, Math.max(4, (s.target + 0.5) * bw))}
             y={chartY + chartH + fs(11) + 6}
             fontSize={fs(11)}
-            textAnchor="middle"
+            textAnchor={
+              (s.target + 0.5) * bw < W * 0.2
+                ? "start"
+                : (s.target + 0.5) * bw > W * 0.8
+                  ? "end"
+                  : "middle"
+            }
             fill="currentColor"
           >
             {`'${showChar(ALPHABET[s.target]!)}'${s.pTarget !== null ? ` p = ${sig(s.pTarget)}` : ""}`}

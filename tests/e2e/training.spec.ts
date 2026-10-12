@@ -68,15 +68,15 @@ test.describe("Part 2 pages", () => {
     await page.goto("/training/03-objective");
     const header = page.locator("header");
     await expect(
-      header.getByRole("link", { name: "Training", exact: true }),
+      header.getByRole("link", { name: "Part 2: Training" }),
     ).toHaveAttribute("aria-current", "page");
-    await header.getByRole("link", { name: "Inference", exact: true }).click();
+    await header.getByRole("link", { name: "Part 1: Inference" }).click();
     await expect(page).toHaveURL(/\/learn$/);
     await expect(
-      header.getByRole("link", { name: "Inference", exact: true }),
+      header.getByRole("link", { name: "Part 1: Inference" }),
     ).toHaveAttribute("aria-current", "page");
     await expect(
-      header.getByRole("link", { name: "Training", exact: true }),
+      header.getByRole("link", { name: "Part 2: Training" }),
     ).not.toHaveAttribute("aria-current", "page");
   });
 
@@ -122,7 +122,7 @@ test.describe("Part 2 pages", () => {
     ).toHaveAttribute("href", "/training");
     await page.goto("/about");
     await expect(
-      page.getByRole("link", { name: "Part 2: Training" }),
+      page.locator("main").getByRole("link", { name: "Part 2: Training" }),
     ).toBeVisible();
   });
 });
