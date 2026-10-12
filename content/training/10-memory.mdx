@@ -1,0 +1,49 @@
+LLaMA 7B's weights take <R k="memory.llama.gb.weights" d={1} /> GB at two bytes each, yet training it on one device needs far more. The weights are the small part: the optimiser keeps several numbers per weight, and the forward pass leaves every layer's activations behind for the backward pass. Below, the memory one device holds through a single training step, event by event, for LLaMA 7B and for Part 1's model.
+
+<MemoryAnimation>
+  <Eq
+    label="Bytes held: the number of parameters N times two bytes of weights, two of gradients, eight of Adam's two moments and four of the FP32 master copy, which is sixteen bytes per parameter; plus, for each of L layers, s b h times 34 plus 5 a s over h bytes of activations, for sequence length s, micro-batch b, width h and a heads"
+    tex="\begin{gathered} \htmlClass{hl-memw}{N(\underbrace{2}_{\text{weights}} + \underbrace{2}_{\text{grads}})} + \htmlClass{hl-memopt}{N(\underbrace{8}_{\text{Adam } m, v} + \underbrace{4}_{\text{master}})} = 16N \text{ bytes} \\ \htmlClass{hl-memact}{+\; L \cdot s\,b\,h\,\Big(34 + 5\,\frac{a\,s}{h}\Big)} \text{ bytes of activations} \end{gathered}"
+  />
+</MemoryAnimation>
+
+<Layer kind="concept">
+
+**Sixteen bytes per parameter.** With mixed-precision Adam (chapters 5 and 9), every parameter costs 2 bytes of BF16 weight, 2 of BF16 gradient, 4 + 4 for Adam's first and second moments and 4 for the FP32 master copy: 16 bytes, the accounting of ZeRO ([Rajbhandari et al. 2020](https://arxiv.org/abs/1910.02054), §3.1, $K = 12$ bytes of optimiser state). Plain FP32 Adam also costs 16 (4 + 4 + 8). For LLaMA 7B (<R k="memory.llama.mixed.none.params" sep /> parameters by this calculator; [Touvron et al. 2023](https://arxiv.org/abs/2302.13971), Table 2, lists 6.7B) that is <R k="memory.llama.gb.static" d={1} /> GB before a single activation.
+
+**Activations.** The backward pass needs, at every operation, what the forward pass computed there (chapter 4: "which activations must be saved, and why"). [Korthikanti et al. (2022)](https://arxiv.org/abs/2205.05198) count them for a GPT layer with 16-bit activations: $s\,b\,h\,(34 + 5as/h)$ bytes for sequence length $s$, micro-batch $b$, width $h$ and $a$ heads. The $5as/h$ term is attention's $s \times s$ score and weight matrices, one per head ([Part 1, chapter 3](/learn/03-attention)): it grows with the square of the sequence. For LLaMA 7B at sequence 4,096 and one sequence per step that is <R k="memory.llama.gb.activations" d={1} /> GB over 32 layers, about as much again as the weights and optimiser together, and it doubles with every doubling of the micro-batch. Part 1's model keeps <R k="memory.part1.savedFloatsPerSeqPerBlock.0" sep /> values per sequence per block for its backward pass (counted in the reference trainer), against <R k="memory.part1.korthikantiValuesPerSeqPerBlock" sep /> by the formula for the same shape; the formula assumes a feed-forward layer four times the model's width (Part 1's is twice) and dropout masks (Part 1 has none), so the two counts differ in detail but agree in size. Either way, it is the activations, not the weights, that grow with the sequence and the batch.
+
+**Activation checkpointing** ([Chen et al. 2016](https://arxiv.org/abs/1604.06174)) trades compute for that memory: keep only each layer's input (2 $sbh$ bytes) and, during the backward pass, recompute the layer's forward pass to get the rest back. It costs one extra forward pass per step: roughly a third more compute, since a backward pass costs roughly twice a forward one. Korthikanti et al.'s _selective_ recomputation keeps everything but the attention scores and weights (the $5as/h$ term), which are cheap to recompute and expensive to store: $34\,sbh$. Pick "full" or "selective" above and watch the activations shrink and a recomputed layer appear in each backward step. For LLaMA 7B the peak falls from <R k="memory.llama.gb.peak.none" d={1} /> GB with no recomputation to <R k="memory.llama.gb.peak.selective" d={1} /> GB (selective) and <R k="memory.llama.gb.peak.full" d={1} /> GB (full).
+
+**Still too much for one device.** Even with full recomputation, the 16 bytes per parameter remain. The next step is to stop every device holding everything: ZeRO and FSDP shard the optimiser states, gradients and weights across the data-parallel workers (chapter 11), and tensor and pipeline parallelism split the model itself (chapter 12).
+
+**Run it yourself on a GPU.** [Notebook 10 (open in Colab)](https://colab.research.google.com/github/BrendanJamesLynskey/transformer-explainer/blob/main/notebooks/10_activation_checkpointing.ipynb) measures peak memory (`torch.cuda.max_memory_allocated`) and step time with and without checkpointing a 12-layer model at three sequence lengths (about 10 minutes on any GPU). GPU run pending: the calculator above is not yet checked against it.
+
+</Layer>
+
+<Layer kind="maths">
+
+Per device, for $N$ parameters, $L$ layers, sequence $s$, micro-batch $b$, width $h$, heads $a$, vocabulary $V$:
+
+$$
+M = \underbrace{16N}_{\text{weights, grads, Adam, master}} + \underbrace{L\,s\,b\,h\,(34 + 5as/h)}_{\text{activations}} + \underbrace{6\,s\,b\,V}_{\text{logits: 2 + 4 bytes}}
+$$
+
+With selective recomputation the activation term is $34\,Lsbh$; with full recomputation $2\,Lsbh$ plus one layer's full activations at a time during the backward pass. LLaMA 7B's parameters, exactly: $L(4h^2 + 3hf + 2h) + 2Vh + h$ with $h = 4096$, $f = 11008$ (SwiGLU's three matrices), $L = 32$, $V = 32000$, untied embedding and head, RMSNorm gains only.
+
+</Layer>
+
+<Layer kind="code">
+
+The breakdown, `src/lib/training/memory.ts` (a port of `scripts/training/memory.py`, matched exactly):
+
+```ts
+export function activationsPerLayer(c: Arch, recompute: Recompute): number {
+  const { s, b, h, a } = c;
+  if (recompute === "none") return s * b * h * (34 + (5 * a * s) / h);
+  if (recompute === "selective") return 34 * s * b * h;
+  return 2 * s * b * h;
+}
+```
+
+</Layer>

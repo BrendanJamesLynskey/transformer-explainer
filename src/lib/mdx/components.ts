@@ -25,16 +25,29 @@ import { LayerNormWidget } from "@/components/interactive/LayerNormWidget";
 import { SamplingWidget } from "@/components/interactive/SamplingWidget";
 import { StackingWidget } from "@/components/interactive/StackingWidget";
 import { Eq } from "@/components/mdx/Eq";
+import { AttentionGrowthPanel } from "@/components/training/AttentionGrowthPanel";
+import { BadBatchChart } from "@/components/training/BadBatchChart";
+import { BatchSizeChart } from "@/components/training/BatchSizeChart";
+import { CoordCheckChart } from "@/components/training/CoordCheckChart";
 import {
   BackpropAnimation,
   BpeAnimation,
+  DepthAnimation,
+  MemoryAnimation,
   ObjectiveAnimation,
   Optim2dAnimation,
+  RoundingAnimation,
   TrainingLoopHero,
 } from "@/components/training/lazy";
 import { LiveTrainerPanel } from "@/components/training/LiveTrainerPanel";
+import { LrSweepChart } from "@/components/training/LrSweepChart";
+import { LrTrainerPanel } from "@/components/training/LrTrainerPanel";
+import { MupChart } from "@/components/training/MupChart";
 import { OptimizerRuns } from "@/components/training/OptimizerRuns";
+import { PrecisionChart } from "@/components/training/PrecisionChart";
+import { PrePostChart } from "@/components/training/PrePostChart";
 import { R } from "@/components/training/R";
+import { SchedulePanel } from "@/components/training/SchedulePanel";
 
 export const mdxComponents: NonNullable<MDXRemoteProps["components"]> = {
   Layer,
@@ -63,4 +76,18 @@ export const mdxComponents: NonNullable<MDXRemoteProps["components"]> = {
   Optim2dAnimation,
   OptimizerRuns,
   R,
+  // Part 2, chapters 6-10 (brief 29B)
+  SchedulePanel,
+  LrTrainerPanel,
+  LrSweepChart,
+  BatchSizeChart,
+  DepthAnimation,
+  PrePostChart,
+  CoordCheckChart,
+  MupChart,
+  AttentionGrowthPanel,
+  BadBatchChart,
+  RoundingAnimation,
+  PrecisionChart,
+  MemoryAnimation,
 };

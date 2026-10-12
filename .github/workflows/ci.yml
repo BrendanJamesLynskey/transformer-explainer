@@ -17,6 +17,8 @@ concurrency:
 #     and best practices must each score >= 90; see lighthouserc.json).
 #   - Brief 29A added `training-reference` (the Part 2 trainer's PyTorch
 #     checks and fixtures) and `cit-concept-audit`.
+#   - Brief 29B split `training-reference` into one job per results group
+#     (chapters 6-10's experiments) and added the notebooks' smoke runs.
 
 jobs:
   lint-and-typecheck:
@@ -81,8 +83,15 @@ jobs:
       - run: pnpm verify:maths
 
   training-reference:
-    name: Training reference (PyTorch checks)
+    name: Training reference (${{ matrix.group }})
     runs-on: ubuntu-latest
+    # one job per group of results (brief 29B): "base" is 29A's checks,
+    # fixtures and runs; ch6a … ch10 are chapters 6-10's experiments, each a
+    # few minutes on one core, run in parallel
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [base, ch6a, ch6b, ch7a, ch7b, ch8, ch9, ch10]
     steps:
       - uses: actions/checkout@v4
 
@@ -93,13 +102,18 @@ jobs:
       # CPU-only PyTorch, pinned: the gradient checks compare the hand-written
       # backward pass with torch.autograd, the optimisers with torch.optim.
       - run: pip install -r scripts/training/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
-      # Recomputes every training fixture, results.json/results.md and the
-      # default run's weights, and fails on a failed check or a difference
-      # beyond the tolerances in make_fixtures.py (RULES: the fixtures to
-      # 1e-9; the long runs looser, since another CPU's last-bit differences
-      # grow over thousands of training steps). It prints the largest
-      # difference it saw for each rule.
-      - run: python scripts/training/make_fixtures.py --check
+      # Recomputes the group's fixtures and results.json keys (and, for
+      # base, results.md and the default run's weights), and fails on a
+      # failed check or a difference beyond the tolerances in
+      # make_fixtures.py (RULES: the fixtures to 1e-9; the long runs looser,
+      # since another CPU's last-bit differences grow over thousands of
+      # training steps, and chaotic high-learning-rate runs only as a
+      # sanity check). It prints the largest difference it saw for each rule.
+      - run: python scripts/training/make_fixtures.py --check --groups ${{ matrix.group }}
+      # The Colab notebooks (notebooks/*.ipynb), each run as a tiny SMOKE=1
+      # version on the CPU (no network: they use the site's corpus).
+      - if: matrix.group == 'base'
+        run: python scripts/training/notebook_smoke.py
 
   cit-concept-audit:
     name: CiT concept audit

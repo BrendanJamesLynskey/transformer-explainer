@@ -862,3 +862,44 @@ Training becomes Part 2 of this site (`29_decoder_site_training_brief.md`).
   differences grow over thousands of steps, fastest in the chaotic
   high-learning-rate runs.
 - README GIFs of the Part 2 animations are 29C's.
+
+## Brief 29B — Part 2, Training: experiments, precision, notebooks, chapters 6–10 (2026-10-12)
+
+- [x] Model variants in the reference (`scripts/training/model.py`), each
+      off by default (Part 1's model and every 29A fixture unchanged,
+      checked bit for bit with `--check`) and gradient-checked against
+      autograd and finite differences: post-LN, RMSNorm, QK-norm, z-loss, µP
+      (width multiplier, per-parameter learning rates), and a `cast` hook
+      for low precision.
+- [x] `precision.py`: FP32 / BF16 / FP16 / FP8 E5M2 / E4M3 rounding vendored
+      from the Numerics site (numerics-explained `reference/numerics.py`,
+      ca9bbd9, MIT), a vectorised version checked equal to it, per-tensor
+      scaling, integer quantisation. TS: `src/lib/training/rounding.ts`.
+- [x] `experiments.py`: learning-rate sweep, schedules, batch size to a
+      target loss + McCandlish fit, gradient noise scale, depth scale at
+      init, pre/post-LN, LayerNorm/RMSNorm, µP coordinate check and width
+      sweep, one bad batch, attention-logit growth (QK-norm, z-loss),
+      emulated precision recipes, quantised gradients; three seeds each,
+      mean ± sd. `memory.py` / `memory.ts`: the memory calculator.
+- [x] `make_fixtures.py --groups`: results in groups (base, ch6a … ch10);
+      CI runs one `training-reference` job per group in parallel.
+- [x] TS: post-LN in `model-grad.ts` (gradients = Python to 1e-12); state
+      builders for five animations (`src/lib/anim/training/{schedule,depth,
+attention-growth,rounding,memory}-steps.ts`), frame-tested against
+      `scripts/training/anim_b.py`.
+- [x] Chapters 06–10 (`content/training/`), each opening with its
+      animation; charts server-rendered from results.json; chapter 6 has the
+      live trainer at four learning rates.
+- [x] Colab notebooks `notebooks/07–10_*.ipynb` (`notebooks_build.py`),
+      smoke-tested on the CPU in CI (`notebook_smoke.py`); GPU runs pending,
+      their results never quoted until committed.
+- [x] CiT audit: `t-lr-sweep`, `t-bf16`, `t-quantisation` now explained.
+
+**Deviations:**
+
+- Training runs that are chaotic (high learning rates) are compared in CI
+  only as a sanity check (abs 0.3, or relative for step counts); the pages
+  quote means and spreads over three seeds.
+- µP transfer on the toy model is noisy (the plateau of chapter 1 ends at a
+  different step in every run); the coordinate check carries the argument,
+  and the GPU notebook is the real test.

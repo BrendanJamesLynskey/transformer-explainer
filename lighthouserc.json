@@ -15,7 +15,10 @@
         "http://localhost:3000/learn/07-sampling",
         "http://localhost:3000/training",
         "http://localhost:3000/training/01-training-loop",
-        "http://localhost:3000/training/04-backprop"
+        "http://localhost:3000/training/04-backprop",
+        "http://localhost:3000/training/06-learning-rate-and-schedules",
+        "http://localhost:3000/training/08-stability",
+        "http://localhost:3000/training/09-mixed-precision"
       ],
       "numberOfRuns": 3
     },

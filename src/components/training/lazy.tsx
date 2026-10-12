@@ -47,3 +47,27 @@ export const Optim2dAnimation = dynamic(() => import("./Optim2dAnimation"), {
   ssr: false,
   loading: placeholder("min-h-[44rem] md:min-h-[46rem]"),
 });
+// Brief 29B (chapters 6-10)
+export const ScheduleAnimation = dynamic(() => import("./ScheduleAnimation"), {
+  ssr: false,
+  loading: placeholder("min-h-[44rem] md:min-h-[40rem]"),
+});
+export const DepthAnimation = dynamic(() => import("./DepthAnimation"), {
+  ssr: false,
+  loading: placeholder("min-h-[56rem] md:min-h-[40rem]"),
+});
+export const AttentionGrowthAnimation = dynamic(
+  () => import("./AttentionGrowthAnimation"),
+  {
+    ssr: false,
+    loading: placeholder("min-h-[56rem] md:min-h-[42rem]"),
+  },
+);
+export const RoundingAnimation = dynamic(() => import("./RoundingAnimation"), {
+  ssr: false,
+  loading: placeholder("min-h-[40rem] md:min-h-[38rem]"),
+});
+export const MemoryAnimation = dynamic(() => import("./MemoryAnimation"), {
+  ssr: false,
+  loading: placeholder("min-h-[56rem] md:min-h-[46rem]"),
+});

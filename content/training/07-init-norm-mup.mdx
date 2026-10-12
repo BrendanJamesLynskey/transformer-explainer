@@ -1,0 +1,75 @@
+Before the first step, every weight is a random number, and how large those numbers are decides whether the signal and the gradient survive the trip through many layers. Where the LayerNorms sit decides it too. Below, an 8-block version of Part 1's model at initialisation, with the LayerNorm before each sublayer (pre-LN, Part 1's design) and after each residual addition (post-LN, the original Transformer's).
+
+<DepthAnimation>
+  <Eq
+    label="Pre-LN: each block adds its sublayer's output to the residual stream, the sublayer reading a normalised copy. Post-LN: each block normalises the sum of its input and its sublayer's output. The bars measure the root mean square of the residual stream and the norm of each block's weight gradients"
+    tex="\begin{gathered} \htmlClass{hl-prenorm}{\text{pre-LN: } x_{l+1} = x_l + F_l(\operatorname{LN}(x_l))} \\ \htmlClass{hl-postnorm}{\text{post-LN: } x_{l+1} = \operatorname{LN}(x_l + F_l(x_l))} \\ \htmlClass{hl-resid}{\operatorname{RMS}(x_l) = \sqrt{\tfrac{1}{SD}\textstyle\sum x^2}} \\ \htmlClass{hl-grad}{\|\nabla_{W_l} L\|} \end{gathered}"
+  />
+</DepthAnimation>
+
+<Layer kind="concept">
+
+**The scale of the initial weights.** Each weight matrix multiplies a vector of $d$ numbers; if its entries have standard deviation $\sigma$, the output's size is about $\sigma\sqrt d$ times the input's. Choosing $\sigma = 1/\sqrt{d}$ (Xavier or He initialisation) keeps it the same, layer after layer. Part 1's model uses $\sigma = 0.02$, GPT-2's choice ([Radford et al. 2019](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)), which for $d = 16$ is far smaller than $1/\sqrt{16} = 0.25$: every sublayer starts out adding almost nothing, the residual stream is just the embedding plus the positional encoding ([Part 1, chapter 5](/learn/05-layernorm-residuals)), and the two designs look alike (pick std 0.02 in the animation). GPT-2 also scales the residual layers' weights by $1/\sqrt N$ for $N$ residual layers, because every block adds to the same stream and their sum grows with depth.
+
+**Pre-LN vs post-LN.** With std 0.25 the difference shows. In the pre-LN model each block _adds_ its output to the stream, so the stream grows with depth: its RMS is <R k="depthScale.1.pre.residualRms.0" d={2} /> entering block 1 and <R k="depthScale.1.pre.residualRms.8" d={2} /> leaving block 8. Post-LN normalises after every addition, so the stream stays at RMS 1, but the gradient pays for it: the gradient reaching a block has passed through every LayerNorm above it, and at initialisation the blocks nearest the output get the largest gradients (post-LN: <R k="depthScale.1.post.gradNorm.0" d={2} /> at block 1, <R k="depthScale.1.post.gradNorm.7" d={2} /> at block 8). [Xiong et al. (2020)](https://arxiv.org/abs/2002.04745) proved this for post-LN at initialisation, and showed it is why post-LN transformers need a learning-rate warmup: a full-size step on those large gradients makes training unstable. In pre-LN the residual path carries the gradient back unchanged (chapter 4's "highway"), so the gradients are of similar size at every depth.
+
+The chart shows what that means for training: a 6-block model at a peak learning rate of <R k="prePost.lr" />, three seeds each. Pre-LN trains with or without warmup (<R k="prePost.rows.0.mean" d={3} /> ± <R k="prePost.rows.0.sd" d={3} /> without, <R k="prePost.rows.1.mean" d={3} /> ± <R k="prePost.rows.1.sd" d={3} /> with 200 warmup steps). Post-LN without warmup ends at <R k="prePost.rows.2.mean" d={3} /> ± <R k="prePost.rows.2.sd" d={3} />: every seed is still on chapter 1's plateau after <R k="prePost.steps" sep /> steps. With warmup it ends at <R k="prePost.rows.3.mean" d={3} /> ± <R k="prePost.rows.3.sd" d={3} /> (seeds: <R k="prePost.rows.3.finals.0" d={3} />, <R k="prePost.rows.3.finals.1" d={3} />, <R k="prePost.rows.3.finals.2" d={3} />): warmup lets some runs start learning, not all. This is why GPT-2 and nearly every large model since put the norm first.
+
+<PrePostChart />
+
+**RMSNorm.** LayerNorm subtracts the mean and divides by the standard deviation, then scales and shifts. RMSNorm ([Zhang & Sennrich 2019](https://arxiv.org/abs/1910.07467)) skips the mean and the shift: $y = \gamma \odot x / \operatorname{RMS}(x)$. It is cheaper and, in practice, as good; LLaMA uses it, as pre-normalisation ([Touvron et al. 2023, §2.2](https://arxiv.org/abs/2302.13971)). On Part 1's model (the default run, three seeds), RMSNorm even ends lower: <R k="normKind.rows.1.mean" d={3} /> ± <R k="normKind.rows.1.sd" d={3} /> against LayerNorm's <R k="normKind.rows.0.mean" d={3} /> ± <R k="normKind.rows.0.sd" d={3} />, with <R k="normKind.rows.1.params" sep /> parameters instead of <R k="normKind.rows.0.params" sep />; LayerNorm's spread over the seeds is wide, so read that as "at least as good".
+
+**µP: one learning rate for every width.** Tuning the learning rate of a large model directly costs several large runs. The _maximal update parameterisation_ (µP; [Yang et al. 2022](https://arxiv.org/abs/2203.03466)) rescales the initialisation, the learning rate and a few multipliers with the width so that each step changes every layer's activations by about the same amount whatever the width. Then the best learning rate found on a narrow model carries over to a wide one ("µTransfer"). Under the standard parameterisation it does not: with Adam, each weight moves by about the learning rate per step, and a wider matrix sums more of those moves, so the same learning rate is a bigger effective step for a wider model.
+
+The _coordinate check_ below measures exactly that: ten AdamW steps at the same learning rate for widths 16 to 256, and how far the logits move. Under the standard parameterisation they move <R k="coordCheck.sp.0.logitsDelta" d={2} /> at width 16 and <R k="coordCheck.sp.4.logitsDelta" d={2} /> at width 256; under µP <R k="coordCheck.mup.0.logitsDelta" d={2} /> and <R k="coordCheck.mup.4.logitsDelta" d={2} />.
+
+<CoordCheckChart />
+
+What µP changes, relative to a base width $d_0$ (here 16, Part 1's, so at width 16 the two are identical) with $m = d/d_0$: hidden matrices start at std $0.02/\sqrt m$ and Adam's learning rate for them is divided by $m$; the attention scores are scaled by $1/d_k$ instead of $1/\sqrt{d_k}$; the logits are divided by $m$. The second chart trains widths 16 and 64 at three learning rates, three seeds each, for <R k="mupTransfer.steps" sep /> steps. With the standard parameterisation the wider model is no better than the narrow one at any rate tried (width 64: <R k="mupTransfer.rows.3.mean" d={3} />, <R k="mupTransfer.rows.4.mean" d={3} />, <R k="mupTransfer.rows.5.mean" d={3} /> at <R k="mupTransfer.rows.3.lr" />, <R k="mupTransfer.rows.4.lr" />, <R k="mupTransfer.rows.5.lr" />; width 16's best <R k="mupTransfer.rows.0.mean" d={3} />). With µP the same width-64 model reaches <R k="mupTransfer.rows.9.mean" d={3} />, <R k="mupTransfer.rows.10.mean" d={3} /> and <R k="mupTransfer.rows.11.mean" d={3} />, best at the same rates as width 16. The grid is coarse and the spreads are wide (± 0.03 to 0.2: the plateau of chapter 1 ends at a different step in every run), so the toy shows the direction rather than an optimum. A GPU notebook runs the real version, widths 128 to 1,024 (GPU run pending; below).
+
+<MupChart />
+
+**Run it yourself on a GPU.** [Notebook 07 (open in Colab)](https://colab.research.google.com/github/BrendanJamesLynskey/transformer-explainer/blob/main/notebooks/07_mup_width_sweep.ipynb) sweeps widths 128–1,024 and seven learning rates under both parameterisations on a GPU (about an hour on an A100). Its result is not on this page yet: a GPU run is pending, and no number is quoted until its output is in the repository.
+
+</Layer>
+
+<Layer kind="maths">
+
+Pre-LN block: $h = x + \operatorname{Attn}(\operatorname{LN}_1(x))$, $y = h + \operatorname{FFN}(\operatorname{LN}_2(h))$. Post-LN block: $h = \operatorname{LN}_1(x + \operatorname{Attn}(x))$, $y = \operatorname{LN}_2(h + \operatorname{FFN}(h))$. Backward through a residual addition copies the gradient into both terms; backward through $\operatorname{LN}$ multiplies it by the Jacobian $\tfrac{1}{\sigma}\big(I - \tfrac1d \mathbf{1}\mathbf{1}^\top - \tfrac1d \hat x \hat x^\top\big)\operatorname{diag}(\gamma)$, which in post-LN lies on the only path from the loss to every earlier layer.
+
+RMSNorm: $y = \gamma \odot x \,/\, \sqrt{\tfrac1d \sum_i x_i^2 + \epsilon}$, gradient $\delta_x = \tfrac{1}{r}\big(\delta_{\hat x} - \hat x\, \overline{\delta_{\hat x} \hat x}\big)$ with $\delta_{\hat x} = \gamma \odot \delta_y$.
+
+µP for Adam, width multiplier $m = d/d_0$ ([Yang et al. 2022](https://arxiv.org/abs/2203.03466), Table 3): hidden weights $\sigma = \sigma_0/\sqrt m$, learning rate $\eta/m$; embedding unchanged; attention $q^\top k/d_k$ (here written $\tfrac{1}{\sqrt{d_k}}\sqrt{d_{k,0}/d_k}$, exactly Part 1's at $m = 1$); output logits $\times 1/m$ (the head is tied to the embedding). Each variant's gradients match PyTorch autograd to 1e-16 (`scripts/training/checks.py`).
+
+</Layer>
+
+<Layer kind="code">
+
+The post-LN block's backward pass, `src/lib/training/model-grad.ts` (matched to the Python reference to 1e-12):
+
+```ts
+const n2 = layernormBackward(b.z!, v(params, `${p}.ln2.gamma`), dy);
+addVecTo(v(grads, `${p}.ln2.gamma`), n2.dGamma);
+addVecTo(v(grads, `${p}.ln2.beta`), n2.dBeta);
+const dz = n2.dX;
+const l2 = linearBackward(b.ffn.act, m(params, `${p}.ffn.W2`), dz);
+addTo(m(grads, `${p}.ffn.W2`), l2.dW);
+addVecTo(v(grads, `${p}.ffn.b2`), colSums(dz));
+record?.push({ name: `${p}.dact`, value: l2.dX });
+const dpre = geluBackward(b.ffn.pre, l2.dX);
+record?.push({ name: `${p}.dpre`, value: dpre });
+const l1 = linearBackward(b.h, m(params, `${p}.ffn.W1`), dpre);
+addTo(m(grads, `${p}.ffn.W1`), l1.dW);
+addVecTo(v(grads, `${p}.ffn.b1`), colSums(dpre));
+// z = h + FFN(h): the gradient reaches h directly and through the FFN
+const dh = addInto(dz, l1.dX);
+record?.push({ name: `${p}.dh`, value: dh });
+const n1 = layernormBackward(b.u!, v(params, `${p}.ln1.gamma`), dh);
+addVecTo(v(grads, `${p}.ln1.gamma`), n1.dGamma);
+addVecTo(v(grads, `${p}.ln1.beta`), n1.dBeta);
+const du = n1.dX;
+// u = x + Attn(x)
+const dx = addInto(du, attentionBackward(params, config, p, b, du, grads));
+```
+
+</Layer>

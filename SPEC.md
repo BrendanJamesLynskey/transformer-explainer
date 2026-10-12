@@ -467,7 +467,24 @@ slow links · 14 Scaling laws · 15 Running a real job · 16 After pretraining
 (29B, 29C). Each chapter opens with a model-driven animation (the visual
 standard), and every number on it comes from `results.md`.
 
-### 15.3 Concept coverage
+### 15.3 Chapters 6–10: experiments, precision, notebooks (brief 29B)
+
+- `scripts/training/experiments.py`: the trainer with every knob chapters
+  6–10 turn (model variants in `model.py`: post-LN, RMSNorm, QK-norm,
+  z-loss, µP; each gradient-checked against autograd), three seeds per
+  setting, results as mean ± sd. Groups of results (`make_fixtures.py
+--groups`) run as parallel CI jobs.
+- Low precision is emulated by rounding (`precision.py`), with the number
+  formats vendored from the Numerics site (bit-identical to its scalar
+  code; `src/lib/training/rounding.ts` in the browser).
+- Memory: `memory.py` / `src/lib/training/memory.ts` (ZeRO's bytes per
+  parameter, Korthikanti et al.'s activation formula), checked against
+  LLaMA 7B's published size.
+- Notebooks (`notebooks/`, Colab): GPU versions of chapters 7–10's
+  comparisons, smoke-tested on the CPU in CI; their numbers are quoted only
+  once a GPU run's output is committed.
+
+### 15.4 Concept coverage
 
 `scripts/cit_concept_audit.py` lists the training concepts the Compute in
 Transit results site relies on, each mapped to the Training chapter that
