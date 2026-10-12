@@ -91,8 +91,7 @@ async function checkHealth(base: string): Promise<Result> {
 
 /** Markers the site switch must (and must not) put in the home page's HTML. */
 const SWITCH_PRESENT = [
-  'data-site-switch="full"',
-  'data-site-switch="compact"',
+  'data-site-switch="menu"',
   'data-site-group="training"',
   'href="https://agent-orchestration-explained.vercel.app"',
 ];
