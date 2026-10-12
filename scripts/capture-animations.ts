@@ -28,6 +28,8 @@ type Clip = {
   fps: number;
   /** a radio to press first (a parameter), if any */
   radio?: string;
+  /** at most this many frames, evenly spaced over the steps (long animations) */
+  maxFrames?: number;
 };
 
 const CLIPS: Clip[] = [
@@ -69,6 +71,45 @@ const CLIPS: Clip[] = [
     widget: "generation-animation",
     fps: 2,
   },
+  // Part 2, Training (briefs 29A-29C)
+  ...(
+    [
+      ["training-hero", "/training/01-training-loop", "training-hero", 3],
+      ["bpe", "/training/02-data-and-tokens", "bpe-animation", 3],
+      ["objective", "/training/03-objective", "objective-animation", 2],
+      ["backprop", "/training/04-backprop", "backprop-animation", 2],
+      ["optimisers", "/training/05-optimisers", "optim2d-animation", 6],
+      [
+        "schedules",
+        "/training/06-learning-rate-and-schedules",
+        "schedule-animation",
+        6,
+      ],
+      ["depth", "/training/07-init-norm-mup", "depth-animation", 2],
+      [
+        "attention-growth",
+        "/training/08-stability",
+        "attention-growth-animation",
+        2,
+      ],
+      ["rounding", "/training/09-mixed-precision", "rounding-animation", 2],
+      ["memory", "/training/10-memory", "memory-animation", 4],
+      ["ring-all-reduce", "/training/11-data-parallelism", "ring-animation", 1],
+      ["pipeline", "/training/12-model-parallelism", "pipeline-animation", 4],
+      ["demo-sync", "/training/13-slow-links", "demo-animation", 1],
+      ["isoflop", "/training/14-scaling-laws", "isoflop-animation", 3],
+      ["goodput", "/training/15-running-a-real-job", "goodput-animation", 8],
+      ["sft", "/training/16-after-pretraining", "sft-animation", 2],
+    ] as const
+  ).map(
+    ([name, p, widget, fps]): Clip => ({
+      name,
+      path: p,
+      widget,
+      fps,
+      maxFrames: 60,
+    }),
+  ),
 ];
 
 // `pnpm animations attention ffn` records only the named clips
@@ -93,10 +134,14 @@ async function main(): Promise<void> {
     const scrub = fig.getByTestId("scrub");
     const max = Number(await scrub.getAttribute("max"));
     const visual = fig.getByTestId("visual");
-    for (let s = 0; s <= max; s++) {
-      await scrub.fill(String(s));
+    const n = Math.min(max + 1, c.maxFrames ?? max + 1);
+    const steps = Array.from({ length: n }, (_, i) =>
+      n === 1 ? 0 : Math.round((i * max) / (n - 1)),
+    );
+    for (let i = 0; i < steps.length; i++) {
+      await scrub.fill(String(steps[i]));
       await visual.screenshot({
-        path: path.join(dir, `f${String(s).padStart(4, "0")}.png`),
+        path: path.join(dir, `f${String(i).padStart(4, "0")}.png`),
       });
     }
     const input = path.join(dir, "f%04d.png");
@@ -140,7 +185,7 @@ async function main(): Promise<void> {
     ]);
     rmSync(dir, { recursive: true, force: true });
     console.log(
-      `wrote ${path.relative(process.cwd(), gif)} and .webm (${max + 1} frames)`,
+      `wrote ${path.relative(process.cwd(), gif)} and .webm (${steps.length} frames)`,
     );
   }
   await browser.close();

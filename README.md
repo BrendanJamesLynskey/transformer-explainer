@@ -7,7 +7,8 @@ layer-norm, residuals, multi-block stacking, next-token sampling — execute
 and visualise step-by-step in the browser. **Part 2, Training**
 (`/training`): train that same model, from the same initial weights, in
 your browser, and follow the loss, backpropagation and the optimiser step
-by step.
+by step, then out to the cluster: parallelism, training over slow links,
+scaling laws and running a real job.
 
 The codebase is itself a teaching artefact: a real-world Next.js 14 app with
 strict TypeScript, Drizzle / Postgres, Auth.js, MDX content, D3
@@ -75,7 +76,10 @@ graphs, multi-agent patterns and durable execution; two more agent sites are mar
   run 2,000 in a Web Worker and see the loss curve land on the recorded
   run; BPE learnt live on the corpus; cross-entropy and `p − y` position by
   position; the gradient's way back through every op; four optimisers in a
-  valley and on the real model.
+  valley and on the real model; a ring all-reduce of real gradients, a
+  pipeline schedule's bubble, DeMo compressing four workers' momenta, a toy
+  IsoFLOP sweep and a week of failures and checkpoints; and a systems model
+  checked against published Megatron-LM and Llama 3 runs.
 - Toggle three layers — **Concept / Maths / Code** — inside any section to
   control how deep the explanation goes.
 - Run the full pipeline end-to-end on `/playground` with named-seed presets,
@@ -122,9 +126,11 @@ model's behaviour.
 
 ## Part 2: Training
 
-Chapters 1–10 of 16 are live (1–5: brief 29A; 6–10, learning rate and
+All 16 chapters are written (1–5: brief 29A; 6–10, learning rate and
 schedules, initialisation and µP, stability, mixed precision and memory:
-brief 29B; the rest follow). How the numbers are made:
+brief 29B; 11–16, data and model parallelism, training over slow links,
+scaling laws, running a real job and after pretraining: brief 29C). How
+the numbers are made:
 
 - **A reference trainer** in `scripts/training/` (NumPy float64): Part 1's
   model with a hand-written backward pass for every operation. Its
@@ -154,9 +160,22 @@ brief 29B; the rest follow). How the numbers are made:
   (`scripts/training/precision.py`, the number formats vendored from the
   [Numerics site](https://github.com/BrendanJamesLynskey/numerics-explained),
   MIT, same author; `src/lib/training/rounding.ts` in the browser).
+- **Chapters 11–16** (brief 29C): `scripts/training/systems.py` (ported to
+  `src/lib/training/systems.ts`) models collectives, ZeRO, memory per GPU
+  under tensor, pipeline, sequence, context and expert parallelism, a
+  discrete-event pipeline schedule, step time and MFU, and failures and
+  checkpoints. With one fitted constant it predicts the throughput of nine
+  more published Megatron-LM runs and three Llama 3 405B stages to within
+  the band stated in [results.md §11a](results.md). `slowlinks.py` /
+  `slowlinks.ts` train Part 1's model with four simulated workers synced
+  four ways (dense AdamW, top-k with error feedback, DeMo, DiLoCo);
+  `isoflop.py` runs a toy IsoFLOP sweep; `jobs.py` the monitoring and
+  checkpoint-resume experiments. Chapter 13 is a toy next to the
+  [Compute in Transit results site](https://compute-in-transit-results.vercel.app),
+  which it links for the real measurements.
 - **GPU notebooks** (`notebooks/*.ipynb`, Colab): the same comparisons at
   GPU scale (µP width sweep, attention-logit growth, mixed precision,
-  activation checkpointing). Each runs a tiny `SMOKE=1` version on the CPU
+  activation checkpointing, an IsoFLOP sweep, throughput and MFU). Each runs a tiny `SMOKE=1` version on the CPU
   in CI (`scripts/training/notebook_smoke.py`); their GPU results are
   pending and are never quoted until a run's output file is in
   `notebooks/results/`.
@@ -165,8 +184,25 @@ brief 29B; the rest follow). How the numbers are made:
   [`public/training/CORPUS.md`](public/training/CORPUS.md).
 - **Concept coverage:** `scripts/cit_concept_audit.py` lists the training
   concepts the [Compute in Transit results site](https://compute-in-transit-results.vercel.app)
-  relies on and checks each is explained by a shipped Training chapter
-  (CI; chapters not shipped yet are reported as pending).
+  relies on and checks each is explained by a Training chapter (CI,
+  `--strict`: all 36 are).
+
+### Part 2's animations
+
+The sixteen Training chapters' heroes, each frame a state of the TS model
+(frame-tested against `scripts/training/`), recorded with `pnpm animations`
+(WebM versions alongside, in [`docs/media/`](docs/media/)):
+
+|                                                                                     |                                                                        |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| ![The training loop: forward, loss, backward, update](docs/media/training-hero.gif) | ![BPE merges learnt on the corpus](docs/media/bpe.gif)                 |
+| ![Cross-entropy and p − y, position by position](docs/media/objective.gif)          | ![The gradient's way back, op by op](docs/media/backprop.gif)          |
+| ![SGD, momentum, Adam and AdamW in a valley](docs/media/optimisers.gif)             | ![Learning-rate schedules and their runs](docs/media/schedules.gif)    |
+| ![Scale through depth: pre-LN vs post-LN](docs/media/depth.gif)                     | ![Attention-logit growth and QK-norm](docs/media/attention-growth.gif) |
+| ![Gradients rounded to BF16, FP16 and FP8](docs/media/rounding.gif)                 | ![Memory through one training step](docs/media/memory.gif)             |
+| ![A ring all-reduce of real gradients](docs/media/ring-all-reduce.gif)              | ![A pipeline schedule and its bubble](docs/media/pipeline.gif)         |
+| ![One DeMo sync of four workers](docs/media/demo-sync.gif)                          | ![A toy IsoFLOP sweep and its frontier](docs/media/isoflop.gif)        |
+| ![A week of failures and checkpoints](docs/media/goodput.gif)                       | ![SFT's masked loss and a preference](docs/media/sft.gif)              |
 
 ## Screenshots
 
@@ -367,8 +403,8 @@ python -m venv .venv-fixtures
 .venv-fixtures/bin/python scripts/training/make_fixtures.py --check  # CI
 ```
 
-It runs the correctness checks, the training runs and chapters 6–10's
-experiments (about 45 minutes on an old i7; `--groups base,ch6a,…` runs a
+It runs the correctness checks, the training runs and chapters 6–15's
+experiments (about two hours on an old i7; `--groups base,ch6a,…` runs a
 subset, and CI runs one job per group in parallel) and writes
 `tests/unit/fixtures/training/*.json`, `src/data/training/results.json`,
 `results.md`, `public/training/default-run-weights.json` and

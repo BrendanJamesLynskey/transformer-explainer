@@ -291,3 +291,56 @@
   background-color: rgb(0 114 178 / 0.18);
   border-color: #0072b2;
 }
+
+/* Part 2, chapters 11-16 (brief 29C): collectives and the pipeline sky
+ * blue, compression vermillion, error feedback and checkpoints green, lost
+ * work and masked prompts orange, scaling purple. */
+.eq-panel .hl-rs,
+.eq-panel .hl-ag,
+.eq-panel .hl-wire,
+.eq-panel .hl-pp,
+.eq-panel .hl-bubble {
+  border-color: #56b4e9;
+}
+.eq-panel .hl-dct,
+.eq-panel .hl-topk,
+.eq-panel .hl-agg,
+.eq-panel .hl-sign,
+.eq-panel .hl-resp {
+  border-color: #d55e00;
+}
+.eq-panel .hl-ef,
+.eq-panel .hl-ckpt,
+.eq-panel .hl-work,
+.eq-panel .hl-pref {
+  border-color: #009e73;
+}
+.eq-panel .hl-lost,
+.eq-panel .hl-mask2 {
+  border-color: #e69f00;
+}
+.eq-panel .hl-iso,
+.eq-panel .hl-front {
+  border-color: #cc79a7;
+}
+.eq-panel[data-hl~="rs"] .hl-rs,
+.eq-panel[data-hl~="ag"] .hl-ag,
+.eq-panel[data-hl~="wire"] .hl-wire,
+.eq-panel[data-hl~="pp"] .hl-pp,
+.eq-panel[data-hl~="bubble"] .hl-bubble,
+.eq-panel[data-hl~="dct"] .hl-dct,
+.eq-panel[data-hl~="topk"] .hl-topk,
+.eq-panel[data-hl~="agg"] .hl-agg,
+.eq-panel[data-hl~="sign"] .hl-sign,
+.eq-panel[data-hl~="resp"] .hl-resp,
+.eq-panel[data-hl~="ef"] .hl-ef,
+.eq-panel[data-hl~="ckpt"] .hl-ckpt,
+.eq-panel[data-hl~="work"] .hl-work,
+.eq-panel[data-hl~="pref"] .hl-pref,
+.eq-panel[data-hl~="lost"] .hl-lost,
+.eq-panel[data-hl~="mask2"] .hl-mask2,
+.eq-panel[data-hl~="iso"] .hl-iso,
+.eq-panel[data-hl~="front"] .hl-front {
+  background-color: rgb(0 114 178 / 0.18);
+  border-color: #0072b2;
+}

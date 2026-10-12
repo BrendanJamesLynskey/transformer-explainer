@@ -121,6 +121,7 @@ def render(r: dict) -> str:
         w(f"| {row['kind']} | {row['lr']} | {f(row['final'], 3)} ± {f(row['sd'], 3)} | {seeds} | {mark} |")
     w("")
     render_b(r, w)
+    render_c(r, w)
     return "\n".join(L)
 
 
@@ -353,4 +354,226 @@ def render_b(r: dict, w) -> None:
         w(f"Part 1's model keeps {', '.join(f(v, 0) for v in p['savedFloatsPerSeqPerBlock'])} values per sequence per block")
         w(f"for its backward pass (counted in the NumPy forward pass); Korthikanti et al.'s formula for the same shape")
         w(f"gives {f(p['korthikantiValuesPerSeqPerBlock'], 0)}.")
+        w("")
+
+
+def ms_time(sec: float) -> str:
+    if sec < 1e-3:
+        return f"{sec * 1e6:.1f} us"
+    if sec < 1:
+        return f"{sec * 1e3:.1f} ms"
+    return f"{sec:.2f} s"
+
+
+def render_c(r: dict, w) -> None:
+    """Brief 29C's sections (chapters 11-16), each only if its key is present."""
+    if "systems" in r:
+        x = r["systems"]
+        v = x["validation"]
+        w("## 11. The training-systems model (chapters 11, 12 and 15)")
+        w("")
+        w("`scripts/training/systems.py` (ported to `src/lib/training/systems.ts`, matched to its fixtures):")
+        w("collectives on an alpha-beta link model, ZeRO and per-device memory, a discrete-event simulation")
+        w("of pipeline schedules, a step-time model, and failures and checkpoints. Nothing here trains; it")
+        w("is arithmetic and seeded simulation.")
+        w("")
+        w("### 11a. Validation against published runs")
+        w("")
+        w(f"One constant is fitted: eta = {f(v['eta'], 3)}, the fraction of peak the matrix products reach,")
+        w("on Megatron-LM's 1.7B run (no tensor or pipeline parallelism). Every other row is a prediction.")
+        w("Published numbers: Narayanan et al. 2021 (arXiv:2104.04473) Table 1 (A100, 312 TFLOP/s peak,")
+        w("hardware FLOP/s with full recomputation by their eq. 3) and Grattafiori et al. 2024 (Llama 3,")
+        w("arXiv:2407.21783) Table 4 (H100, BF16 MFU). Assumptions where the papers are silent:")
+        w("")
+        for k, text in v["assumptions"].items():
+            w(f"- {k}: {text}")
+        w("")
+        w("| Run | GPUs | Layout (t, p, d, cp, v) | Micro-batches | Published TFLOP/s per GPU | Model | Error |")
+        w("|---|---:|---|---:|---:|---:|---:|")
+        for row in v["rows"]:
+            lay = row["layout"]
+            tag = " (fitted)" if row["fitted"] else ""
+            src = "Megatron" if row["source"] == "megatron" else "Llama 3 405B"
+            w(f"| {src} {row['label']}{tag} | {row['gpus']:,} | {lay['t']}, {lay['p']}, {lay['d']}, {lay.get('cp', 1)}, "
+              f"{lay.get('v', 1)} | {row['microBatches']} | {row['published'] / 1e12:.0f} ({row['publishedPct']}%) | "
+              f"{row['predicted'] / 1e12:.1f} ({row['predictedPct']:.1f}%) | {100 * row['error']:+.1f}% |")
+        w("")
+        mx = v["maxAbsErrorBySource"]
+        w(f"**Validation band:** every held-out row within {100 * v['maxAbsError']:.1f}% of the published")
+        w(f"throughput (Megatron rows {100 * mx['megatron']:.1f}%, Llama 3 rows {100 * mx['llama3']:.1f}%; mean absolute")
+        w(f"error {100 * v['meanAbsError']:.1f}%). Every prediction is at or below the published number: the model")
+        w("overlaps nothing, and one eta cannot follow the matrix products getting more efficient as the")
+        w("models widen (Megatron's per-GPU throughput rises from 137 to 163 TFLOP/s; the model's stays near 130).")
+        w("")
+        w("### 11b. Collectives, ZeRO and data parallelism")
+        w("")
+        c = x["collectives"]
+        w(f"LLaMA 7B's gradient ({c['params']:,} parameters, {c['bytes'] / 1e9:.2f} GB in BF16) on H100s:")
+        w("")
+        w("| Where | Collective | Time | Bytes each GPU sends |")
+        w("|---|---|---:|---:|")
+        names = {"allreduce": "ring all-reduce", "tree": "binary-tree all-reduce (not pipelined)",
+                 "reducescatter": "reduce-scatter", "allgather": "all-gather"}
+        for row in c["rows"]:
+            w(f"| {row['where']} | {names[row['kind']]} | {ms_time(row['time'])} | {row['wire'] / 1e9:.2f} GB |")
+        w("")
+        w("ZeRO (Rajbhandari et al. 2020, arXiv:1910.02054): bytes per GPU for the same model's states")
+        w("(2 + 2 + 12 bytes per parameter), and what each GPU sends per step:")
+        w("")
+        w("| Data-parallel GPUs | Stage | Weights | Gradients | Optimiser | Total | Sent per step |")
+        w("|---:|---:|---:|---:|---:|---:|---:|")
+        for row in x["zero"]["rows"]:
+            w(f"| {row['d']} | {row['stage']} | {row['weights'] / 1e9:.2f} GB | {row['grads'] / 1e9:.2f} GB | "
+              f"{row['optimizer'] / 1e9:.2f} GB | {row['total'] / 1e9:.2f} GB | {row['wire'] / 1e9:.2f} GB |")
+        d = x["dpExample"]
+        w("")
+        w(f"One data-parallel step of LLaMA 7B on {d['layout']['d']} H100s, {d['tokens']:,} tokens, eta as fitted:")
+        w(f"compute {ms_time(d['compute'])}, gradient all-reduce {ms_time(d['data'])}; step {ms_time(d['time'])} with")
+        w(f"nothing overlapped (MFU {100 * d['mfu']:.1f}%), {ms_time(d['overlapped'])} with the all-reduce hidden behind")
+        w(f"the backward pass (MFU {100 * d['mfuOverlapped']:.1f}%).")
+        w("")
+        w("### 11c. Failures and checkpoints (chapter 15)")
+        w("")
+        rel = x["reliability"]
+        ll = rel["llama"]
+        w(f"Llama 3 405B: {ll['interruptions']} interruptions in {ll['days']} days, {ll['unexpected']} unexpected")
+        w(f"(Grattafiori et al. 2024 §3.3.4), on up to {ll['gpus']:,} GPUs: a failure every {ll['mtbfHours']:.2f} hours")
+        w(f"for the job, about one per GPU every {ll['gpuMtbfYears']:.1f} years. Checkpoint time delta = {rel['delta']:.1f} s")
+        w(f"({rel['deltaNote']}); restart R = {rel['restart']:.0f} s ({rel['restartNote']}). Goodput over {ll['days']}")
+        w(f"simulated days, mean of {len(rel['seeds'])} seeds, against the first-order formula:")
+        w("")
+        w("| Checkpoint every | Simulated goodput | First-order formula |")
+        w("|---:|---:|---:|")
+        for row in rel["rows"]:
+            w(f"| {row['tau']:,} s | {100 * row['simulated']:.2f}% | {100 * row['formula']:.2f}% |")
+        w("")
+        w(f"Best simulated interval {rel['bestTau']:,} s; Young's tau* = sqrt(2 delta M) = {rel['young']:.0f} s")
+        w("(the grid steps by a factor of 1.41).")
+        w("")
+        w("### 11d. Stragglers and queueing (chapter 13)")
+        w("")
+        w("Eight workers, each step 1 + 0.1 x Exp(1) time units (seeded); the mean time per step when")
+        w("everyone waits for the slowest, syncing every step or every H steps:")
+        w("")
+        w("| Sync every | Time per step | Mean worker's step |")
+        w("|---:|---:|---:|")
+        for row in x["stragglers"]:
+            per = row["syncEveryStep"] if row["H"] == 1 else row["syncEveryH"]
+            w(f"| {row['H']} | {f(per, 3)} | {f(row['meanWorker'], 3)} |")
+        w("")
+        w("A sync message's mean wait on a link carrying background transfers (each 1 time unit, Poisson")
+        w("arrivals): the M/D/1 formula W = load / (2 (1 - load)) against a seeded simulation:")
+        w("")
+        w("| Load | Formula | Simulated |")
+        w("|---:|---:|---:|")
+        for row in x["queue"]:
+            w(f"| {row['load']} | {f(row['formula'], 3)} | {f(row['simulated'], 3)} |")
+        w("")
+    if "pipeline" in r:
+        w("## 12. Pipeline schedules (chapter 12)")
+        w("")
+        w("A discrete-event simulation of every forward and backward on every device (backward = 2 x forward),")
+        w("against the closed forms of Narayanan et al. (2021) §2.2: bubble = (p - 1) / m, interleaved (p - 1) / (v m).")
+        w("")
+        w("| Schedule | Devices p | Micro-batches m | Chunks v | Simulated bubble | Closed form |")
+        w("|---|---:|---:|---:|---:|---:|")
+        for row in r["pipeline"]["rows"]:
+            w(f"| {row['kind']} | {row['p']} | {row['m']} | {row['v']} | {f(row['bubble'])} | {f(row['closedForm'])} |")
+        w("")
+        w(f"Largest difference: {r['pipeline']['maxDiff']:.1e}.")
+        w("")
+    if "slowLinks" in r:
+        x = r["slowLinks"]
+        w("## 13. Training over slow links (chapter 13)")
+        w("")
+        w(f"Part 1's model, {x['workers']} simulated workers with {x['windowsPerWorker']} windows each per step (the default")
+        w(f"run's 16), {x['steps']:,} steps, warmup 50 + cosine to 0.1 of the peak, each worker's gradient clipped")
+        w(f"to 1.0, weight decay 0.01 on matrices; three seeds. Compressors keep 1 in {x['keep']}: top-k per tensor")
+        w(f"(momentum {x['muTopk']}), DeMo per DCT chunk of up to {x['chunk']} (beta {x['betaDemo']}, sign update);")
+        w(f"DiLoCo's outer step is Nesterov momentum (lr {x['outerLr']}, momentum {x['outerMu']}). Each method's")
+        w("learning rate is the best mean of three tried. Bytes per worker per step, BF16 values; ring")
+        w("collectives (all-reduce for dense and DiLoCo, all-gather for the compressors).")
+        w("")
+        w(f"| Method | Best lr | Final validation loss (mean ± sd) | Steps to {x['target']} (seeds) | Payload | Wire | Wire vs dense |")
+        w("|---|---:|---:|---|---:|---:|---:|")
+        for row in x["rows"]:
+            b = row["bytes"]
+            hits = ", ".join("not reached" if h is None else str(h) for h in row["stepsToTarget"])
+            w(f"| {row['name']} | {row['bestLr']} | {ms(row)} | {hits} | {b['payload']:,.0f} B | {b['wire']:,.0f} B | "
+              f"{b['denseWire'] / b['wire']:.1f}x less |")
+        w("")
+        w("Every learning rate tried (mean ± sd over seeds):")
+        w("")
+        w("| Method | lr | Final validation loss |")
+        w("|---|---:|---:|")
+        for row in x["rows"]:
+            for p_ in row["perLr"]:
+                w(f"| {row['name']} | {p_['lr']} | {ms(p_)} |")
+        w("")
+    if "isoflop" in r:
+        x = r["isoflop"]
+        w("## 14. A toy IsoFLOP sweep (chapter 14)")
+        w("")
+        w(f"Part 1's model at widths {', '.join(str(v) for v in x['widths'])} (2 heads, FFN twice the width, 2 blocks),")
+        w(f"each trained for exactly the tokens a budget C = 6 N D allows ({x['batch']} windows of {x['seqLen']} per step,")
+        w(f"AdamW peak lr {x['lr']}, warmup then cosine to 10% over the run); three seeds. N counts every parameter.")
+        w("A parabola in log10 N through each budget's lowest mean and its two neighbours gives N_opt;")
+        w("a line through log N_opt against log C gives the exponent a.")
+        w("")
+        w("| Budget C (FLOPs) | Width | N | Steps | Tokens | Final validation loss (mean ± sd) |")
+        w("|---:|---:|---:|---:|---:|---:|")
+        for row in x["rows"]:
+            for p_ in row["points"]:
+                w(f"| {row['budget']:.0e} | {p_['width']} | {p_['params']:,} | {p_['steps']:,} | {p_['tokens']:,} | {ms(p_)} |")
+        w("")
+        w("| Budget | N_opt | D_opt (tokens) | Minimum inside the sizes tried |")
+        w("|---:|---:|---:|---|")
+        for row in x["rows"]:
+            n_opt = f"{row['nOpt']:,.0f}" if row["nOpt"] else "–"
+            d_opt = f"{row['dOpt']:,.0f}" if row["dOpt"] else "–"
+            w(f"| {row['budget']:.0e} | {n_opt} | {d_opt} | {'yes' if row['interior'] else 'no'} |")
+        w("")
+        pub = x["published"]
+        w(f"Fitted exponent a = {f(x['a'], 2)} (N_opt ~ C^a; b = 1 - a = {f(x['b'], 2)}), from the budgets with a minimum")
+        w(f"inside the sizes tried. Published: Chinchilla {pub['chinchilla1']} / {pub['chinchilla2']} / {pub['chinchilla3']}")
+        w(f"(Hoffmann et al. 2022, Table 2, approaches 1-3), Kaplan et al. 2020 {pub['kaplan']}; Llama 3 fitted")
+        w(f"alpha = {pub['llama3TokensAlpha']} for the optimal number of tokens.")
+        w("")
+    if "monitor" in r:
+        x = r["monitor"]
+        lg = x["log"]
+        w("## 15. Running the job (chapter 15)")
+        w("")
+        w(f"The default run, step for step, as a dashboard sees it (final validation loss {f(x['final'])}, the")
+        w("default run's). Every 10th step:")
+        w("")
+        w("| Step | Training loss | Gradient norm (before clipping) | Learning rate | Update / weight (all) | Update / weight (block 1 FFN W1) |")
+        w("|---:|---:|---:|---:|---:|---:|")
+        for i in range(0, len(lg["steps"]), 20):
+            w(f"| {lg['steps'][i]} | {f(lg['loss'][i], 3)} | {f(lg['gradNorm'][i], 3)} | {lg['lr'][i]:.5f} | "
+              f"{lg['updateRatio'][i]:.2e} | {lg['updateRatioW1'][i]:.2e} |")
+        w("")
+    if "resume" in r:
+        x = r["resume"]
+        w(f"### Stopping at step {x['stop']:,} and resuming (three seeds)")
+        w("")
+        w(f"Resuming with the weights, AdamW's state and the data position continues bit for bit: "
+          f"**{'yes' if x['bitIdentical'] else 'NO'}** (every seed).")
+        w("")
+        w(f"| Resumed with | Validation loss 50 steps after resuming | Final validation loss (mean ± sd) |")
+        w("|---|---:|---:|")
+        for key, label in (("uninterrupted", "never stopped"), ("full", "weights + optimiser + data position"),
+                           ("weights", "weights only (fresh AdamW)"), ("freshData", "weights + optimiser, data restarted")):
+            row = x[key]
+            w(f"| {label} | {f(row['afterResume'], 3)} | {f(row['mean'], 3)} ± {f(row['sd'], 3)} |")
+        w("")
+    if "sft" in r:
+        x = r["sft"]
+        p = x["pref"]
+        w("## 16. After pretraining (chapter 16)")
+        w("")
+        w(f"The trained model on a prompt and a response: `{x['prompt']}` + `{x['response']}`. Mean loss on the")
+        w(f"response's characters (the SFT loss, prompt masked): {f(x['sftLoss'], 3)} nats; on every character")
+        w(f"after the first: {f(x['unmaskedLoss'], 3)}. Log probability of two continuations of `{p['prompt']}`:")
+        w(f"`{p['chosen']}` {f(p['chosenLogp'], 2)}, `{p['rejected']}` {f(p['rejectedLogp'], 2)}.")
         w("")

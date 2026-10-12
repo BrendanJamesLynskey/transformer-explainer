@@ -413,6 +413,158 @@ for seq in SEQS:
 save({"experiment": "activation_checkpointing", "rows": rows}, "activation_checkpointing.json")
 ''',
     },
+    # brief 29C (chapters 14-15)
+    "14_isoflop_sweep": {
+        "title": "Chapter 14 on a GPU: an IsoFLOP sweep",
+        "intro": """The CPU sweep (results.md §14) uses Part 1's model at 1,000-70,000 parameters, where an
+optimisation plateau decides most of the outcome. Here the same method (Hoffmann et al. 2022,
+arXiv:2203.15556, Approach 2) on GPTs of about 1M-40M parameters: four compute budgets
+C = 6 N D, six widths each, every run trained for exactly the tokens its budget allows with its
+cosine schedule stretched to that length; a parabola in log N through each budget's three best
+sizes gives N_opt(C), and a line through those gives the exponent a in N_opt ~ C^a. Still a toy
+next to Chinchilla (70M-16B parameters): the corpus is about 5 MB of public-domain books, so the
+larger budgets see it several times over.
+
+**GPU:** an A100 (an L4 works, about 3x slower). **Expected time:** about 1 h on an A100 (24 runs).
+
+**Output:** `isoflop_sweep.json` → `notebooks/results/isoflop_sweep.json`.""",
+        "experiment": r'''
+BUDGETS = [2e9, 6e9] if SMOKE else [3e14, 1e15, 3e15, 1e16]
+WIDTHS = [32, 64, 96] if SMOKE else [128, 192, 256, 384, 512, 768]
+B, SEQ, LAYERS = (4, 32, 2) if SMOKE else (32, 256, 6)
+
+
+def n_params(d):
+    c = dict(d=d, heads=max(1, d // 64), layers=LAYERS, seq=SEQ, base=64)
+    return sum(p.numel() for p in GPT(c).parameters()), c
+
+
+rows = []
+for C in BUDGETS:
+    for d in WIDTHS:
+        N, c = n_params(d)
+        steps = round(C / (6 * N * B * SEQ))
+        if steps < 50:
+            continue
+        log = run(f"iso-{C:g}-{d}", c, 6e-4, steps, B, seed=1, precision="fp32" if SMOKE else "bf16")
+        rows.append({"budget": C, "width": d, "params": N, "steps": steps, "tokens": steps * B * SEQ,
+                     "final": log["evals"][-1]["val"] if log["evals"] else None,
+                     "tokensPerSecond": log["tokensPerSecond"]})
+        print(C, d, N, steps, rows[-1]["final"])
+
+
+def fit_parabola(xs, ys):
+    import numpy as np
+    c2, c1, c0 = np.polyfit(xs, ys, 2)
+    return (-c1 / (2 * c2)) if c2 > 0 else None
+
+
+frontier = []
+for C in BUDGETS:
+    pts = [r for r in rows if r["budget"] == C and r["final"] is not None]
+    if len(pts) < 3:
+        continue
+    i = min(range(len(pts)), key=lambda j: pts[j]["final"])
+    if 0 < i < len(pts) - 1:
+        near = pts[i - 1:i + 2]
+        x = fit_parabola([math.log10(p["params"]) for p in near], [p["final"] for p in near])
+        if x is not None:
+            frontier.append({"budget": C, "nOpt": 10 ** x})
+a = None
+if len(frontier) >= 2:
+    import numpy as np
+    a = float(np.polyfit([math.log10(f["budget"]) for f in frontier], [math.log10(f["nOpt"]) for f in frontier], 1)[0])
+print("frontier", frontier, "a =", a)
+save({"experiment": "isoflop_sweep", "batch": B, "seq": SEQ, "layers": LAYERS, "rows": rows,
+      "frontier": frontier, "a": a}, "isoflop_sweep.json")
+''',
+    },
+    "15_throughput_mfu": {
+        "title": "Chapter 15 on a GPU: throughput, MFU and an exact resume",
+        "intro": """Two things a real job measures. Throughput and MFU: a 12-layer, width-768 GPT (about 85M
+parameters with its embedding) at sequence 1,024, BF16 autocast, 30 timed steps after 5 warm-up
+steps; MFU counts 6N + 12 L H Q T FLOPs per token (Chowdhery et al. 2022, arXiv:2204.02311,
+App. B) against the GPU's dense BF16 peak, which you should check against your GPU's datasheet
+(the table below is the vendor's figures for common Colab GPUs, halved where the datasheet quotes
+sparsity). And a resume check: a run stopped and resumed from its checkpoint (weights, optimiser,
+data generator) against the same run uninterrupted.
+
+**GPU:** any. **Expected time:** about 10 min.
+
+**Output:** `throughput_mfu.json` → `notebooks/results/throughput_mfu.json`.""",
+        "experiment": r'''
+# dense BF16 (FP16 for the T4) tensor-core peaks, FLOP/s: vendor datasheets
+PEAKS = {"A100": 312e12, "H100": 989e12, "L4": 121e12, "T4": 65e12}
+c = dict(d=64 if SMOKE else 768, heads=4 if SMOKE else 12, layers=2 if SMOKE else 12, seq=32 if SMOKE else 1024,
+         base=64)
+B = 2 if SMOKE else 16
+WARM, TIMED = (1, 3) if SMOKE else (5, 30)
+torch.manual_seed(1)
+model = GPT(c).to(DEVICE)
+opt = torch.optim.AdamW(model.parameters(), lr=3e-4)
+gen = torch.Generator().manual_seed(1)
+prec = None if (SMOKE or DEVICE != "cuda") else torch.bfloat16
+for t in range(WARM + TIMED):
+    if t == WARM:
+        if DEVICE == "cuda":
+            torch.cuda.synchronize()
+        t0 = time.time()
+    x, y = batch("train", B, c["seq"], gen)
+    with torch.autocast(DEVICE, dtype=prec, enabled=prec is not None):
+        loss, _ = model(x, y)
+    opt.zero_grad(set_to_none=True)
+    loss.backward()
+    opt.step()
+if DEVICE == "cuda":
+    torch.cuda.synchronize()
+secs = (time.time() - t0) / TIMED
+N = sum(p.numel() for p in model.parameters())
+flops_per_token = 6 * N + 12 * c["layers"] * c["d"] * c["seq"]
+tps = B * c["seq"] / secs
+name = torch.cuda.get_device_name(0) if DEVICE == "cuda" else "cpu"
+peak = next((v for k, v in PEAKS.items() if k in name), None)
+mfu = tps * flops_per_token / peak if peak else None
+print(f"{name}: {tps:,.0f} tokens/s, {secs * 1000:.1f} ms/step, MFU {mfu}")
+
+# resume check: 2 x K steps straight, against K steps + checkpoint + K steps
+K = 3 if SMOKE else 20
+
+
+def train_steps(model, opt, gen, n):
+    for _ in range(n):
+        x, y = batch("train", B, c["seq"], gen)
+        with torch.autocast(DEVICE, dtype=prec, enabled=prec is not None):
+            loss, _ = model(x, y)
+        opt.zero_grad(set_to_none=True)
+        loss.backward()
+        opt.step()
+    return loss.item()
+
+
+def fresh():
+    torch.manual_seed(2)
+    m = GPT(c).to(DEVICE)
+    return m, torch.optim.AdamW(m.parameters(), lr=3e-4), torch.Generator().manual_seed(2)
+
+
+m1, o1, g1 = fresh()
+straight = train_steps(m1, o1, g1, 2 * K)
+m2, o2, g2 = fresh()
+train_steps(m2, o2, g2, K)
+ck = BASE / "resume_check.pt"
+torch.save({"model": m2.state_dict(), "opt": o2.state_dict(), "gen": g2.get_state()}, ck)
+m3, o3, g3 = fresh()
+state = torch.load(ck, weights_only=False)
+m3.load_state_dict(state["model"]); o3.load_state_dict(state["opt"]); g3.set_state(state["gen"])
+resumed = train_steps(m3, o3, g3, K)
+diff = max((a - b).abs().max().item() for a, b in zip(m1.parameters(), m3.parameters()))
+print("resume: straight", straight, "resumed", resumed, "max weight difference", diff)
+save({"experiment": "throughput_mfu", "rows": [{"gpu": name, "params": N, "batch": B, "seq": c["seq"],
+      "secondsPerStep": secs, "tokensPerSecond": tps, "flopsPerToken": flops_per_token, "peak": peak,
+      "mfu": mfu, "resumeLossStraight": straight, "resumeLossResumed": resumed, "resumeMaxWeightDiff": diff}]},
+     "throughput_mfu.json")
+''',
+    },
 }
 
 

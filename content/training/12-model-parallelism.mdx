@@ -1,0 +1,157 @@
+Data parallelism gives every device the whole model. When the model is too big for one device, it has to be cut up: across devices layer by layer (a pipeline), inside each layer (tensor parallelism), along the sequence, or among experts. Below, a batch flows through a four-device pipeline in micro-batches, every pass simulated as an event; the empty space is the _bubble_, time the devices spend waiting.
+
+<PipelineAnimation>
+  <Eq
+    label="The pipeline bubble: p minus 1 over v times m, for p devices, m micro-batches and v model chunks per device. It shrinks with more micro-batches and with interleaving"
+    tex="\text{bubble} = \frac{\htmlClass{hl-pp}{p - 1}}{\htmlClass{hl-bubble}{v \cdot m}} \quad \Big(\text{idle time} \,/\, \text{work per device}\Big)"
+  />
+</PipelineAnimation>
+
+<Layer kind="concept">
+
+**Pipeline parallelism.** Give each of $p$ devices a contiguous block of
+layers, chapter 4's stack cut into stages: device 1 holds the first quarter of
+the layers, device 4 the last. A sequence's activations flow forward from
+device to device and its gradients flow back. One batch at a time would leave
+three devices idle at any moment, so the batch is cut into $m$
+_micro-batches_ that follow each other through the stages. GPipe ([Huang et al.
+2019](https://arxiv.org/abs/1811.06965)) runs every micro-batch forward, then
+every one backward; at the start and end of each step the pipeline fills and
+drains, and those idle slots are the bubble, a fraction $(p - 1)/m$ of the
+useful work: <R k="pipeline.rows.0.bubble" pct d={1} /> for 4 devices and 8
+micro-batches in the simulation (the formula gives the same, to the last bit;
+results.md §12). _1F1B_ (one forward, one backward) interleaves each device's
+forwards and backwards once the pipeline is full: the bubble is the same, but a
+device holds at most $p$ micro-batches' activations instead of all $m$
+([Narayanan et al. 2021](https://arxiv.org/abs/2104.04473), §2.2). Megatron-LM's
+_interleaved_ schedule gives each device $v$ smaller chunks of layers spread
+round the pipeline (device 1 holds layers 1–2 and 9–10, say), cutting the
+bubble to $(p - 1)/(v\,m)$: <R k="pipeline.rows.2.bubble" pct d={1} /> with
+$v = 2$, <R k="pipeline.rows.3.bubble" pct d={1} /> with $v = 4$, at the price
+of $v$ times as many sends between devices. Pick a schedule above and watch
+where the idle time goes.
+
+**Tensor parallelism.** Cut each layer's matrices instead
+([Shoeybi et al. 2019](https://arxiv.org/abs/1909.08053), Megatron-LM). The
+feed-forward network's first matrix ([Part 1, chapter 4](/learn/04-ffn)) is
+split by columns, so each of $t$ devices computes its own slice of the hidden
+layer, GELU included, with no communication; the second matrix is split by
+rows, so each device produces a partial sum of the output, and one all-reduce
+adds them. Attention splits the same way, a group of heads per device
+([Part 1, chapter 3](/learn/03-attention): the heads are already independent).
+That is two all-reduces of the activations per layer in the forward pass and
+two in the backward pass, every layer, every micro-batch: far more
+communication than data parallelism's once-per-step gradient sync, which is
+why tensor parallelism stays inside one server, on NVLink. In the systems
+model, Megatron's 18.4-billion-parameter run ($t = 8$, no pipeline) spends <R k="systems.validation.rows.3.breakdown.tensor" d={2} /> s of its <R k="systems.validation.rows.3.breakdown.time" d={2} /> s step in those
+all-reduces.
+
+**Sequence and context parallelism.** Tensor parallelism shares the matrix
+products but not LayerNorm or dropout, whose activations each device would
+still hold in full. _Sequence parallelism_ ([Korthikanti et al. 2022](https://arxiv.org/abs/2205.05198))
+splits those along the sequence, turning each all-reduce into a reduce-scatter
+and an all-gather (the same bytes) and cutting the activations per device by
+$t$. For very long sequences, _context parallelism_ splits the sequence itself
+across devices for attention too: each device keeps its own queries and gets
+everyone's keys and values, passed round a ring while computing
+([Liu et al. 2023](https://arxiv.org/abs/2310.01889), ring attention) or
+all-gathered first, as Llama 3 does for its 128K-token stage
+([Grattafiori et al. 2024](https://arxiv.org/abs/2407.21783), §3.3.2).
+
+**Expert parallelism.** A mixture-of-experts model replaces each feed-forward
+network with many experts, of which each token uses one or two
+([Lepikhin et al. 2020](https://arxiv.org/abs/2006.16668), GShard;
+[Fedus et al. 2021](https://arxiv.org/abs/2101.03961), Switch Transformers).
+The experts live on different devices; every layer sends each token to its
+expert's device and back with two _all-to-all_ exchanges, where every device
+sends a different piece to every other.
+
+**3-D and 4-D layouts.** Real runs combine them: tensor parallelism inside a
+server, pipeline stages across servers, data parallelism (often sharded, ZeRO
+or FSDP, chapter 11) outermost. Llama 3 405B trained with four dimensions,
+[tensor, context, pipeline, data], on up to 16,384 GPUs; its first stage used
+8-way tensor, 16-stage pipeline and 64-way data parallelism (Table 4). Choosing
+a layout is a trade between the memory each device must hold and the time lost
+to communication and bubbles. The explorer below runs this site's systems model
+on three published model shapes: try fitting GPT-3 into 80 GB, then see what
+the bubble costs with few micro-batches.
+
+<LayoutPanel />
+
+**How good is the systems model?** It is arithmetic with one fitted constant:
+the fraction of peak the matrix products reach, $\eta =$ <R k="systems.validation.eta" d={3} />, fitted on Megatron-LM's smallest run
+(1.7B parameters on 32 A100s, no tensor or pipeline parallelism). Every other
+row of the chart is a prediction for a published run: nine more Megatron-LM runs
+up to a trillion parameters on 3,072 A100s ([Narayanan et al.
+2021](https://arxiv.org/abs/2104.04473), Table 1) and the three stages of Llama
+3 405B on H100s ([Grattafiori et al. 2024](https://arxiv.org/abs/2407.21783),
+Table 4), with only the shapes, layouts, batch sizes and GPU specifications as
+inputs. \*\*Its stated band: every prediction within <R k="systems.validation.maxAbsError" pct d={1} /> of the published throughput\*\*
+(Megatron rows within <R k="systems.validation.maxAbsErrorBySource.megatron" pct d={1} />, Llama 3
+rows within <R k="systems.validation.maxAbsErrorBySource.llama3" pct d={1} />;
+mean error <R k="systems.validation.meanAbsError" pct d={1} />
+). Every prediction is low: the model overlaps no communication with compute,
+and one $\eta$ cannot follow matrix products getting more efficient as models
+widen (Megatron's measured throughput per GPU rises from 137 to 163 TFLOP/s
+across its table; the model's stays near 130). Where the papers are silent the
+model assumes one sequence per micro-batch and the most interleaving the layer
+count allows; results.md §11a lists every assumption.
+
+<ValidationChart />
+
+</Layer>
+
+<Layer kind="maths">
+
+**Tensor parallelism's communication**, per layer per micro-batch of $b$
+sequences of length $s$ and width $h$ over $t$ devices: 4 all-reduces of
+$2\,s\,b\,h$ bytes (6 with full recomputation), each costing
+
+$$
+t_{\text{AR}} = 2(t-1)\,\alpha + 2\,\tfrac{t-1}{t}\,\tfrac{2sbh}{B_{\text{NVLink}}}
+$$
+
+**Pipeline**, $p$ stages, $m$ micro-batches, $v$ chunks per device, a
+micro-batch's forward and backward on one stage taking $t_f + t_b$:
+
+$$
+T = \Big(m + \tfrac{p-1}{v}\Big)(t_f + t_b), \qquad \text{bubble} = \frac{p - 1}{v\,m}
+$$
+
+**Activations on the first stage** (Korthikanti et al., Table 2 and §4.2.3),
+bytes per layer with tensor and sequence parallelism, times $L$ layers' worth
+(the first stage holds $p$ micro-batches of its $L/p$ layers) and
+$1 + \frac{p-1}{p\,v}$ when interleaved:
+
+$$
+\frac{s\,b\,h}{t}\Big(34 + \frac{5\,a\,s}{h}\Big)
+$$
+
+**Step time** in the systems model: $T = (m + \tfrac{p-1}{v})\,(c + \tau + \kappa) + T_{\text{p2p}} + T_{\text{DP}}$,
+with $c$ the compute of one micro-batch on one stage at $\eta$ of peak, $\tau$
+its tensor-parallel all-reduces, $\kappa$ its context-parallel all-gathers,
+and nothing overlapped.
+
+</Layer>
+
+<Layer kind="code">
+
+The 1F1B order of one device's work, from the pipeline simulation in
+`src/lib/training/systems.ts` (matched to `scripts/training/systems.py`):
+
+```ts
+if (kind === "1f1b") {
+  const warm = Math.min(p - s - 1, m);
+  for (let i = 0; i < warm; i++) out.push(["F", i, 0]);
+  let f = warm;
+  let b = 0;
+  while (f < m) {
+    out.push(["F", f++, 0]);
+    out.push(["B", b++, 0]);
+  }
+  for (let i = b; i < m; i++) out.push(["B", i, 0]);
+  return out;
+}
+```
+
+</Layer>

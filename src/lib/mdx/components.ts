@@ -30,13 +30,22 @@ import { BadBatchChart } from "@/components/training/BadBatchChart";
 import { BatchSizeChart } from "@/components/training/BatchSizeChart";
 import { CoordCheckChart } from "@/components/training/CoordCheckChart";
 import {
+  GoodputChart,
+  MonitorCharts,
+  ResumeChart,
+} from "@/components/training/JobCharts";
+import {
   BackpropAnimation,
   BpeAnimation,
+  DemoSyncAnimation,
   DepthAnimation,
   MemoryAnimation,
   ObjectiveAnimation,
   Optim2dAnimation,
+  PipelineAnimation,
+  RingAllReduceAnimation,
   RoundingAnimation,
+  SftAnimation,
   TrainingLoopHero,
 } from "@/components/training/lazy";
 import { LiveTrainerPanel } from "@/components/training/LiveTrainerPanel";
@@ -48,6 +57,15 @@ import { PrecisionChart } from "@/components/training/PrecisionChart";
 import { PrePostChart } from "@/components/training/PrePostChart";
 import { R } from "@/components/training/R";
 import { SchedulePanel } from "@/components/training/SchedulePanel";
+import { SlowLinksCharts } from "@/components/training/SlowLinksCharts";
+import {
+  DataParallelPanel,
+  GoodputPanel,
+  IsoflopPanel,
+  LayoutPanel,
+  WanPanel,
+} from "@/components/training/SystemsPanels";
+import { ValidationChart } from "@/components/training/ValidationChart";
 
 export const mdxComponents: NonNullable<MDXRemoteProps["components"]> = {
   Layer,
@@ -90,4 +108,19 @@ export const mdxComponents: NonNullable<MDXRemoteProps["components"]> = {
   RoundingAnimation,
   PrecisionChart,
   MemoryAnimation,
+  // Part 2, chapters 11-16 (brief 29C)
+  RingAllReduceAnimation,
+  DataParallelPanel,
+  PipelineAnimation,
+  LayoutPanel,
+  ValidationChart,
+  DemoSyncAnimation,
+  SlowLinksCharts,
+  WanPanel,
+  IsoflopPanel,
+  GoodputPanel,
+  MonitorCharts,
+  ResumeChart,
+  GoodputChart,
+  SftAnimation,
 };

@@ -1,0 +1,129 @@
+Pretraining makes a model that continues text; the assistants people talk to are that model trained further, on far less data chosen far more carefully. The objective barely changes, but what it is applied to does. Below, Part 1's trained model reads a prompt and a response: pretraining would score every character, fine-tuning scores only the response's; then two continuations of one prompt, compared the way preference training compares them.
+
+<SftAnimation>
+  <Eq
+    label="The SFT loss is minus the mean log probability of the response tokens only, given everything before them. The DPO loss is minus log sigmoid of beta times the difference between the chosen and the rejected response's log probability ratios to a frozen reference model"
+    tex="\begin{gathered} \htmlClass{hl-resp}{\mathcal{L}_{\text{SFT}} = -\frac{1}{|R|}\sum_{t \in R} \log p_\theta(x_t \mid x_{<t})} \quad \htmlClass{hl-mask2}{(t \notin \text{prompt})} \\ \htmlClass{hl-pref}{\mathcal{L}_{\text{DPO}} = -\log \sigma\Big(\beta \log\frac{p_\theta(y_w \mid x)}{p_{\text{ref}}(y_w \mid x)} - \beta \log\frac{p_\theta(y_l \mid x)}{p_{\text{ref}}(y_l \mid x)}\Big)} \end{gathered}"
+  />
+</SftAnimation>
+
+<Layer kind="concept">
+
+This is a bridge chapter: each stage gets its idea in outline and a link to the
+[Training &amp; Fine-Tuning slide series](https://brendanjameslynskey.github.io/LLM_Hub_Fine_Tuning/),
+which covers it properly.
+
+**Mid-training and annealing.** The last stretch of pretraining is already
+different. Llama 3 405B, at the end of its 15.6T tokens, annealed the learning
+rate linearly to zero over the final 40M tokens with a data mix upsampling
+very high-quality sources, at its full 128K-token context, and averaged the
+checkpoints of that phase into the released base model
+([Grattafiori et al. 2024](https://arxiv.org/abs/2407.21783), §3.4.3); the
+same paper uses short annealing runs to judge whether a small dataset is worth
+adding (§3.1.3). This is chapter 6's decay phase with the data changed too.
+
+**Supervised fine-tuning (SFT).** Train on examples of the behaviour wanted:
+prompts and good responses, often in a chat format. The loss is chapter 3's
+cross-entropy, but only on the response: the prompt is context, not something
+to learn to produce, so its positions are masked out of the loss (they still
+pass through the model, chapter 3's teacher forcing). On the example above the
+trained model's mean loss over the response is <R k="sft.sftLoss" d={3} /> nats per character; over prompt and response
+together it would be <R k="sft.unmaskedLoss" d={3} />. Datasets, chat templates,
+loss masking and packing: [FT 01, SFT
+pipelines](https://brendanjameslynskey.github.io/FT_01_SFT_Pipeline/).
+Fine-tuning every weight needs chapter 10's 16 bytes per parameter again;
+low-rank adapters train a small add-on instead: [FT 02, LoRA and
+PEFT](https://brendanjameslynskey.github.io/FT_02_LoRA_and_PEFT_Variants/).
+
+**Preference optimisation: RLHF.** Many qualities are easier to judge than to
+write down: people compare two responses and say which is better. RLHF
+([Ouyang et al. 2022](https://arxiv.org/abs/2203.02155)) trains a reward model
+on those comparisons, then fine-tunes the language model with reinforcement
+learning (PPO) to raise the reward while a KL penalty keeps it close to the
+SFT model: [FT 03, RLHF and PPO](https://brendanjameslynskey.github.io/FT_03_RLHF_and_PPO/).
+
+**DPO and its cousins.** Direct Preference Optimization
+([Rafailov et al. 2023](https://arxiv.org/abs/2305.18290)) skips the reward
+model: its loss (above) raises the log probability of the preferred response
+$y_w$ relative to the rejected one $y_l$, each measured against a frozen copy
+of the starting model. The animation's last step shows the quantities it
+works on: the trained model gives the plausible continuation "queen." a log
+probability of <R k="sft.pref.chosenLogp" d={1} /> and the gibberish "qxzjv." <R k="sft.pref.rejectedLogp" d={1} />. Llama 3's post-training was rounds of SFT
+followed by DPO (§4). IPO, KTO, ORPO and GRPO: [FT 04, DPO and
+cousins](https://brendanjameslynskey.github.io/FT_04_DPO_and_Cousins/).
+
+**Reinforcement learning with checkable rewards.** Where an answer can be
+checked automatically (a maths result, a program's tests), the reward needs no
+person or reward model. DeepSeek-R1 ([DeepSeek-AI 2025](https://arxiv.org/abs/2501.12948))
+trained long step-by-step reasoning this way with GRPO, a group-relative
+variant of PPO (also in FT 04). Feedback written by a model from a list of
+principles instead of by people is Constitutional AI and RLAIF:
+[FT 05](https://brendanjameslynskey.github.io/FT_05_Constitutional_AI_and_RLAIF/).
+
+**What carries over from Part 2.** All of it. Every stage above is the
+training loop of chapter 1 with a different dataset and a different loss: the
+same backward pass (chapter 4), optimisers (5), learning-rate care (6),
+stability tricks (8), precision (9), memory (10) and parallelism (11 and 12),
+at a fraction of pretraining's compute. And the model that comes out runs
+exactly as [Part 1](/learn) describes.
+
+</Layer>
+
+<Layer kind="maths">
+
+**The masked loss.** For a sequence $x_1 \ldots x_T$ whose positions $R$ are
+the response, SFT minimises
+
+$$
+\mathcal{L}_{\text{SFT}} = -\frac{1}{|R|} \sum_{t \in R} \log p_\theta(x_t \mid x_{<t}),
+$$
+
+which is pretraining's loss with the prompt's terms given weight zero; the
+gradient of a masked position is zero, so the prompt shapes the gradient only
+through the context it provides.
+
+**DPO** (Rafailov et al. 2023, eq. 7), for a prompt $x$, a preferred response
+$y_w$ and a rejected one $y_l$, a frozen reference model $p_{\text{ref}}$
+(usually the SFT model) and a strength $\beta$:
+
+$$
+\mathcal{L}_{\text{DPO}} = -\log \sigma\!\Big(\beta \log \frac{p_\theta(y_w \mid x)}{p_{\text{ref}}(y_w \mid x)} - \beta \log \frac{p_\theta(y_l \mid x)}{p_{\text{ref}}(y_l \mid x)}\Big)
+$$
+
+At the start $p_\theta = p_{\text{ref}}$, both ratios are 1 and the loss is
+$\log 2$; it falls as the model moves probability from $y_l$ to $y_w$.
+
+</Layer>
+
+<Layer kind="code">
+
+The per-character log probabilities in the animation,
+`src/lib/anim/training/sft-steps.ts` (Part 1's forward pass on a window of the
+last 8 characters; matched to `scripts/training/anim_c.py`):
+
+```ts
+export function tokenLogprobs(
+  params: ParamMap,
+  context: string,
+  continuation: string,
+): TokenLogp[] {
+  const S = PART1_MODEL.seq_len;
+  const ids = encodeChars(context);
+  const out: TokenLogp[] = [];
+  for (const ch of continuation) {
+    const win = ids.slice(-S);
+    const { logits } = forwardCached(params, PART1_MODEL, win);
+    const last = logits[win.length - 1]!;
+    let m = -Infinity;
+    for (const v of last) m = Math.max(m, v);
+    let s = 0;
+    for (const v of last) s += Math.exp(v - m);
+    const t = encodeChars(ch)[0]!;
+    out.push({ char: ch, logp: last[t]! - (m + Math.log(s)) });
+    ids.push(t);
+  }
+  return out;
+}
+```
+
+</Layer>

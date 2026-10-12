@@ -59,6 +59,9 @@ sys.path.insert(0, str(HERE))
 
 import anim  # noqa: E402
 import anim_b as AB  # noqa: E402
+import anim_c as AC  # noqa: E402
+import results_c as RC  # noqa: E402
+import slowlinks as SL  # noqa: E402
 import checks as C  # noqa: E402
 import experiments as X  # noqa: E402
 import data as D  # noqa: E402
@@ -396,6 +399,8 @@ GROUPS = {
     "ch8": ["badBatch", "attnGrowth", "attnRun"],
     "ch9": ["precision"],
     "ch10": ["gradQuant", "memory", "gradRounding"],
+    # brief 29C (chapters 11-16): results_c.py
+    **RC.GROUPS_C,
 }
 ALL_GROUPS = ["base"] + list(GROUPS)
 
@@ -558,6 +563,20 @@ RULES = [
     (r"\.noiseScale\.", ("rel", 1e-4)),
     (r"\.coordCheck\.", ("rel", 1e-7)),
     (r"default-run-weights\.json\.params\.", ("abs", 1e-6)),
+    # brief 29C. Slow links and the IsoFLOP sweep are as chaotic as 29B's
+    # sweeps (which seeds leave the plateau, and when): per-seed values,
+    # curves, step counts and the fits through them are not compared; the
+    # means are sanity-checked; the claims are re-checked (CLAIMS).
+    (r"\.slowLinks\..*\.(finals|stepsToTarget|meanStepsToTarget|meanEvals|evalSteps)(\[\d+\])?$", ("skip", 0)),
+    (r"\.slowLinks\.rows\[\d+\]\.perLr\[\d+\]\.mean$", ("skip", 0)),
+    (r"\.slowLinks\.rows\[\d+\]\.mean$", ("abs", 0.35)),
+    (r"\.isoflop\.rows\[\d+\]\.points\[\d+\]\.(finals|sd|diverged)", ("skip", 0)),
+    (r"\.isoflop\.rows\[\d+\]\.points\[\d+\]\.mean$", ("abs", 0.35)),
+    (r"\.isoflop\.(rows\[\d+\]\.(fit|fitWidths|nOpt|dOpt|interior)|a|b|frontier)", ("skip", 0)),
+    # the default run again (monitor) and the resume experiment: the
+    # default run's own drift (29A: ~5e-9), a little more after a resume
+    (r"\.monitor\.", ("rel", 1e-5)),
+    (r"\.resume\.", ("rel", 1e-4)),
 ]
 
 
@@ -609,6 +628,52 @@ CLAIMS = [
      and _mean(r, "precision", name="FP8 (E4M3 / E5M2), no scaling") > 2.85),
     ("gradQuant", "2-bit gradients end worse than 8-bit ones",
      lambda r: _mean(r, "gradQuant", bits=2) > _mean(r, "gradQuant", bits=8) + 0.2),
+]
+
+
+def _committed() -> dict:
+    return json.loads(RESULTS_JSON.read_text())
+
+
+def _sl(r, name):
+    return next(x for x in r["slowLinks"]["rows"] if x["name"] == name)
+
+
+def _sl_lr(r, name, lr):
+    return next(p for p in _sl(r, name)["perLr"] if p["lr"] == lr)
+
+
+# brief 29C's claims (chapters 11-16)
+CLAIMS += [
+    ("systems", "every held-out published run is predicted within 20% and at or below its published throughput",
+     lambda r: all(-0.2 < x["error"] <= 1e-9 for x in r["systems"]["validation"]["rows"] if not x["fitted"])),
+    ("systems", "the simulated best checkpoint interval is within a factor of 2 of Young's",
+     lambda r: 0.5 < r["systems"]["reliability"]["bestTau"] / r["systems"]["reliability"]["young"] < 2),
+    ("pipeline", "the simulated bubbles equal the closed forms",
+     lambda r: r["pipeline"]["maxDiff"] < 1e-12),
+    ("slowLinks", "dense with 4 workers x 4 windows (lr 0.01, seed 1) is the default run, to 1e-6",
+     lambda r: abs(_sl_lr(r, "dense", 0.01)["finals"][0] - _committed()["defaultRun"]["evals"][-1]["val"]) < 1e-6),
+    ("slowLinks", "the compressors send >= 4x fewer wire bytes than dense, DiLoCo H=10 10x fewer",
+     lambda r: all(_sl(r, n)["bytes"]["denseWire"] / _sl(r, n)["bytes"]["wire"] >= 4 for n in ("topk", "demo"))
+     and abs(_sl(r, "diloco H=10")["bytes"]["denseWire"] / _sl(r, "diloco H=10")["bytes"]["wire"] - 10) < 1e-9),
+    ("slowLinks", "top-k and DeMo reach 2.6 in fewer mean steps than dense and end below dense + 0.1",
+     lambda r: all(_sl(r, n)["meanStepsToTarget"] is not None
+                   and _sl(r, n)["meanStepsToTarget"] < _sl(r, "dense")["meanStepsToTarget"]
+                   and _sl(r, n)["mean"] < _sl(r, "dense")["mean"] + 0.1 for n in ("topk", "demo"))),
+    ("slowLinks", "DiLoCo ends above dense by > 0.15 at both H; top-k at lr 3.0 diverges in every seed",
+     lambda r: all(_sl(r, n)["mean"] > _sl(r, "dense")["mean"] + 0.15 for n in ("diloco H=10", "diloco H=50"))
+     and _sl_lr(r, "topk", 3.0)["diverged"] == 3),
+    ("isoflop", "the smallest budget has no interior minimum, the other three do, N_opt grows with the budget, 0.15 < a < 0.8",
+     lambda r: not r["isoflop"]["rows"][0]["interior"] and all(x["interior"] for x in r["isoflop"]["rows"][1:])
+     and all(a["nOpt"] < b["nOpt"] for a, b in zip(r["isoflop"]["rows"][1:], r["isoflop"]["rows"][2:]))
+     and 0.15 < r["isoflop"]["a"] < 0.8),
+    ("monitor", "the monitored run is the default run (final loss to 1e-9 relative); the update ratio falls > 10x",
+     lambda r: abs(r["monitor"]["final"] / _committed()["defaultRun"]["evals"][-1]["val"] - 1) < 1e-9
+     and r["monitor"]["log"]["updateRatio"][-1] < 0.1 * max(r["monitor"]["log"]["updateRatio"])),
+    ("resume", "a full resume is bit-identical; a weights-only one ends within the spread over seeds",
+     lambda r: r["resume"]["bitIdentical"]
+     and abs(r["resume"]["weights"]["mean"] - r["resume"]["uninterrupted"]["mean"])
+     < max(r["resume"]["weights"]["sd"], r["resume"]["uninterrupted"]["sd"])),
 ]
 
 
@@ -726,6 +791,8 @@ def build(ids, text, groups, check: bool) -> tuple[dict, dict]:
             files[FIX / name] = payload
     rb, snap = results_b(ids, groups)
     res.update(rb)
+    rc = RC.results_c(ids, groups, trained)
+    res.update(rc)
     files[RESULTS_JSON] = res
     if snap is not None:
         files[SNAPSHOTS] = snapshot_file(snap)
@@ -753,6 +820,19 @@ def build(ids, text, groups, check: bool) -> tuple[dict, dict]:
         files[FIX / "anim_memory.json"] = {"recipe": AB.MIXED, "cases": [
             {"arch": a, "recompute": r, "states": AB.memory_states(a, r)}
             for a in (AB.MEM.LLAMA_7B, AB.MEM.PART1_MEM) for r in ("none", "selective", "full")]}
+    # chapters 11-16 (brief 29C)
+    if "sys" in groups:
+        files[FIX / "systems.json"] = RC.systems_fixture(rc["systems"])
+        files[FIX / "anim_ring.json"] = AC.ring_fixture(trained, ids)
+        files[FIX / "anim_pipeline.json"] = AC.pipeline_fixture()
+        files[FIX / "anim_goodput.json"] = AC.goodput_fixture()
+    if "ch13" in groups:
+        files[FIX / "slowlinks.json"] = RC.slowlinks_fixture(ids)
+        files[FIX / "anim_demo.json"] = {"tensor": SL.ANIM_TENSOR, "seed": SL.ANIM_SEED,
+                                         "states": SL.sync_states(trained, ids)}
+    if "ch14" in groups:
+        iso = committed["isoflop"] if check else rc["isoflop"]
+        files[FIX / "anim_isoflop.json"] = {"states": AC.isoflop_states(iso)}
     return files, checks
 
 

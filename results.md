@@ -307,3 +307,273 @@ calculator; sequence 4,096, micro-batch 1. Bytes:
 Part 1's model keeps 2320, 2320 values per sequence per block
 for its backward pass (counted in the NumPy forward pass); Korthikanti et al.'s formula for the same shape
 gives 2496.
+
+## 11. The training-systems model (chapters 11, 12 and 15)
+
+`scripts/training/systems.py` (ported to `src/lib/training/systems.ts`, matched to its fixtures):
+collectives on an alpha-beta link model, ZeRO and per-device memory, a discrete-event simulation
+of pipeline schedules, a step-time model, and failures and checkpoints. Nothing here trains; it
+is arithmetic and seeded simulation.
+
+### 11a. Validation against published runs
+
+One constant is fitted: eta = 0.473, the fraction of peak the matrix products reach,
+on Megatron-LM's 1.7B run (no tensor or pipeline parallelism). Every other row is a prediction.
+Published numbers: Narayanan et al. 2021 (arXiv:2104.04473) Table 1 (A100, 312 TFLOP/s peak,
+hardware FLOP/s with full recomputation by their eq. 3) and Grattafiori et al. 2024 (Llama 3,
+arXiv:2407.21783) Table 4 (H100, BF16 MFU). Assumptions where the papers are silent:
+
+- bytes: BF16 (2 bytes) for activations, parameters and gradients on the wire
+- flops: Megatron rows: equation (3) of Narayanan et al. (with full recomputation); Llama rows: the PaLM MFU count 6N + 12 L H Q T per token (no recomputation)
+- interleave: v = layers per pipeline rank (one layer per model chunk), the most interleaving the layer count allows; Llama 3 counts 128 layer slots (126 layers + the embedding and output stages, its §3.3.2)
+- latency: 5 us per NVLink hop, 10 us per network hop (Llama 3 §3.3.3: 'latency up to tens of microseconds' across a large cluster)
+- microBatch: 1 sequence per micro-batch (neither paper gives it for these runs)
+- overlap: nothing overlaps: every collective, send and the gradient sync is exposed
+
+| Run | GPUs | Layout (t, p, d, cp, v) | Micro-batches | Published TFLOP/s per GPU | Model | Error |
+|---|---:|---|---:|---:|---:|---:|
+| Megatron 1.7B (fitted) | 32 | 1, 1, 32, 1, 1 | 16 | 137 (44%) | 137.0 (43.9%) | +0.0% |
+| Megatron 3.6B | 64 | 2, 1, 32, 1, 1 | 16 | 138 (44%) | 131.5 (42.1%) | -4.7% |
+| Megatron 7.5B | 128 | 4, 1, 32, 1, 1 | 16 | 142 (46%) | 123.9 (39.7%) | -12.8% |
+| Megatron 18.4B | 256 | 8, 1, 32, 1, 1 | 32 | 135 (43%) | 119.6 (38.3%) | -11.4% |
+| Megatron 39.1B | 512 | 8, 2, 32, 1, 24 | 48 | 138 (44%) | 123.6 (39.6%) | -10.5% |
+| Megatron 76.1B | 1,024 | 8, 4, 32, 1, 15 | 56 | 140 (45%) | 127.7 (40.9%) | -8.8% |
+| Megatron 145.6B | 1,536 | 8, 8, 24, 1, 10 | 96 | 148 (47%) | 131.1 (42.0%) | -11.4% |
+| Megatron 310.1B | 1,920 | 8, 16, 15, 1, 6 | 144 | 155 (50%) | 133.9 (42.9%) | -13.6% |
+| Megatron 529.6B | 2,520 | 8, 35, 9, 1, 3 | 280 | 163 (52%) | 133.5 (42.8%) | -18.1% |
+| Megatron 1008.0B | 3,072 | 8, 64, 6, 1, 2 | 512 | 163 (52%) | 132.7 (42.5%) | -18.6% |
+| Llama 3 405B 8,192 GPUs, seq 8,192 | 8,192 | 8, 16, 64, 1, 8 | 32 | 430 (43%) | 385.8 (39.0%) | -10.3% |
+| Llama 3 405B 16,384 GPUs, seq 8,192 | 16,384 | 8, 16, 128, 1, 8 | 16 | 400 (41%) | 360.1 (36.4%) | -10.0% |
+| Llama 3 405B 16,384 GPUs, seq 131,072 | 16,384 | 8, 16, 8, 16, 8 | 16 | 380 (38%) | 379.4 (38.4%) | -0.2% |
+
+**Validation band:** every held-out row within 18.6% of the published
+throughput (Megatron rows 18.6%, Llama 3 rows 10.3%; mean absolute
+error 10.8%). Every prediction is at or below the published number: the model
+overlaps nothing, and one eta cannot follow the matrix products getting more efficient as the
+models widen (Megatron's per-GPU throughput rises from 137 to 163 TFLOP/s; the model's stays near 130).
+
+### 11b. Collectives, ZeRO and data parallelism
+
+LLaMA 7B's gradient (6,738,149,376 parameters, 13.48 GB in BF16) on H100s:
+
+| Where | Collective | Time | Bytes each GPU sends |
+|---|---|---:|---:|
+| NVLink, 8 GPUs | ring all-reduce | 52.5 ms | 23.58 GB |
+| NVLink, 8 GPUs | binary-tree all-reduce (not pipelined) | 179.7 ms | 26.95 GB |
+| NVLink, 8 GPUs | reduce-scatter | 26.2 ms | 11.79 GB |
+| NVLink, 8 GPUs | all-gather | 26.2 ms | 11.79 GB |
+| network, 64 GPUs | ring all-reduce | 531.9 ms | 26.53 GB |
+| network, 64 GPUs | binary-tree all-reduce (not pipelined) | 3.23 s | 26.95 GB |
+| network, 64 GPUs | reduce-scatter | 265.9 ms | 13.27 GB |
+| network, 64 GPUs | all-gather | 265.9 ms | 13.27 GB |
+
+ZeRO (Rajbhandari et al. 2020, arXiv:1910.02054): bytes per GPU for the same model's states
+(2 + 2 + 12 bytes per parameter), and what each GPU sends per step:
+
+| Data-parallel GPUs | Stage | Weights | Gradients | Optimiser | Total | Sent per step |
+|---:|---:|---:|---:|---:|---:|---:|
+| 8 | 0 | 13.48 GB | 13.48 GB | 80.86 GB | 107.81 GB | 23.58 GB |
+| 8 | 1 | 13.48 GB | 13.48 GB | 10.11 GB | 37.06 GB | 23.58 GB |
+| 8 | 2 | 13.48 GB | 1.68 GB | 10.11 GB | 25.27 GB | 23.58 GB |
+| 8 | 3 | 1.68 GB | 1.68 GB | 10.11 GB | 13.48 GB | 35.38 GB |
+| 64 | 0 | 13.48 GB | 13.48 GB | 80.86 GB | 107.81 GB | 26.53 GB |
+| 64 | 1 | 13.48 GB | 13.48 GB | 1.26 GB | 28.22 GB | 26.53 GB |
+| 64 | 2 | 13.48 GB | 0.21 GB | 1.26 GB | 14.95 GB | 26.53 GB |
+| 64 | 3 | 0.21 GB | 0.21 GB | 1.26 GB | 1.68 GB | 39.80 GB |
+
+One data-parallel step of LLaMA 7B on 64 H100s, 1,048,576 tokens, eta as fitted:
+compute 1.64 s, gradient all-reduce 531.9 ms; step 2.17 s with
+nothing overlapped (MFU 35.7%), 1.64 s with the all-reduce hidden behind
+the backward pass (MFU 47.3%).
+
+### 11c. Failures and checkpoints (chapter 15)
+
+Llama 3 405B: 466 interruptions in 54 days, 419 unexpected
+(Grattafiori et al. 2024 §3.3.4), on up to 16,384 GPUs: a failure every 3.09 hours
+for the job, about one per GPU every 5.8 years. Checkpoint time delta = 32.8 s
+(16,384 GPUs x 4 GB at the storage fabric's 2 TB/s sustained (Llama 3 §3.3.1)); restart R = 600 s (illustrative: 10 minutes to restart and reload). Goodput over 54
+simulated days, mean of 20 seeds, against the first-order formula:
+
+| Checkpoint every | Simulated goodput | First-order formula |
+|---:|---:|---:|
+| 60 s | 61.11% | 61.02% |
+| 85 s | 68.12% | 68.01% |
+| 120 s | 74.02% | 73.89% |
+| 170 s | 78.83% | 78.68% |
+| 240 s | 82.47% | 82.30% |
+| 339 s | 85.08% | 84.88% |
+| 480 s | 86.77% | 86.55% |
+| 679 s | 87.65% | 87.35% |
+| 960 s | 87.73% | 87.32% |
+| 1,358 s | 86.96% | 86.43% |
+| 1,920 s | 85.33% | 84.55% |
+| 2,715 s | 82.75% | 81.44% |
+| 3,840 s | 78.78% | 76.71% |
+| 5,431 s | 73.25% | 69.80% |
+
+Best simulated interval 960 s; Young's tau* = sqrt(2 delta M) = 854 s
+(the grid steps by a factor of 1.41).
+
+### 11d. Stragglers and queueing (chapter 13)
+
+Eight workers, each step 1 + 0.1 x Exp(1) time units (seeded); the mean time per step when
+everyone waits for the slowest, syncing every step or every H steps:
+
+| Sync every | Time per step | Mean worker's step |
+|---:|---:|---:|
+| 1 | 1.270 | 1.099 |
+| 10 | 1.148 | 1.099 |
+| 50 | 1.121 | 1.099 |
+
+A sync message's mean wait on a link carrying background transfers (each 1 time unit, Poisson
+arrivals): the M/D/1 formula W = load / (2 (1 - load)) against a seeded simulation:
+
+| Load | Formula | Simulated |
+|---:|---:|---:|
+| 0.3 | 0.214 | 0.214 |
+| 0.6 | 0.750 | 0.765 |
+| 0.9 | 4.500 | 4.518 |
+
+## 12. Pipeline schedules (chapter 12)
+
+A discrete-event simulation of every forward and backward on every device (backward = 2 x forward),
+against the closed forms of Narayanan et al. (2021) §2.2: bubble = (p - 1) / m, interleaved (p - 1) / (v m).
+
+| Schedule | Devices p | Micro-batches m | Chunks v | Simulated bubble | Closed form |
+|---|---:|---:|---:|---:|---:|
+| gpipe | 4 | 8 | 1 | 0.3750 | 0.3750 |
+| 1f1b | 4 | 8 | 1 | 0.3750 | 0.3750 |
+| interleaved | 4 | 8 | 2 | 0.1875 | 0.1875 |
+| interleaved | 4 | 8 | 4 | 0.0938 | 0.0938 |
+| 1f1b | 8 | 32 | 1 | 0.2188 | 0.2188 |
+| interleaved | 8 | 32 | 4 | 0.0547 | 0.0547 |
+| gpipe | 16 | 32 | 1 | 0.4688 | 0.4688 |
+| 1f1b | 16 | 64 | 1 | 0.2344 | 0.2344 |
+
+Largest difference: 0.0e+00.
+
+## 13. Training over slow links (chapter 13)
+
+Part 1's model, 4 simulated workers with 4 windows each per step (the default
+run's 16), 2,000 steps, warmup 50 + cosine to 0.1 of the peak, each worker's gradient clipped
+to 1.0, weight decay 0.01 on matrices; three seeds. Compressors keep 1 in 16: top-k per tensor
+(momentum 0.9), DeMo per DCT chunk of up to 64 (beta 0.999, sign update);
+DiLoCo's outer step is Nesterov momentum (lr 0.7, momentum 0.9). Each method's
+learning rate is the best mean of three tried. Bytes per worker per step, BF16 values; ring
+collectives (all-reduce for dense and DiLoCo, all-gather for the compressors).
+
+| Method | Best lr | Final validation loss (mean ± sd) | Steps to 2.6 (seeds) | Payload | Wire | Wire vs dense |
+|---|---:|---:|---|---:|---:|---:|
+| dense | 0.01 | 2.277 ± 0.090 | 1150, 1300, 1000 | 10,752 B | 16,128 B | 1.0x less |
+| topk | 1.0 | 2.225 ± 0.039 | 550, 550, 500 | 1,344 B | 4,032 B | 4.0x less |
+| demo | 0.03 | 2.073 ± 0.047 | 350, 300, 300 | 1,008 B | 3,024 B | 5.3x less |
+| diloco H=10 | 0.03 | 2.578 ± 0.078 | not reached, 1700, 1950 | 1,075 B | 1,613 B | 10.0x less |
+| diloco H=50 | 0.1 | 2.706 ± 0.094 | not reached, not reached, not reached | 215 B | 323 B | 50.0x less |
+
+Every learning rate tried (mean ± sd over seeds):
+
+| Method | lr | Final validation loss |
+|---|---:|---:|
+| dense | 0.003 | 2.577 ± 0.009 |
+| dense | 0.01 | 2.277 ± 0.090 |
+| dense | 0.03 | 2.298 ± 0.168 |
+| topk | 0.3 | 2.264 ± 0.017 |
+| topk | 1.0 | 2.225 ± 0.039 |
+| topk | 3.0 | diverged |
+| demo | 0.003 | 2.531 ± 0.329 |
+| demo | 0.01 | 2.128 ± 0.016 |
+| demo | 0.03 | 2.073 ± 0.047 |
+| diloco H=10 | 0.01 | 2.703 ± 0.085 |
+| diloco H=10 | 0.03 | 2.578 ± 0.078 |
+| diloco H=10 | 0.1 | 2.784 ± 0.031 |
+| diloco H=50 | 0.01 | 2.807 ± 0.016 |
+| diloco H=50 | 0.03 | 2.863 ± 0.075 |
+| diloco H=50 | 0.1 | 2.706 ± 0.094 |
+
+## 14. A toy IsoFLOP sweep (chapter 14)
+
+Part 1's model at widths 6, 8, 12, 16, 24, 32, 48, 64 (2 heads, FFN twice the width, 2 blocks),
+each trained for exactly the tokens a budget C = 6 N D allows (16 windows of 8 per step,
+AdamW peak lr 0.01, warmup then cosine to 10% over the run); three seeds. N counts every parameter.
+A parabola in log10 N through each budget's lowest mean and its two neighbours gives N_opt;
+a line through log N_opt against log C gives the exponent a.
+
+| Budget C (FLOPs) | Width | N | Steps | Tokens | Final validation loss (mean ± sd) |
+|---:|---:|---:|---:|---:|---:|
+| 3e+09 | 6 | 1,056 | 3,699 | 473,472 | 2.349 ± 0.008 |
+| 3e+09 | 8 | 1,664 | 2,348 | 300,544 | 2.373 ± 0.058 |
+| 3e+09 | 12 | 3,264 | 1,197 | 153,216 | 2.610 ± 0.203 |
+| 3e+09 | 16 | 5,376 | 727 | 93,056 | 2.948 ± 0.004 |
+| 3e+09 | 24 | 11,136 | 351 | 44,928 | 2.951 ± 0.004 |
+| 3e+09 | 32 | 18,944 | 206 | 26,368 | 2.949 ± 0.002 |
+| 1e+10 | 6 | 1,056 | 12,330 | 1,578,240 | 2.208 ± 0.025 |
+| 1e+10 | 8 | 1,664 | 7,825 | 1,001,600 | 2.104 ± 0.035 |
+| 1e+10 | 12 | 3,264 | 3,989 | 510,592 | 2.080 ± 0.058 |
+| 1e+10 | 16 | 5,376 | 2,422 | 310,016 | 2.220 ± 0.120 |
+| 1e+10 | 24 | 11,136 | 1,169 | 149,632 | 2.768 ± 0.186 |
+| 1e+10 | 32 | 18,944 | 687 | 87,936 | 2.952 ± 0.004 |
+| 1e+10 | 48 | 40,704 | 320 | 40,960 | 2.953 ± 0.005 |
+| 1e+10 | 64 | 70,656 | 184 | 23,552 | 2.950 ± 0.003 |
+| 3e+10 | 6 | 1,056 | 36,991 | 4,734,848 | 2.152 ± 0.020 |
+| 3e+10 | 8 | 1,664 | 23,475 | 3,004,800 | 1.999 ± 0.021 |
+| 3e+10 | 12 | 3,264 | 11,968 | 1,531,904 | 1.891 ± 0.018 |
+| 3e+10 | 16 | 5,376 | 7,266 | 930,048 | 1.922 ± 0.050 |
+| 3e+10 | 24 | 11,136 | 3,508 | 449,024 | 2.144 ± 0.131 |
+| 3e+10 | 32 | 18,944 | 2,062 | 263,936 | 2.181 ± 0.107 |
+| 3e+10 | 48 | 40,704 | 960 | 122,880 | 2.846 ± 0.100 |
+| 3e+10 | 64 | 70,656 | 553 | 70,784 | 2.924 ± 0.048 |
+| 1e+11 | 12 | 3,264 | 39,892 | 5,106,176 | 1.825 ± 0.020 |
+| 1e+11 | 16 | 5,376 | 24,220 | 3,100,160 | 1.753 ± 0.018 |
+| 1e+11 | 24 | 11,136 | 11,693 | 1,496,704 | 1.790 ± 0.053 |
+| 1e+11 | 32 | 18,944 | 6,873 | 879,744 | 1.863 ± 0.063 |
+| 1e+11 | 48 | 40,704 | 3,199 | 409,472 | 2.094 ± 0.034 |
+| 1e+11 | 64 | 70,656 | 1,843 | 235,904 | 2.398 ± 0.147 |
+
+| Budget | N_opt | D_opt (tokens) | Minimum inside the sizes tried |
+|---:|---:|---:|---|
+| 3e+09 | – | – | no |
+| 1e+10 | 2,493 | 668,646 | yes |
+| 3e+10 | 3,550 | 1,408,285 | yes |
+| 1e+11 | 6,590 | 2,529,229 | yes |
+
+Fitted exponent a = 0.42 (N_opt ~ C^a; b = 1 - a = 0.58), from the budgets with a minimum
+inside the sizes tried. Published: Chinchilla 0.5 / 0.49 / 0.46
+(Hoffmann et al. 2022, Table 2, approaches 1-3), Kaplan et al. 2020 0.73; Llama 3 fitted
+alpha = 0.53 for the optimal number of tokens.
+
+## 15. Running the job (chapter 15)
+
+The default run, step for step, as a dashboard sees it (final validation loss 2.2993, the
+default run's). Every 10th step:
+
+| Step | Training loss | Gradient norm (before clipping) | Learning rate | Update / weight (all) | Update / weight (block 1 FFN W1) |
+|---:|---:|---:|---:|---:|---:|
+| 0 | 4.173 | 0.854 | 0.00020 | 1.58e-03 | 1.03e-02 |
+| 200 | 2.953 | 0.340 | 0.00987 | 4.44e-03 | 3.18e-03 |
+| 400 | 2.998 | 0.383 | 0.00930 | 5.16e-03 | 8.13e-03 |
+| 600 | 3.071 | 0.287 | 0.00835 | 8.32e-03 | 1.03e-02 |
+| 800 | 2.930 | 0.299 | 0.00710 | 5.15e-03 | 8.75e-03 |
+| 1000 | 2.834 | 0.397 | 0.00568 | 6.08e-03 | 7.07e-03 |
+| 1200 | 2.562 | 0.535 | 0.00425 | 2.82e-03 | 3.96e-03 |
+| 1400 | 2.599 | 0.677 | 0.00294 | 1.86e-03 | 2.59e-03 |
+| 1600 | 2.519 | 0.614 | 0.00190 | 1.10e-03 | 1.97e-03 |
+| 1800 | 2.328 | 0.764 | 0.00123 | 7.73e-04 | 1.43e-03 |
+| 1999 | 2.366 | 0.808 | 0.00100 | 6.43e-04 | 1.20e-03 |
+
+### Stopping at step 1,000 and resuming (three seeds)
+
+Resuming with the weights, AdamW's state and the data position continues bit for bit: **yes** (every seed).
+
+| Resumed with | Validation loss 50 steps after resuming | Final validation loss (mean ± sd) |
+|---|---:|---:|
+| never stopped | 2.643 | 2.277 ± 0.090 |
+| weights + optimiser + data position | 2.643 | 2.277 ± 0.090 |
+| weights only (fresh AdamW) | 2.652 | 2.327 ± 0.165 |
+| weights + optimiser, data restarted | 2.636 | 2.286 ± 0.102 |
+
+## 16. After pretraining (chapter 16)
+
+The trained model on a prompt and a response: `who ran? ` + `the rabbit.`. Mean loss on the
+response's characters (the SFT loss, prompt masked): 2.670 nats; on every character
+after the first: 2.721. Log probability of two continuations of `said the `:
+`queen.` -18.19, `qxzjv.` -42.65.
