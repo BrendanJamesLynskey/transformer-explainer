@@ -207,6 +207,7 @@ test.describe("companion site", () => {
       ["Numerics", "https://numerics-explained.vercel.app"],
       ["Silicon", "https://systolic-arrays-explained.vercel.app"],
       ["Trade-offs", "https://inference-tradeoffs-explained.vercel.app"],
+      ["Compute in transit", "https://compute-in-transit-results.vercel.app"],
     ] as const)
       await expect(llm.getByRole("link", { name })).toHaveAttribute(
         "href",
@@ -263,6 +264,9 @@ test.describe("companion site", () => {
     await expect(compact.getByRole("link", { name: "Security" })).toHaveCount(
       0,
     );
+    await expect(
+      compact.getByRole("link", { name: "Compute in transit" }),
+    ).toHaveAttribute("href", "https://compute-in-transit-results.vercel.app");
     const box = await compact
       .getByRole("link", { name: "Decoder" })
       .boundingBox();
