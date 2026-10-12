@@ -12,6 +12,9 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["tests/unit/**/*.test.ts"],
+    // next-auth's ESM imports `next/server` without an extension, which
+    // Node's resolver refuses; let Vite resolve it (tests/unit/auth-proxy.test.ts).
+    server: { deps: { inline: ["next-auth"] } },
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
@@ -51,6 +54,10 @@ export default defineConfig({
         // logic lives in health-shared.ts and is unit-tested there; this
         // half is exercised by the e2e health spec against a real Postgres.
         "src/lib/health.ts",
+        // next/headers needs a request scope; the logic it wraps
+        // (contextFromHeaders) is tested in tests/unit/site-hosts.test.ts and
+        // the header it feeds by tests/e2e/hosts.spec.ts.
+        "src/lib/site/context.ts",
       ],
       thresholds: {
         // CLAUDE.md §8 mandates 100% line coverage for src/lib/transformer/.

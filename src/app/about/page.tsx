@@ -3,6 +3,9 @@
  */
 import Link from "next/link";
 
+import { getSiteContext } from "@/lib/site/context";
+import { siteHref } from "@/lib/site/hosts";
+
 export const metadata = {
   title: "About",
   description:
@@ -10,6 +13,7 @@ export const metadata = {
 };
 
 export default function AboutPage(): JSX.Element {
+  const ctx = getSiteContext();
   return (
     <main className="mx-auto max-w-3xl space-y-10 px-6 py-12">
       <header>
@@ -262,7 +266,7 @@ export default function AboutPage(): JSX.Element {
         </Link>{" "}
         ·{" "}
         <Link
-          href="/training"
+          href={siteHref("/training", ctx)}
           className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
         >
           Part 2: Training

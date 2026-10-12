@@ -18,6 +18,8 @@ import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 
 import { db } from "@/lib/db/client";
+import { env } from "@/lib/env";
+import { DECODER_ORIGIN } from "@/lib/site/hosts";
 import { accounts, sessions, users, verificationTokens } from "@/lib/db/schema";
 
 import { buildE2EUser, enrichSession, mapGitHubProfile } from "./helpers";
@@ -105,7 +107,22 @@ const e2eCredentialsProvider = Credentials({
   },
 });
 
+/**
+ * The site has two addresses (src/lib/site/hosts.ts), but the GitHub OAuth
+ * app has one callback URL, on the decoder host. Auth.js's redirect proxy
+ * covers the other: a sign-in that starts on the training host asks GitHub
+ * to come back to the decoder host's callback, which forwards the reader
+ * (with the code and the encrypted state) to the training host's own
+ * callback, where the session is created. Both hosts are one deployment, so
+ * they share AUTH_SECRET, which the state is encrypted with. Production only;
+ * locally and in CI each host is its own callback.
+ */
+const redirectProxyUrl =
+  env.AUTH_REDIRECT_PROXY_URL ??
+  (env.VERCEL_ENV === "production" ? `${DECODER_ORIGIN}/api/auth` : undefined);
+
 export const authConfig: NextAuthConfig = {
+  redirectProxyUrl,
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,

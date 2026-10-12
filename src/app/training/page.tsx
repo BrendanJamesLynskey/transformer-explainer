@@ -10,11 +10,14 @@ import results from "@/data/training/results.json";
 import { getSession } from "@/lib/auth";
 import { runOrFallback } from "@/lib/db-fallback";
 import {
+  TRAINING_DECK_HUB,
   TRAINING_SECTIONS,
   readTrainingMdx,
   trainingSectionKey,
 } from "@/lib/mdx/sections";
 import { listForUser } from "@/lib/progress";
+import { getSiteContext } from "@/lib/site/context";
+import { siteHref, trainingCanonical } from "@/lib/site/hosts";
 
 // Reads the current session + the user's progress on every request.
 export const dynamic = "force-dynamic";
@@ -23,6 +26,7 @@ export const metadata = {
   title: "Training",
   description:
     "Part 2: how the decoder is trained, from the loss and backprop to optimisers, with Part 1's model training in your browser.",
+  alternates: { canonical: trainingCanonical("/training") },
 };
 
 export default async function TrainingIndex(): Promise<JSX.Element> {
@@ -44,6 +48,7 @@ export default async function TrainingIndex(): Promise<JSX.Element> {
   const progressMap = new Map(
     progressRows.map((p) => [p.sectionSlug, p.status]),
   );
+  const ctx = getSiteContext();
   const run = results.defaultRun;
   const first = run.evals[0]!.val;
   const last = run.evals[run.evals.length - 1]!.val;
@@ -75,11 +80,18 @@ export default async function TrainingIndex(): Promise<JSX.Element> {
       <p className="mt-3 text-neutral-600 dark:text-neutral-300">
         New to the model itself? Start with{" "}
         <Link
-          href="/learn"
+          href={siteHref("/learn", ctx)}
           className="focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300"
         >
           Part 1, Inference
         </Link>
+        . Prefer slides? Every chapter has a deck in the{" "}
+        <a
+          href={TRAINING_DECK_HUB}
+          className="focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300"
+        >
+          Transformer Training deck series
+        </a>
         .
       </p>
 

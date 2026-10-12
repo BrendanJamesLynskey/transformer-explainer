@@ -71,6 +71,12 @@ export function makeEnvSchema(isProd: boolean) {
     AUTH_SECRET: requiredInProd("AUTH_SECRET"),
     AUTH_GITHUB_ID: requiredInProd("AUTH_GITHUB_ID"),
     AUTH_GITHUB_SECRET: requiredInProd("AUTH_GITHUB_SECRET"),
+    // Where GitHub sends readers back after signing in, when that is not the
+    // host they signed in on (Auth.js's redirect proxy). Unset, production
+    // uses the decoder host for both addresses (src/lib/auth/config.ts).
+    AUTH_REDIRECT_PROXY_URL: z.string().url().optional(),
+    // Set by Vercel: "production", "preview" or "development".
+    VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
 
     // --- App -------------------------------------------------------------
     NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),

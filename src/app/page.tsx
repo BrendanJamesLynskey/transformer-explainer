@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { AttentionPreviewSvg } from "@/components/viz/AttentionPreviewSvg";
 import { attentionPreview } from "@/lib/attention-preview";
+import { getSiteContext } from "@/lib/site/context";
+import { siteHref } from "@/lib/site/hosts";
 
 /** The sentence the preview runs through the model. */
 const PREVIEW_TEXT = "the cat sat";
@@ -47,6 +49,7 @@ const ENTRY_POINTS = [
  * use, and drawn as static SVG.
  */
 export default function HomePage(): JSX.Element {
+  const ctx = getSiteContext();
   const preview = attentionPreview({ text: PREVIEW_TEXT });
 
   return (
@@ -76,7 +79,7 @@ export default function HomePage(): JSX.Element {
               Part 1: Inference →
             </Link>
             <Link
-              href="/training"
+              href={siteHref("/training", ctx)}
               className="focus-ring rounded border border-neutral-300 px-4 py-2 text-sm font-medium hover:border-accent dark:border-neutral-700"
             >
               Part 2: Training →
@@ -115,7 +118,7 @@ export default function HomePage(): JSX.Element {
         {ENTRY_POINTS.map((e) => (
           <Link
             key={e.href}
-            href={e.href}
+            href={siteHref(e.href, ctx)}
             className="focus-ring group rounded-lg border border-neutral-200 p-5 hover:border-accent dark:border-neutral-800 dark:hover:border-indigo-400"
           >
             <h2 className="font-semibold">{e.title}</h2>

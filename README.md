@@ -15,7 +15,11 @@ strict TypeScript, Drizzle / Postgres, Auth.js, MDX content, D3
 visualisations, and a pure-TypeScript transformer library that's verified
 against PyTorch fixtures to within `1e-5`.
 
-**Live:** [transformer-decoder-explained.vercel.app](https://transformer-decoder-explained.vercel.app/)
+**Live:** Part 1, Inference, at
+[transformer-decoder-explained.vercel.app](https://transformer-decoder-explained.vercel.app/);
+Part 2, Training, at its own address,
+[transformer-training-explained.vercel.app](https://transformer-training-explained.vercel.app/)
+(the same deployment; see [Two addresses](#two-addresses-one-deployment)).
 
 ![Attention page](docs/screenshots/03-attention.png)
 
@@ -125,6 +129,35 @@ probabilities nearly flat: the animations show the mechanism, not a trained
 model's behaviour.
 
 ## Part 2: Training
+
+Part 2 lives at
+[transformer-training-explained.vercel.app](https://transformer-training-explained.vercel.app/),
+and each chapter links its slide deck in the
+[Transformer Training deck series](https://brendanjameslynskey.github.io/LLM_Hub_Transformer_Training/).
+
+### Two addresses, one deployment
+
+Both parts are one Next.js app and one Vercel project with two domains
+(brief 29E). `src/middleware.ts` routes by host (`src/lib/site/hosts.ts`,
+unit-tested in `tests/unit/site-hosts.test.ts`):
+
+- the training host's `/` goes to `/training`; its Part 1 paths
+  (`/learn…`, `/playground`, `/about`) go to the decoder host;
+- the decoder host's `/training…` 308-redirects to the training host, so
+  old links keep working;
+- every Training page's canonical URL, and the training host's
+  `/sitemap.xml`, are on the training host;
+- the header names the site it is on ("transformer-training", "Site:
+  Training") and links the other part on the other host;
+- sign-in works on both: the GitHub OAuth app keeps its one callback on the
+  decoder host, and Auth.js's redirect proxy (`redirectProxyUrl`, production
+  only) forwards training-host sign-ins back to the training host
+  (`tests/unit/auth-proxy.test.ts`). Comments, progress and analytics are
+  the same API on both hosts.
+
+Locally and in CI both parts are served from one host with no redirects;
+`training.localhost:3000` plays the training host (and
+`decoder.localhost:3000` its decoder host) for `tests/e2e/hosts.spec.ts`.
 
 All 16 chapters are written (1–5: brief 29A; 6–10, learning rate and
 schedules, initialisation and µP, stability, mixed precision and memory:

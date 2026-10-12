@@ -353,6 +353,14 @@ can't happen again. Follow them for **every** production deploy.
    # skip the check:   … --comments-section none
    ```
 
+   Given the production decoder URL, it also checks Part 2's own address,
+   `https://transformer-training-explained.vercel.app` (brief 29E: a second
+   domain on this same Vercel project, added once with
+   `vercel domains add transformer-training-explained.vercel.app transformer-explainer`
+   or in the dashboard): every Training page answers 200 there with its
+   canonical URL and header, the decoder host's `/training*` 308-redirects
+   to it, and its `/` and `/learn` redirect as they should.
+
    It exits non-zero on any failure. A `behind` or `none` schema means
    step 1 was skipped: run `pnpm db:migrate` now. The comments check
    defaults to `07-sampling`, which holds a real comment; if that comment
