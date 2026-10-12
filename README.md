@@ -40,7 +40,8 @@ full-stack reference application.
 
 It is the first of a family of companion sites, linked from every page's
 header in two groups. The "LLM systems" group (Decoder · Inference ·
-Architectures · Kernels · Numerics · Silicon · Trade-offs):
+Architectures · Kernels · Numerics · Silicon · Trade-offs · Compute in
+transit):
 [LLM Inference Explained](https://llm-inference-explained.vercel.app/)
 shows how a model is served,
 [LLM Architectures Explained](https://llm-architectures-explained.vercel.app/)
@@ -50,9 +51,11 @@ how a GPU executes the maths,
 [Numerics Explained](https://numerics-explained.vercel.app/)
 the number formats and quantisation behind it,
 [Systolic Arrays Explained](https://systolic-arrays-explained.vercel.app/)
-the matrix hardware of TPUs, and
+the matrix hardware of TPUs,
 [Inference Trade-offs Explained](https://inference-tradeoffs-explained.vercel.app/)
-which serving lever helps which metric. The "Agents" group starts with
+which serving lever helps which metric, and the
+[Compute in Transit results](https://compute-in-transit-results.vercel.app/)
+an investigation of computing on gradients in the network. The "Agents" group starts with
 [Agent Harnesses Explained](https://agent-harnesses-explained.vercel.app/),
 the loop, tools, context and permissions that turn a model into an agent;
 then [Agent Protocols Explained](https://agent-protocols-explained.vercel.app/),
