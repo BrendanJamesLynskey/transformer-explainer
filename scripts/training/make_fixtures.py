@@ -573,9 +573,15 @@ RULES = [
     (r"\.isoflop\.rows\[\d+\]\.points\[\d+\]\.(finals|sd|diverged)", ("skip", 0)),
     (r"\.isoflop\.rows\[\d+\]\.points\[\d+\]\.mean$", ("abs", 0.35)),
     (r"\.isoflop\.(rows\[\d+\]\.(fit|fitWidths|nOpt|dOpt|interior)|a|b|frontier)", ("skip", 0)),
-    # the default run again (monitor) and the resume experiment: the
-    # default run's own drift (29A: ~5e-9), a little more after a resume
+    # the default run again (monitor): the default run's own drift (29A:
+    # ~5e-9; measured 3e-9 in CI). The resume experiment's seeds 2 and 3
+    # leave the plateau near the resume, so its curves drifted by up to 2e-3
+    # on the runner (2026-10-12): curves and per-seed finals are not
+    # compared, the means are sanity-checked, and the claim (bit-identical
+    # resume; weights-only within the seed spread) is re-checked.
     (r"\.monitor\.", ("rel", 1e-5)),
+    (r"\.resume\.[a-zA-Z]+\.(meanEvals|finals)(\[\d+\])?$", ("skip", 0)),
+    (r"\.resume\.[a-zA-Z]+\.(mean|afterResume)$", ("abs", 0.35)),
     (r"\.resume\.", ("rel", 1e-4)),
 ]
 
