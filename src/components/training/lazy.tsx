@@ -71,3 +71,40 @@ export const MemoryAnimation = dynamic(() => import("./MemoryAnimation"), {
   ssr: false,
   loading: placeholder("min-h-[56rem] md:min-h-[46rem]"),
 });
+// Brief 29C (chapters 11-16)
+export const RingAllReduceAnimation = dynamic(
+  () => import("./RingAllReduceAnimation"),
+  { ssr: false, loading: placeholder("min-h-[52rem] md:min-h-[46rem]") },
+);
+export const DataParallelCalculator = dynamic(
+  () => import("./DataParallelCalculator"),
+  { ssr: false, loading: placeholder("min-h-[22rem]") },
+);
+export const PipelineAnimation = dynamic(() => import("./PipelineAnimation"), {
+  ssr: false,
+  loading: placeholder("min-h-[44rem] md:min-h-[38rem]"),
+});
+export const LayoutExplorer = dynamic(() => import("./LayoutExplorer"), {
+  ssr: false,
+  loading: placeholder("min-h-[40rem] md:min-h-[30rem]"),
+});
+export const DemoSyncAnimation = dynamic(() => import("./DemoSyncAnimation"), {
+  ssr: false,
+  loading: placeholder("min-h-[54rem] md:min-h-[46rem]"),
+});
+export const WanTimeToTarget = dynamic(() => import("./WanTimeToTarget"), {
+  ssr: false,
+  loading: placeholder("min-h-[30rem]"),
+});
+export const IsoflopAnimation = dynamic(() => import("./IsoflopAnimation"), {
+  ssr: false,
+  loading: placeholder("min-h-[56rem] md:min-h-[40rem]"),
+});
+export const GoodputAnimation = dynamic(() => import("./GoodputAnimation"), {
+  ssr: false,
+  loading: placeholder("min-h-[44rem] md:min-h-[40rem]"),
+});
+export const SftAnimation = dynamic(() => import("./SftAnimation"), {
+  ssr: false,
+  loading: placeholder("min-h-[40rem] md:min-h-[34rem]"),
+});

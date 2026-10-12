@@ -484,9 +484,30 @@ standard), and every number on it comes from `results.md`.
   comparisons, smoke-tested on the CPU in CI; their numbers are quoted only
   once a GPU run's output is committed.
 
-### 15.4 Concept coverage
+### 15.4 Chapters 11–16: systems, slow links, scaling, the job (brief 29C)
+
+- `scripts/training/systems.py` / `src/lib/training/systems.ts`: the
+  training-systems model. Collectives on an α–β link model (ring and tree
+  all-reduce, reduce-scatter, all-gather, all-to-all) with bytes on the
+  wire; ZeRO stages; memory per GPU under tensor, pipeline, data, context
+  and expert parallelism (Korthikanti et al. Table 2); a discrete-event
+  simulation of GPipe, 1F1B and interleaved schedules (its bubble equals
+  the closed forms); step time, MFU and HFU; failures, checkpoints and
+  goodput against Young's interval; stragglers; M/D/1 queueing. Validated
+  against Megatron-LM's Table 1 and Llama 3's Table 4 with one fitted
+  constant; the band is stated in results.md §11a.
+- `slowlinks.py` / `slowlinks.ts`: four simulated data-parallel workers
+  synced by dense AdamW, top-k with error feedback (DGC), DeMo and DiLoCo,
+  with bytes on the wire; a toy, linked to the Compute in Transit results
+  site for real measurements.
+- `isoflop.py`: a toy IsoFLOP sweep (Chinchilla's Approach 2) on Part 1's
+  model family; `jobs.py`: the default run as a dashboard sees it and a
+  checkpoint-resume experiment; `anim_c.py`: the animations' states.
+- Groups `sys`, `ch13`, `ch14`, `ch15` of `make_fixtures.py` (CI matrix);
+  notebooks 14 (IsoFLOP) and 15 (throughput, MFU, resume) for GPUs.
+
+### 15.5 Concept coverage
 
 `scripts/cit_concept_audit.py` lists the training concepts the Compute in
 Transit results site relies on, each mapped to the Training chapter that
-explains it; CI runs it (chapters not shipped yet are reported as pending
-until 29C).
+explains it; CI runs it with `--strict` (every concept explained).

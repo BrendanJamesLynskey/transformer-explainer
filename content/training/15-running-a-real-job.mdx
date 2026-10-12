@@ -1,0 +1,158 @@
+A large run is not one long computation but weeks of them, interrupted. Hardware fails, the job restarts from its last saved state, and every hour between that save and the failure is lost. Below is a simulated week of a job as large as Llama 3 405B's, failing at the rate its authors measured: training in green, checkpoints in blue, lost work in vermillion.
+
+<GoodputPanel>
+  <Eq
+    label="Goodput, the share of time spent on useful training, is about one over one plus delta over tau, times one minus tau over two plus R, all over M, for checkpoints every tau seconds that each take delta, restarts that take R, and a failure every M seconds on average. It is largest near tau star equals the square root of two delta M"
+    tex="\text{goodput} \approx \htmlClass{hl-ckpt}{\frac{1}{1 + \delta/\tau}} \cdot \htmlClass{hl-lost}{\Big(1 - \frac{\tau/2 + R}{M}\Big)}, \qquad \tau^{*} = \sqrt{2\,\delta\,M}"
+  />
+</GoodputPanel>
+
+<Layer kind="concept">
+
+**Throughput and MFU.** The first number a training job reports is how many
+tokens it processes per second, and from that its model FLOPs utilisation,
+MFU (chapter 11): the useful arithmetic per second as a share of the
+hardware's peak. The published runs cited in chapter 11 sit between 38% and
+52%: Llama 3 405B 38–43% on H100s, PaLM 46.2% on TPU v4, Megatron-LM's
+trillion-parameter GPT 52% (counting recomputation). Chapter 12's systems model predicts the
+published runs it was checked on to within <R k="systems.validation.maxAbsError" pct d={1} />, always on the low side.
+Throughput sets the calendar: Llama 3 405B's 3.8 × 10²⁵ FLOPs at about 400
+TFLOP/s on each of 16,384 GPUs is <R k="systems.reliability.llama.computeDays" d={0} />
+days of uninterrupted compute.
+
+**Monitoring.** While a job runs, people watch a dashboard. The loss on each
+batch is noisy (each batch is different) and drifts down; the validation loss,
+scored now and then on held-out text (every 100 steps here, chapter 1), is the
+honest version. The gradient norm before clipping shows how hard each step
+pushes and flags trouble early: chapter 8's spikes start there. The
+update-to-weight ratio, how far a step moves the weights relative to their
+size, shows whether the learning rate is doing what was intended: below, it
+rises through the warmup from <R k="monitor.log.updateRatio.0" d={4} />, jumps
+when the model leaves chapter 1's plateau (near step 900, where one step's
+gradient norm spikes past the clipping threshold), and falls with the cosine decay to <R k="monitor.log.updateRatio.-1" d={5} /> at the last step (all parameters).
+Large runs also run downstream evaluations during training; Llama 3 used smaller
+runs to forecast its flagship model's benchmark scores before training it
+([Grattafiori et al. 2024](https://arxiv.org/abs/2407.21783), §3.2.1).
+
+<MonitorCharts />
+
+<span id="t-steps-to-loss" />
+**Steps (and time) to reach a target loss.** Two runs that end at the same loss
+can still differ in how fast they got there, and when a method changes the cost
+of each step (compressed communication, say), the fair comparison is not the
+final loss but the steps to reach a target loss chosen in advance, or the hours.
+Count the steps until the validation loss first falls to the target, checked at
+each evaluation (so the count is only as precise as the evaluation interval),
+and multiply by the time per step to get the time. The default run first reaches
+a validation loss of 2.8 at step <R k="monitor.stepsTo.t28" sep />, 2.6 at step
+<R k="monitor.stepsTo.t26" sep /> and 2.4 at step
+<R k="monitor.stepsTo.t24" sep />
+(evaluated every 50 steps). Chapter 13 compares ways of training over a slow
+link exactly this way, and so does the Compute in Transit results site.
+
+**Failures.** Over a 54-day period of Llama 3 405B's pre-training, the job was
+interrupted 466 times: 47 planned (maintenance) and 419 unexpected, about 78%
+of those hardware (faulty GPUs and their memory above all); only three needed
+significant manual intervention, and the job still spent more than 90% of its
+time training (Grattafiori et al. 2024, §3.3.4, Table 5). That is a failure
+every <R k="systems.reliability.llama.mtbfHours" d={1} /> hours for the job,
+even though each GPU fails only about once in <R k="systems.reliability.llama.gpuMtbfYears" d={0} /> years: a synchronous job
+fails when any one of its 16,384 GPUs does. The same report notes slow but
+working _stragglers_ as a harder problem: one slow GPU slows thousands of
+others, because every step waits for the slowest (chapter 13 simulates that).
+
+<span id="t-checkpoint" />
+**Checkpoints: saving and resuming a run.** A checkpoint is everything needed to
+carry on exactly where training stopped: the weights, the optimiser's state
+(AdamW's two moments for every weight and its step count), the position in the
+data (here, how many random draws the batch sampler has made), and the
+learning-rate schedule's step. Resume from all of it and the run continues as if
+it had never stopped: the reference trainer stopped at step
+<R k="resume.stop" sep /> and resumed this way matches the uninterrupted run bit
+for bit on every seed (checked: <R k="resume.bitIdentical" />
+). Drop the optimiser's state and the run continues from fresh moments: here it
+ended at <R k="resume.weights.mean" d={3} /> ± <R k="resume.weights.sd" d={3} />
+against <R k="resume.uninterrupted.mean" d={3} /> ±
+<R k="resume.uninterrupted.sd" d={3} />, a gap inside the spread over seeds;
+restart the data from the beginning instead and it sees its first batches twice
+(<R k="resume.freshData.mean" d={3} /> ± <R k="resume.freshData.sd" d={3} />
+). At scale a checkpoint is large: Llama 3 saved between 1 MB and 4 GB per GPU,
+and its storage fabric sustains 2 TB/s with bursty peaks of 7 TB/s, which
+checkpoint writes saturate (§3.3.1).
+
+<ResumeChart />
+
+**Goodput and the checkpoint interval.** Checkpoint often and the saves eat
+time; rarely, and each failure throws away more. With a failure every <R k="systems.reliability.llama.mtbfHours" d={1} /> hours, a checkpoint that
+takes <R k="systems.reliability.delta" d={0} /> s (every GPU writing 4 GB at
+2 TB/s, an upper bound from Llama 3's numbers) and a 10-minute restart (an
+illustrative figure: the paper gives none), the simulation's best interval is <R k="systems.reliability.bestTau" div={60} d={0} /> minutes, next to Young's
+classic $\tau^* = \sqrt{2\delta M}$ = <R k="systems.reliability.young" div={60} d={0} />
+minutes ([Young 1974](https://doi.org/10.1145/361147.361115)), and goodput peaks
+near <R k="systems.reliability.bestGoodput" pct d={0} />. Faster
+checkpoints and faster restarts move the peak up; reducing job start-up and
+checkpointing time is much of what Llama 3's team did to keep its effective
+training time above 90%.
+
+<GoodputChart />
+
+**Run it yourself on a GPU.** [Notebook 15 (open in Colab)](https://colab.research.google.com/github/BrendanJamesLynskey/transformer-explainer/blob/main/notebooks/15_throughput_mfu.ipynb)
+measures the throughput and MFU of a small GPT on one GPU, and checks that a
+run resumed from a checkpoint matches an uninterrupted one. GPU run pending:
+no number on this page comes from it yet.
+
+</Layer>
+
+<Layer kind="maths">
+
+**Young's interval.** With checkpoints every $\tau$ seconds of work, each
+taking $\delta$, and failures arriving at random at rate $1/M$, each failure
+loses on average half an interval of work plus a restart $R$. Per unit of
+useful work the overhead is about
+
+$$
+\frac{\delta}{\tau} + \frac{\tau/2 + R}{M},
+$$
+
+which is smallest where its derivative in $\tau$ vanishes:
+$-\delta/\tau^2 + 1/(2M) = 0$, so $\tau^* = \sqrt{2\,\delta\,M}$
+([Young 1974](https://doi.org/10.1145/361147.361115)). The simulation above
+draws the failures (exponential gaps, mean $M$) instead of averaging them;
+results.md §11c compares the two over 54 simulated days and 20 seeds.
+
+**The failure rate of a synchronous job** is the sum of its parts': $N$ GPUs
+each failing every $M_1$ on average make a job that fails every $M_1 / N$.
+
+</Layer>
+
+<Layer kind="code">
+
+The failure-and-checkpoint simulation, `src/lib/training/systems.ts` (a port
+of `scripts/training/systems.py`, matched to its fixtures):
+
+```ts
+const rng = mulberry32(seed);
+const nextFail = (now: number) => now + -Math.log(1 - rng()) * mtbf;
+let now = 0;
+let fail = nextFail(now);
+const segs: Segment[] = [];
+let failures = 0;
+while (now < horizon) {
+  const endWork = now + tau;
+  const endCkpt = endWork + delta;
+  if (fail >= endCkpt) {
+    segs.push({ kind: "work", start: now, end: endWork });
+    segs.push({ kind: "checkpoint", start: endWork, end: endCkpt });
+    now = endCkpt;
+    continue;
+  }
+  segs.push({ kind: "lost", start: now, end: fail });
+  failures++;
+  const rEnd = fail + restart;
+  segs.push({ kind: "restart", start: fail, end: rEnd });
+  now = rEnd;
+  fail = nextFail(now);
+}
+```
+
+</Layer>

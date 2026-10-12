@@ -27,6 +27,13 @@ const ANIMATIONS = [
   ["/training/08-stability", "attention-growth-animation"],
   ["/training/09-mixed-precision", "rounding-animation"],
   ["/training/10-memory", "memory-animation"],
+  // brief 29C
+  ["/training/11-data-parallelism", "ring-animation"],
+  ["/training/12-model-parallelism", "pipeline-animation"],
+  ["/training/13-slow-links", "demo-animation"],
+  ["/training/14-scaling-laws", "isoflop-animation"],
+  ["/training/15-running-a-real-job", "goodput-animation"],
+  ["/training/16-after-pretraining", "sft-animation"],
 ] as const;
 
 async function step(fig: Locator): Promise<number> {

@@ -42,8 +42,8 @@ const PAGES = [
   "/learn",
   ...SECTIONS.map((s) => `/learn/${s.slug}`),
   "/training",
-  // Part 2 chapters shipped so far (29A: 1-5, 29B: 6-10); later chapters join as they ship
-  ...TRAINING_SECTIONS.slice(0, 10).map((s) => `/training/${s.slug}`),
+  // all 16 Part 2 chapters (29A: 1-5, 29B: 6-10, 29C: 11-16)
+  ...TRAINING_SECTIONS.map((s) => `/training/${s.slug}`),
   "/training/corpus.txt",
   "/training/default-run-weights.json",
   "/training/attention-snapshots.json",

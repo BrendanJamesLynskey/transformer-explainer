@@ -903,3 +903,38 @@ attention-growth,rounding,memory}-steps.ts`), frame-tested against
 - µP transfer on the toy model is noisy (the plateau of chapter 1 ends at a
   different step in every run); the coordinate check carries the argument,
   and the GPU notebook is the real test.
+
+## Brief 29C — Part 2, Training: systems, slow links, scaling, the job, chapters 11–16 (2026-10-12)
+
+- [x] `scripts/training/systems.py` → `src/lib/training/systems.ts`: the
+      training-systems model (collectives on an α–β model, ring all-reduce
+      run chunk by chunk, ZeRO, memory per GPU under t/p/d/cp/ep, a
+      discrete-event pipeline simulation equal to the closed-form bubbles,
+      step time / MFU / HFU, failures and goodput, stragglers, M/D/1
+      queueing). Validated with one fitted constant against Megatron-LM
+      Table 1 (A100) and Llama 3 Table 4 (H100): band in results.md §11a.
+- [x] `slowlinks.py` → `slowlinks.ts`: four simulated workers synced by
+      dense AdamW, top-k with error feedback, DeMo and DiLoCo (H = 10, 50);
+      three learning rates × three seeds each; bytes on the wire. Dense with
+      4 × 4 windows = the default run (2e-12).
+- [x] `isoflop.py` (toy IsoFLOP sweep, fit rule fixed before the run),
+      `jobs.py` (dashboard signals, checkpoint-resume: bit-identical),
+      `anim_c.py` (six animations' states), `results_c.py` (groups sys,
+      ch13, ch14, ch15; CI matrix).
+- [x] Chapters 11–16 (`content/training/`), each opening with a
+      model-driven animation (ring all-reduce, pipeline, DeMo sync, IsoFLOP,
+      goodput week, SFT loss mask), plus the ZeRO calculator, the layout
+      explorer, the validation chart, the WAN time-to-target widget and the
+      measured charts.
+- [x] Notebooks 14 (IsoFLOP sweep) and 15 (throughput, MFU, exact resume),
+      smoke-tested in CI; GPU runs pending.
+- [x] CiT concept audit `--strict` in CI: 36/36 explained.
+- [x] Chapter 5's optimiser chart moved onto `LineChart` (phone drawing).
+
+**Deviations:**
+
+- Chapter 13's toy ranks the methods differently from the results site's
+  GPT (DeMo ends lowest here); the chapter says so and links the site.
+- The IsoFLOP sweep's small budgets have no interior minimum (larger widths
+  stay on chapter 1's plateau); the frontier is fitted on the budgets that
+  do, by a rule fixed before the sweep ran.

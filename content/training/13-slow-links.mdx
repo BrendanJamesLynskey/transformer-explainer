@@ -1,0 +1,209 @@
+Inside a data centre, chapter 11's gradient sync rides links of hundreds of gigabytes a second. Between data centres, or over ordinary networks, the link can be a thousand times slower, and sending the whole gradient every step stops being affordable. Below, four workers each compress their momentum DeMo's way, from the trained model, in your browser: each sends 4 numbers of every 64 and keeps the rest for later.
+
+<DemoSyncAnimation>
+  <Eq
+    label="DeMo, per worker: fold the gradient into the momentum, M becomes beta M plus g. Take the DCT of each chunk and keep its top k coefficients Q. Subtract what was sent from the momentum, which keeps the rest as error feedback. Gather every worker's Q, average and inverse-transform it to M star, and step by eta times the sign of M star plus weight decay"
+    tex="\begin{gathered} \htmlClass{hl-ef}{M_i \leftarrow \beta M_i + \htmlClass{hl-grad}{g_i}} \qquad \htmlClass{hl-topk}{Q_i = \operatorname{top}_k\!\big(\htmlClass{hl-dct}{\mathrm{DCT}}(M_i)\big)} \\ \htmlClass{hl-ef}{M_i \leftarrow M_i - \mathrm{IDCT}(Q_i)} \qquad \htmlClass{hl-agg}{M^* = \mathrm{IDCT}\big(\operatorname{mean}_i Q_i\big)} \\ \htmlClass{hl-sign}{\theta \leftarrow \theta - \eta\,\big(\operatorname{sign}(M^*) + \lambda\theta\big)} \end{gathered}"
+  />
+</DemoSyncAnimation>
+
+<Layer kind="concept">
+
+**This chapter is a toy, and says how far it is from the real thing.** Part 1's
+model has 5,376 parameters; here four simulated workers in one process each
+train it on four of the default run's sixteen windows per step, for 2,000
+steps, on one book, on a CPU, three seeds per setting. The
+[Compute in Transit results site](https://compute-in-transit-results.vercel.app)
+measured the same ideas on a 15.8-million-parameter GPT trained by eight
+simulated workers for 3,000 steps on TinyStories, on GPUs, and then simulated
+data-centre-scale links with those measurements. Its numbers, not these, say
+what works at scale; this chapter explains the mechanisms its pages rely on and
+shows them running on a model small enough to follow.
+
+<span id="t-wan" />
+**WAN and inter-data-centre bandwidth.** Inside a server, NVLink moves hundreds
+of gigabytes a second per GPU; across a data centre's network, tens (chapter
+11). A wide-area network (WAN) link between data centres is shared by a whole
+site and can offer each training job far less: a 100 GbE link is 12.5 GB/s for
+everything that crosses it. At those rates chapter 11's sum, step time equals
+compute plus communication, is dominated by the communication: LLaMA 7B's dense
+BF16 gradient (<R k="systems.collectives.bytes" div={1e9} d={1} /> GB) takes
+over a second to send at 12.5 GB/s, every step, before any other job shares the
+link. Training over slow links means sending less, sending less often, or both.
+
+<span id="t-top-k" />
+**Top-k sparsification.** Send only the $k$ largest values of a vector (and
+where they are), here 1 in 16 per tensor. Most of a gradient's coordinates are
+small at any one step, so most of the step survives. But each kept value needs
+its position too: for Part 1's model 2 bytes of BF16 value and 2 bytes of
+position, so 1 value in 16 costs 4/32 of the dense bytes, not 1/16. Deep
+Gradient Compression ([Lin et al. 2018](https://arxiv.org/abs/1712.01887)) does
+this to an accumulated momentum: each worker adds its gradient into a local
+momentum and an accumulator, sends the top 1/16 of the accumulator (that is
+<R k="slowLinks.rows.1.bytes.payload" sep /> bytes a step here, against
+<R k="slowLinks.rows.0.bytes.payload" sep /> for the dense gradient), and plain
+SGD steps with the average of what was sent.
+
+<span id="t-error-feedback" />
+**Error feedback (the residual).** What a compressor drops is not thrown away:
+each worker keeps it, the _residual_, and adds it to the next step's vector
+before compressing again. A coordinate too small to be sent this step keeps
+growing until it is large enough to be sent, so every update arrives eventually,
+only late. Without this, the steady small coordinates of the gradient would
+never be applied at all; with it, compressed SGD provably converges at the
+uncompressed rate in the long run (Stich et al. 2018, ["sparsified SGD with
+memory"](https://arxiv.org/abs/1809.07599); Karimireddy et al. 2019, ["error
+feedback fixes signSGD"](https://arxiv.org/abs/1901.09847)). 1-bit SGD ([Seide
+et al.
+2014](https://www.isca-archive.org/interspeech_2014/seide14_interspeech.html))
+had used the same trick to send one bit per gradient value. DeMo's momentum _is_
+its residual: the animation's second sync starts from a momentum that still
+holds what the first did not send.
+
+<span id="t-compressed-allgather" />
+**Why compressed vectors are all-gathered, not all-reduced.** A ring all-reduce
+(chapter 11) adds the workers' chunks as they pass, which needs every worker's
+vector to have the same layout. Top-k vectors don't: each worker picks its own
+positions (in the animation's chunk, worker 1 sends positions that worker 2 may
+not). So the workers all-gather instead: every worker receives every other
+worker's values and positions and adds them itself. A ring all-gather has each
+worker send its own payload and forward the other $(p-2)$, so a worker's bytes
+on the wire grow with the number of workers: with four workers DeMo's
+<R k="slowLinks.rows.2.bytes.payload" sep /> bytes of payload become
+<R k="slowLinks.rows.2.bytes.wire" sep /> on the wire, against the dense
+all-reduce's <R k="slowLinks.rows.0.bytes.wire" sep />. With eight workers the
+same payload costs 7 times itself, which is why the results site quotes both a
+payload ratio and a smaller wire ratio.
+
+<span id="t-demo" />
+**DeMo (decoupled momentum).** [Peng et al.
+(2024)](https://arxiv.org/abs/2411.19870) let each worker keep its own momentum
+instead of syncing gradients (Algorithm 1): fold the gradient into it, cut each
+tensor into chunks, take each chunk's discrete cosine transform (DCT), send the
+$k$ largest coefficients per chunk and subtract them from the momentum, so the
+rest stays behind as error feedback. The DCT rearranges a chunk into frequency
+components without losing anything (it is orthonormal: what is sent and what is
+kept add up to the whole, checked in the frame tests), and the momentum's large,
+slowly changing components tend to collect in a few coefficients, the "fast
+components" that get sent. Everyone then averages the coefficients gathered,
+transforms back, and steps by the _sign_ of the result. Here chunks are up to 64
+values, $k =$ 4 of them, values in BF16 and positions in one byte:
+<R k="slowLinks.rows.2.bytes.payload" sep /> bytes a step per worker.
+
+<span id="t-diloco" />
+**DiLoCo: syncing every H steps.** The other way to save bytes is to sync less
+often. In DiLoCo ([Douillard et al. 2023](https://arxiv.org/abs/2311.08105),
+Algorithm 1) each worker trains alone with AdamW for $H$ steps; then the workers
+average how far they moved (the "pseudo-gradient") and an outer optimiser,
+Nesterov momentum (learning rate 0.7, momentum 0.9, the paper's setting), moves
+the shared weights; then everyone starts the next $H$ steps from them. It sends
+the dense vector, but only once per $H$ steps:
+<R k="slowLinks.rows.3.bytes.wire" d={0} /> bytes a step on average at $H = 10$,
+<R k="slowLinks.rows.4.bytes.wire" d={0} /> at $H = 50$. Local SGD, its
+ancestor, is analysed by [Stich (2018)](https://arxiv.org/abs/1805.09767).
+
+**Measured on the toy.** Each method at the best of three learning rates
+(chapter 6: a sign step, a plain SGD step and Adam's normalised step want very
+different rates; the grid was placed by a one-seed pilot), three seeds, mean ±
+standard deviation of the final validation loss: dense AdamW <R k="slowLinks.rows.0.mean" d={3} /> ± <R k="slowLinks.rows.0.sd" d={3} />
+(lr <R k="slowLinks.rows.0.bestLr" />
+); top-k with error feedback <R k="slowLinks.rows.1.mean" d={3} /> ± <R k="slowLinks.rows.1.sd" d={3} />
+(lr <R k="slowLinks.rows.1.bestLr" />; at 3.0 every seed diverged); DeMo <R k="slowLinks.rows.2.mean" d={3} /> ± <R k="slowLinks.rows.2.sd" d={3} />
+(lr <R k="slowLinks.rows.2.bestLr" />, the top of its grid, so it might do
+better higher still); DiLoCo <R k="slowLinks.rows.3.mean" d={3} /> ± <R k="slowLinks.rows.3.sd" d={3} /> at $H = 10$ and <R k="slowLinks.rows.4.mean" d={3} /> ± <R k="slowLinks.rows.4.sd" d={3} /> at
+$H = 50$. Steps to a validation loss of <R k="slowLinks.target" />: dense <R k="slowLinks.rows.0.meanStepsToTarget" d={0} />, top-k <R k="slowLinks.rows.1.meanStepsToTarget" d={0} />, DeMo <R k="slowLinks.rows.2.meanStepsToTarget" d={0} /> (means over seeds); DiLoCo
+did not get there in every seed. On this toy the compressors leave chapter 1's
+plateau sooner than dense AdamW and DeMo ends lowest, while DiLoCo, whose
+workers each see only 4 windows a step between syncs, lags. **Do not read that
+order as general**: on the results site's GPT, dense AdamW ended lowest and
+DeMo's top-k some way behind it. A 5,376-parameter character model on one book
+is a different optimisation problem, and the compressors' big early steps
+(DeMo's are a full learning rate on every weight) suit its plateau.
+
+<SlowLinksCharts />
+
+**The step-time model.** Put the measured steps and bytes together with an
+assumed compute time and a link bandwidth and you get the time to reach a
+target. The widget below does that for the toy and, as an explicitly labelled
+extrapolation, for larger models (scaling the bytes with the parameter count
+and keeping the toy's steps, an assumption nothing here tests). Slide the
+bandwidth down and the dense all-reduce's time grows fastest, because it sends
+the most; the results site does the same arithmetic with its own measurements
+and a discrete-event simulation of the links.
+
+<WanPanel />
+
+<span id="t-queueing" />
+**Queueing on a shared link, and stragglers.** The step-time model assumes the
+link is the job's alone. A shared WAN carries other traffic, and a sync that
+arrives while the link is busy waits its turn. If other jobs' transfers arrive
+at random and the link is busy a fraction $\rho$ of the time, a newcomer waits
+on average $\rho/(2(1 - \rho))$ transfer-times for an M/D/1 queue (the
+Pollaczek–Khinchine formula): <R k="systems.queue.0.formula" d={2} /> at 30%
+load, <R k="systems.queue.2.formula" d={1} /> at 90% (a seeded simulation gives
+<R k="systems.queue.0.simulated" d={2} /> and
+<R k="systems.queue.2.simulated" d={1} />; results.md §11d). The wait grows
+without bound as the link fills, and it hurts most the methods that send most.
+Synchronous training has a second waiting problem: every step waits for the
+slowest worker, a _straggler_. With eight workers whose step times vary by a
+random 10% on average, the mean worker takes
+<R k="systems.stragglers.0.meanWorker" d={3} /> time units a step but
+synchronised steps take <R k="systems.stragglers.0.syncEveryStep" d={3} />;
+syncing every 10 steps, as DiLoCo does, waits for the slowest _sum_ of 10 steps
+instead: <R k="systems.stragglers.1.syncEveryH" d={3} /> per step (and
+<R k="systems.stragglers.2.syncEveryH" d={3} /> every 50). The results site's
+transit page shows the queueing effect on its recorded simulation runs.
+
+</Layer>
+
+<Layer kind="maths">
+
+**Top-k with error feedback** (DGC's form, per worker $i$, momentum $\mu$,
+compressor $C$ = keep the top $k$ of each tensor):
+
+$$
+u_i \leftarrow \mu u_i + g_i, \quad v_i \leftarrow v_i + u_i, \quad s_i = C(v_i), \quad v_i \leftarrow v_i - s_i, \quad \theta \leftarrow \theta - \eta \,\tfrac{1}{W}\textstyle\sum_i s_i
+$$
+
+(and $u_i$ is zeroed where $s_i$ was sent).
+
+**DiLoCo**, every $H$ inner steps, with the outer Nesterov momentum $b$:
+
+$$
+\Delta = \tfrac{1}{W}\textstyle\sum_i \big(\theta - \theta_i\big), \quad b \leftarrow \mu b + \Delta, \quad \theta \leftarrow \theta - \eta_{\text{out}}(\Delta + \mu b)
+$$
+
+**Bytes on the wire per worker per step**, $W$ workers, $P$ parameters, 2-byte
+values, payload $c$ bytes for a compressor:
+
+$$
+\text{dense: } 2\,\tfrac{W-1}{W}\,2P, \qquad \text{compressed (all-gather): } (W - 1)\,c, \qquad \text{DiLoCo: } 2\,\tfrac{W-1}{W}\,2P \,/\, H
+$$
+
+**M/D/1 waiting time** for a load $\rho$ of transfers each taking $s$:
+$W_q = \rho\,s / (2(1 - \rho))$.
+
+</Layer>
+
+<Layer kind="code">
+
+DeMo's compression of one chunk on one worker, from `demoSync` in
+`src/lib/training/slowlinks.ts` (a port of `scripts/training/slowlinks.py`,
+matched to its fixtures):
+
+```ts
+const ch = mom.slice(c * m, (c + 1) * m);
+const coef = dctForward(ch, D);
+const idx = topkIdx(coef, k);
+const q = new Array<number>(m).fill(0);
+const sent = idx.map((i) => coef[i]!);
+idx.forEach((i, j) => {
+  q[i] = sent[j]!;
+  total[c]![i] = total[c]![i]! + sent[j]!;
+  count[c]![i] = count[c]![i]! + 1;
+});
+const back = dctInverse(q, D);
+for (let i = 0; i < m; i++) resid[c * m + i] = ch[i]! - back[i]!;
+```
+
+</Layer>

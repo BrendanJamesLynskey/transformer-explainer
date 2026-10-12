@@ -43,6 +43,29 @@ import {
   type ScheduleState,
 } from "@/lib/anim/training/schedule-steps";
 import { LLAMA_7B, type MemEvent } from "@/lib/training/memory";
+import { demoCaption, demoStates } from "@/lib/anim/training/demo-steps";
+import {
+  goodputCaption,
+  goodputStates,
+} from "@/lib/anim/training/goodput-steps";
+import {
+  isoflopCaption,
+  type IsoRow,
+  type IsoState,
+} from "@/lib/anim/training/isoflop-steps";
+import {
+  pipelineCaption,
+  pipelineStates,
+} from "@/lib/anim/training/pipeline-steps";
+import { ringCaption, type RingState } from "@/lib/anim/training/ring-steps";
+import { sftCaption, sftStates } from "@/lib/anim/training/sft-steps";
+import type { DemoRecord } from "@/lib/training/slowlinks";
+import type { PipeResult, Segment } from "@/lib/training/systems";
+import demox from "../unit/fixtures/training/anim_demo.json";
+import goodx from "../unit/fixtures/training/anim_goodput.json";
+import isox from "../unit/fixtures/training/anim_isoflop.json";
+import pipex from "../unit/fixtures/training/anim_pipeline.json";
+import ringx from "../unit/fixtures/training/anim_ring.json";
 import { ALPHABET } from "@/lib/transformer/tokenizer";
 
 import results from "@/data/training/results.json";
@@ -67,12 +90,16 @@ const SHIPPED = [
   ["08-stability", "Stability"],
   ["09-mixed-precision", "Mixed precision"],
   ["10-memory", "Memory"],
+  ["11-data-parallelism", "Parallelism I: data"],
+  ["12-model-parallelism", "Parallelism II: model"],
+  ["13-slow-links", "Training over slow links"],
+  ["14-scaling-laws", "Scaling laws"],
+  ["15-running-a-real-job", "Running a real job"],
+  ["16-after-pretraining", "After pretraining"],
 ] as const;
 
 test.describe("Part 2 pages", () => {
-  test("the index lists 16 chapters; the shipped ones link", async ({
-    page,
-  }) => {
+  test("the index lists 16 chapters, every one linked", async ({ page }) => {
     await page.goto("/training");
     await expect(
       page.getByRole("heading", { name: "Training the decoder" }),
@@ -83,10 +110,7 @@ test.describe("Part 2 pages", () => {
         page.getByRole("link", { name: title, exact: true }),
       ).toHaveAttribute("href", `/training/${slug}`);
     }
-    await expect(page.getByText("coming soon")).toHaveCount(6);
-    await expect(
-      page.getByRole("link", { name: "Training over slow links" }),
-    ).toHaveCount(0);
+    await expect(page.getByText("coming soon")).toHaveCount(0);
   });
 
   test("the header has an Inference and a Training section, marked by route", async ({
@@ -122,13 +146,15 @@ test.describe("Part 2 pages", () => {
       page.getByRole("link", { name: /Learning rate, batch size/ }),
     ).toHaveAttribute("href", "/training/06-learning-rate-and-schedules");
     await page.goto("/training/10-memory");
-    // chapter 11 has not shipped: no next link
-    await expect(page.getByRole("link", { name: /Parallelism I/ })).toHaveCount(
-      0,
-    );
-    expect((await page.goto("/training/11-data-parallelism"))!.status()).toBe(
-      404,
-    );
+    await expect(
+      page.getByRole("link", { name: "Parallelism I: data →" }),
+    ).toHaveAttribute("href", "/training/11-data-parallelism");
+    await page.goto("/training/16-after-pretraining");
+    await expect(
+      page.getByText("Part 2 · Training · chapter 16 of 16"),
+    ).toBeVisible();
+    // the last chapter has no next link
+    await expect(page.locator("article nav a")).toHaveCount(1);
     expect((await page.goto("/training/not-a-chapter"))!.status()).toBe(404);
   });
 
@@ -432,5 +458,123 @@ test.describe("frame tests: the page's frames are scripts/training's", () => {
       "max",
       String(full.length - 1),
     );
+  });
+  // brief 29C
+  test("chapter 11 ring all-reduce", async ({ page }) => {
+    const fig = await open(
+      page,
+      "/training/11-data-parallelism",
+      "ring-animation",
+    );
+    const want = ringx.states as unknown as RingState[];
+    await expect(fig.getByTestId("scrub")).toHaveAttribute(
+      "max",
+      String(want.length - 1),
+    );
+    for (const k of keyFrames(want.length)) {
+      await show(fig, k);
+      await expect(fig.getByTestId("caption")).toHaveText(
+        ringCaption(want[k]!, 4, 16),
+      );
+    }
+    await expect(page.getByTestId("dp-calculator")).toBeVisible();
+  });
+
+  test("chapter 12 pipeline", async ({ page }) => {
+    const fig = await open(
+      page,
+      "/training/12-model-parallelism",
+      "pipeline-animation",
+    );
+    const r = (pipex as Record<string, unknown>)["1f1b"] as PipeResult;
+    const want = pipelineStates(r);
+    await expect(fig.getByTestId("scrub")).toHaveAttribute(
+      "max",
+      String(want.length - 1),
+    );
+    for (const k of keyFrames(want.length)) {
+      await show(fig, k);
+      await expect(fig.getByTestId("caption")).toHaveText(
+        pipelineCaption(want[k]!, r),
+      );
+    }
+    for (const id of ["layout-explorer", "validation-chart"])
+      await expect(page.getByTestId(id)).toBeVisible();
+  });
+
+  test("chapter 13 DeMo sync", async ({ page }) => {
+    const fig = await open(page, "/training/13-slow-links", "demo-animation");
+    const recs = demox.states as unknown as DemoRecord[];
+    const want = demoStates(recs);
+    for (const k of keyFrames(want.length)) {
+      await show(fig, k);
+      await expect(fig.getByTestId("caption")).toHaveText(
+        demoCaption(want[k]!, recs),
+      );
+    }
+    for (const id of ["slow-links-charts", "wan-widget"])
+      await expect(page.getByTestId(id)).toBeVisible();
+  });
+
+  test("chapter 14 IsoFLOP", async ({ page }) => {
+    const fig = await open(
+      page,
+      "/training/14-scaling-laws",
+      "isoflop-animation",
+    );
+    const want = isox.states as unknown as IsoState[];
+    const rows = results.isoflop.rows as unknown as IsoRow[];
+    for (const k of keyFrames(want.length)) {
+      await show(fig, k);
+      await expect(fig.getByTestId("caption")).toHaveText(
+        isoflopCaption(want[k]!, rows),
+      );
+    }
+  });
+
+  test("chapter 15 goodput", async ({ page }) => {
+    const fig = await open(
+      page,
+      "/training/15-running-a-real-job",
+      "goodput-animation",
+    );
+    const want = goodputStates(
+      goodx.sim.segments as Segment[],
+      goodx.params.horizon,
+    );
+    await expect(fig.getByTestId("scrub")).toHaveAttribute(
+      "max",
+      String(want.length - 1),
+    );
+    for (const k of keyFrames(want.length)) {
+      await show(fig, k);
+      await expect(fig.getByTestId("caption")).toHaveText(
+        goodputCaption(want[k]!),
+      );
+    }
+    for (const id of ["monitor-charts", "resume-chart", "goodput-chart"])
+      await expect(page.getByTestId(id)).toBeVisible();
+  });
+
+  test("chapter 16 SFT", async ({ page }) => {
+    const fig = await open(
+      page,
+      "/training/16-after-pretraining",
+      "sft-animation",
+    );
+    const x = results.sft;
+    const d = {
+      promptTokens: x.promptTokens,
+      responseTokens: x.responseTokens,
+      chosenTokens: x.pref.chosenTokens,
+      rejectedTokens: x.pref.rejectedTokens,
+    };
+    const want = sftStates(d);
+    for (const k of keyFrames(want.length)) {
+      await show(fig, k);
+      await expect(fig.getByTestId("caption")).toHaveText(
+        sftCaption(want[k]!, d),
+      );
+    }
   });
 });

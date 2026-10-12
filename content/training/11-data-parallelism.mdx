@@ -1,0 +1,191 @@
+One device trains Part 1's model in seconds; a frontier model would take one device centuries. The first way to share the work is to give every device a full copy of the model and a different slice of the batch, then make the copies agree. Below, four workers hold real gradients of the trained model, each from its own windows, and a ring sums them without any worker sending more than a fixed share of its vector.
+
+<RingAllReduceAnimation>
+  <Eq
+    label="Each worker sends p minus 1 over p of the vector M in the reduce-scatter and the same again in the all-gather: 2 times p minus 1 over p times M bytes, whatever p is. The time is 2 times p minus 1 latencies plus that many bytes over the link bandwidth B"
+    tex="\begin{gathered} \htmlClass{hl-rs}{\underbrace{\tfrac{p-1}{p}M}_{\text{reduce-scatter}}} + \htmlClass{hl-ag}{\underbrace{\tfrac{p-1}{p}M}_{\text{all-gather}}} = \htmlClass{hl-wire}{2\,\tfrac{p-1}{p}\,M} \text{ bytes sent per worker} \\ t = 2(p-1)\,\alpha + 2\,\tfrac{p-1}{p}\,\tfrac{M}{B} \end{gathered}"
+  />
+</RingAllReduceAnimation>
+
+<Layer kind="concept">
+
+<span id="t-data-parallel" />
+**Data parallelism.** Every worker (a GPU, or a whole machine) holds a full copy
+of the model, [Part 1's decoder](/learn/01-overview) here, and gets its own
+share of each batch. Each runs the forward and backward passes of chapters 1 and
+4 on its share; then the workers' gradients are averaged and every copy takes
+the same optimiser step, so the copies stay identical. The average of $W$
+workers' mean gradients over $B/W$ windows each is exactly the mean gradient
+over the whole batch of $B$: data parallelism changes where the arithmetic
+happens, not what it computes. Checked on the model: chapter 13's four simulated
+workers with four windows each, averaging their gradients, end the default run
+at a validation loss of <R k="slowLinks.rows.0.perLr.1.finals.0" d={6} />; the
+default run, sixteen windows on one worker, at
+<R k="defaultRun.evals.-1.val" d={6} /> (the additions happen in a different
+order, so the last bits differ). More workers means a bigger batch per step, and
+chapter 6's critical batch size says how far that helps.
+
+<span id="t-all-reduce" />
+**All-reduce, and the ring.** Averaging the gradients is a _collective_
+operation called an _all-reduce_: every worker starts with its own vector and
+ends with the sum (or mean) of all of them. The naive way, everyone sending its
+whole gradient to one worker, makes that worker's link the bottleneck. The ring
+all-reduce in the animation does better: cut each vector into $p$ chunks; in
+$(p-1)$ _reduce-scatter_ steps each worker passes one chunk to its neighbour,
+which adds it to its own, until each worker holds the finished sum of one chunk;
+in $(p-1)$ _all-gather_ steps the finished chunks go round the ring until
+everyone has all of them. Each worker sends $2(p-1)/p$ of its vector, no more
+than twice the vector however many workers there are, which is the least any
+all-reduce can send ([Patarasuk & Yuan
+2009](https://doi.org/10.1016/j.jpdc.2008.09.002)). What does grow with the ring
+is the number of steps, $2(p-1)$, each paying a link's latency $\alpha$. For
+LLaMA 7B's gradient (that is <R k="systems.collectives.bytes" div={1e9} d={1} />
+GB in BF16), a ring all-reduce over the 8 GPUs of one H100 server's NVLink takes
+<R k="systems.collectives.rows.0.time" d={3} /> s by this site's systems model,
+over 64 GPUs on the network <R k="systems.collectives.rows.4.time" d={2} /> s; a
+binary tree, which climbs $\log_2 p$ levels up and down instead, has fewer
+latency hops but, done naively (each level waiting for the whole vector), takes
+<R k="systems.collectives.rows.5.time" d={1} /> s on the same 64 GPUs. Real
+libraries pipeline both.
+
+<span id="t-all-gather" />
+**All-gather, and why its bytes grow with the workers.** An all-gather is the
+second half of a ring all-reduce on its own: every worker contributes a piece
+and ends up with everyone's pieces. Inside an all-reduce the pieces are chunks
+of one sum, added on the way. That only works when every worker's vector has the
+same layout, as dense gradients do. If each worker sends something different,
+say the 1 value in 16 it judged most important, with its position (chapter 13),
+the pieces cannot be added as they pass: each must arrive whole. A ring
+all-gather then has each worker send its own piece and forward the other
+workers' pieces, $(p-1)$ pieces in all, so the bytes each worker sends grow in
+proportion to the number of workers, where an all-reduce's stay below twice the
+vector. That is why compressing a gradient 16-fold saves far less than 16-fold
+on the wire once there are many workers.
+
+<span id="t-wire-bytes" />
+**Payload and bytes on the wire.** Two numbers describe a sync. The _payload_ is
+what a worker originates: its dense gradient is 2 bytes per parameter in BF16
+(chapter 9), so LLaMA 7B's is
+<R k="systems.collectives.bytes" div={1e9} d={1} /> GB. The _wire_ bytes are
+what it actually sends in the collective, forwarding included: for a ring
+all-reduce $2(p-1)/p$ times the payload (that is
+<R k="systems.collectives.rows.4.wire" div={1e9} d={1} /> GB per GPU among 64);
+for an all-gather of compressed payloads $(p - 1)$ times the payload. Link time
+follows the wire bytes, not the payload; the Compute in Transit results site
+quotes both, and so does chapter 13.
+
+**ZeRO and FSDP: stop every worker holding everything.** Chapter 10 counted 16
+bytes per parameter for mixed-precision Adam: weights, gradients, two moments
+and an FP32 master copy, all replicated on every data-parallel worker. ZeRO
+([Rajbhandari et al. 2020](https://arxiv.org/abs/1910.02054)) shards them
+instead: stage 1 gives each of $d$ workers $1/d$ of the optimiser states (each
+updates only its own slice of the weights), stage 2 also shards the gradients
+(a reduce-scatter instead of an all-reduce: each worker receives only its
+slice's sum), stage 3 also shards the weights themselves, all-gathering each
+layer's weights just before it is needed. PyTorch's FSDP ([Zhao et al. 2023](https://arxiv.org/abs/2304.11277))
+is stage 3. For LLaMA 7B over 64 GPUs, the model states per GPU fall from <R k="systems.zero.rows.4.total" div={1e9} d={1} /> GB (no sharding) to <R k="systems.zero.rows.5.total" div={1e9} d={1} /> GB (stage 1), <R k="systems.zero.rows.6.total" div={1e9} d={1} /> GB (stage 2) and <R k="systems.zero.rows.7.total" div={1e9} d={1} /> GB (stage 3). Stages 1 and 2
+send no more than plain data parallelism (a reduce-scatter and an all-gather are
+an all-reduce cut in two); stage 3 sends half as much again, because the weights
+are all-gathered once more in the backward pass (that is <R k="systems.zero.rows.7.wire" div={1e9} d={1} /> GB per GPU per step instead
+of <R k="systems.zero.rows.4.wire" div={1e9} d={1} />
+).
+
+<DataParallelPanel />
+
+<span id="t-step-time" />
+**Step time = compute + communication, and overlap.** A data-parallel step costs
+the compute of the forward and backward passes plus the time to sync the
+gradients. Nothing forces the sync to wait for the whole backward pass: the last
+layer's gradients are ready first, so frameworks send them in buckets while the
+backward pass is still working on earlier layers (PyTorch DDP, [Li et al.
+2020](https://arxiv.org/abs/2006.15704)). When the communication fits inside the
+remaining backward pass, roughly two thirds of the compute, it costs nothing
+extra. One step of LLaMA 7B on 64 H100s with
+<R k="systems.dpExample.tokens" sep /> tokens, by the systems model: compute
+<R k="systems.dpExample.compute" d={2} /> s, gradient all-reduce
+<R k="systems.dpExample.data" d={2} /> s; <R k="systems.dpExample.time" d={2} />
+s per step if the sync waits, <R k="systems.dpExample.overlapped" d={2} /> s if
+it overlaps. The same arithmetic over a much slower link is chapter 13's
+subject: there the communication outgrows the compute and no overlap can hide
+it.
+
+<span id="t-mfu" />
+**MFU: model FLOPs utilisation.** How well a cluster is used is measured as
+_model FLOPs utilisation_ ([Chowdhery et al.
+2022](https://arxiv.org/abs/2204.02311), PaLM, §4.1 and App. B): the
+floating-point operations the model needs per second (about $6N$ per token for
+$N$ parameters, plus attention's $12\,L\,H\,Q\,T$, counted from the tokens
+actually processed) divided by the hardware's peak. Recomputed activations
+(chapter 10) don't count, so MFU compares systems fairly; counting them gives
+_hardware_ FLOPs utilisation. PaLM 540B reached 46.2% MFU on 6,144 TPU v4 chips;
+Llama 3 405B reached 38–43% on up to 16,384 H100s ([Grattafiori et al.
+2024](https://arxiv.org/abs/2407.21783), §3.3.2); Megatron-LM's
+1-trillion-parameter run reached 52% of peak counting recomputation ([Narayanan
+et al. 2021](https://arxiv.org/abs/2104.04473)). In the LLaMA 7B example the
+step's MFU is <R k="systems.dpExample.mfu" pct d={1} /> with the sync waiting
+and <R k="systems.dpExample.mfuOverlapped" pct d={1} /> with it overlapped: the
+second is the systems model's ceiling, its fitted matrix-multiply efficiency
+$\eta = $ <R k="systems.validation.eta" d={3} /> (chapter 12 shows where that
+number comes from and how well the model predicts published runs).
+
+</Layer>
+
+<Layer kind="maths">
+
+**The α–β model.** Sending $n$ bytes over a link costs $\alpha + n/B$: a fixed
+latency and the bytes over the bandwidth. For $p$ ranks and a vector of $M$
+bytes:
+
+$$
+\begin{aligned}
+t_{\text{ring all-reduce}} &= 2(p-1)\,\alpha + 2\,\tfrac{p-1}{p}\,\tfrac{M}{B} \\
+t_{\text{reduce-scatter}} = t_{\text{all-gather}} &= (p-1)\,\alpha + \tfrac{p-1}{p}\,\tfrac{M}{B} \\
+t_{\text{tree, not pipelined}} &= 2\,\lceil \log_2 p \rceil\,(\alpha + M/B)
+\end{aligned}
+$$
+
+**ZeRO's model states per worker** for $\Psi$ parameters over $d$ workers (2
+bytes of weights, 2 of gradients, $K = 12$ of optimiser state):
+
+$$
+(2 + 2 + K)\Psi \;\to\; 4\Psi + \tfrac{K\Psi}{d} \;\to\; 2\Psi + \tfrac{(2 + K)\Psi}{d} \;\to\; \tfrac{(2 + 2 + K)\Psi}{d}
+$$
+
+**MFU** for a step that processes $D$ tokens in time $t$ on $n$ devices of peak
+$P$:
+
+$$
+\text{MFU} = \frac{D\,(6N + 12\,L\,H\,Q\,T)}{t \cdot n \cdot P}
+$$
+
+</Layer>
+
+<Layer kind="code">
+
+The collectives of the systems model, `src/lib/training/systems.ts` (a port of
+`scripts/training/systems.py`, matched to its fixtures):
+
+```ts
+export function collective(
+  kind: CollectiveKind,
+  size: number,
+  p: number,
+  bw: number,
+  alpha: number,
+): { time: number; wire: number } {
+  if (p <= 1) return { time: 0, wire: 0 };
+  const f = (p - 1) / p;
+  if (kind === "allreduce")
+    return {
+      time: (2 * f * size) / bw + 2 * (p - 1) * alpha,
+      wire: 2 * f * size,
+    };
+  if (kind === "tree") {
+    const hops = Math.ceil(Math.log2(p));
+    return { time: 2 * hops * (alpha + size / bw), wire: 2 * size };
+  }
+  return { time: (f * size) / bw + (p - 1) * alpha, wire: f * size };
+}
+```
+
+</Layer>

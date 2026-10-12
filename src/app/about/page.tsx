@@ -179,6 +179,50 @@ export default function AboutPage(): JSX.Element {
             training text, lower-cased to the 64-character alphabet.
           </li>
           <li>
+            Narayanan et al., 2021 —{" "}
+            <a
+              href="https://arxiv.org/abs/2104.04473"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Efficient Large-Scale Language Model Training on GPU Clusters
+              Using Megatron-LM
+            </a>
+            , and Grattafiori et al., 2024 —{" "}
+            <a
+              href="https://arxiv.org/abs/2407.21783"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              The Llama 3 Herd of Models
+            </a>
+            . The published runs the training-systems model
+            (`lib/training/systems.ts`) is checked against.
+          </li>
+          <li>
+            Peng et al., 2024 —{" "}
+            <a
+              href="https://arxiv.org/abs/2411.19870"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              DeMo: Decoupled Momentum Optimization
+            </a>
+            , and Douillard et al., 2023 —{" "}
+            <a
+              href="https://arxiv.org/abs/2311.08105"
+              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              DiLoCo: Distributed Low-Communication Training of Language Models
+            </a>
+            . Training over slow links, in `lib/training/slowlinks.ts`.
+          </li>
+          <li>
             3blue1brown —{" "}
             <a
               href="https://www.3blue1brown.com/topics/neural-networks"

@@ -19,6 +19,8 @@ concurrency:
 #     checks and fixtures) and `cit-concept-audit`.
 #   - Brief 29B split `training-reference` into one job per results group
 #     (chapters 6-10's experiments) and added the notebooks' smoke runs.
+#   - Brief 29C added the groups sys, ch13, ch14, ch15 (chapters 11-16) and
+#     made the CiT concept audit strict.
 
 jobs:
   lint-and-typecheck:
@@ -87,11 +89,14 @@ jobs:
     runs-on: ubuntu-latest
     # one job per group of results (brief 29B): "base" is 29A's checks,
     # fixtures and runs; ch6a … ch10 are chapters 6-10's experiments, each a
-    # few minutes on one core, run in parallel
+    # few minutes on one core, run in parallel; brief 29C adds sys (the
+    # training-systems model, seconds), ch13 (slow links, ~20 min), ch14
+    # (the IsoFLOP sweep, ~40 min) and ch15 (monitor and resume, ~2 min)
     strategy:
       fail-fast: false
       matrix:
-        group: [base, ch6a, ch6b, ch7a, ch7b, ch8, ch9, ch10]
+        group:
+          [base, ch6a, ch6b, ch7a, ch7b, ch8, ch9, ch10, sys, ch13, ch14, ch15]
     steps:
       - uses: actions/checkout@v4
 
@@ -126,9 +131,10 @@ jobs:
           python-version: "3.12"
 
       # Every training concept the Compute in Transit results site relies
-      # on must be explained by a shipped Training chapter (offline: the term
-      # list is committed; chapters not shipped yet are reported as pending).
-      - run: python scripts/cit_concept_audit.py
+      # on must be explained by a Training chapter (offline: the term list
+      # is committed). --strict (brief 29C, all 16 chapters shipped): a
+      # pending concept fails too.
+      - run: python scripts/cit_concept_audit.py --strict
 
   e2e-tests:
     name: E2E Tests

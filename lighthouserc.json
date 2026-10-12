@@ -18,7 +18,10 @@
         "http://localhost:3000/training/04-backprop",
         "http://localhost:3000/training/06-learning-rate-and-schedules",
         "http://localhost:3000/training/08-stability",
-        "http://localhost:3000/training/09-mixed-precision"
+        "http://localhost:3000/training/09-mixed-precision",
+        "http://localhost:3000/training/11-data-parallelism",
+        "http://localhost:3000/training/13-slow-links",
+        "http://localhost:3000/training/15-running-a-real-job"
       ],
       "numberOfRuns": 3
     },

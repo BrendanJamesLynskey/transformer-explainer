@@ -28,6 +28,7 @@ export function R({
   d,
   pct,
   sep,
+  div,
 }: {
   k: string;
   /** decimals */
@@ -36,11 +37,13 @@ export function R({
   pct?: boolean;
   /** thousands separators */
   sep?: boolean;
+  /** divide by this first (e.g. 1e9 to print bytes as GB, 3600 seconds as hours) */
+  div?: number;
 }): JSX.Element {
   const v = lookup(k);
   let s: string;
   if (typeof v === "number") {
-    const x = pct ? v * 100 : v;
+    const x = (pct ? v * 100 : v) / (div ?? 1);
     s = sep
       ? x.toLocaleString("en-GB", { maximumFractionDigits: d ?? 0 })
       : d !== undefined
