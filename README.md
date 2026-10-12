@@ -39,9 +39,8 @@ hub (Transformer Architecture sub-area) and is referenced from the
 full-stack reference application.
 
 It is the first of a family of companion sites, linked from every page's
-header in two groups. The "LLM systems" group (Decoder · Inference ·
-Architectures · Kernels · Numerics · Silicon · Trade-offs · Compute in
-transit):
+header in three groups. The "Inference" group (Decoder · Inference ·
+Architectures · Kernels · Numerics · Silicon · Trade-offs):
 [LLM Inference Explained](https://llm-inference-explained.vercel.app/)
 shows how a model is served,
 [LLM Architectures Explained](https://llm-architectures-explained.vercel.app/)
@@ -53,15 +52,17 @@ the number formats and quantisation behind it,
 [Systolic Arrays Explained](https://systolic-arrays-explained.vercel.app/)
 the matrix hardware of TPUs,
 [Inference Trade-offs Explained](https://inference-tradeoffs-explained.vercel.app/)
-which serving lever helps which metric, and the
-[Compute in Transit results](https://compute-in-transit-results.vercel.app/)
-an investigation of computing on gradients in the network. The "Agents" group starts with
+which serving lever helps which metric. The "Training" group holds this
+site's own second part, Training, marked "soon" until it ships. The "Agents"
+group starts with
 [Agent Harnesses Explained](https://agent-harnesses-explained.vercel.app/),
 the loop, tools, context and permissions that turn a model into an agent;
 then [Agent Protocols Explained](https://agent-protocols-explained.vercel.app/),
 MCP and A2A on the wire;
 then [Agent Context Explained](https://agent-context-explained.vercel.app/),
-retrieval, memory and context engineering; three more agent sites are marked "soon".
+retrieval, memory and context engineering;
+then [Agent Orchestration Explained](https://agent-orchestration-explained.vercel.app/),
+graphs, multi-agent patterns and durable execution; two more agent sites are marked "soon".
 
 ## What you can do
 

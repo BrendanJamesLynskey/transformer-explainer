@@ -25,7 +25,10 @@
  *   - any page is not a 200 (redirects count as failures, so a page that
  *     bounces to sign-in is caught too);
  *   - the comment list is not a 200 `{ ok: true }`, or has no visible
- *     comment with rendered HTML.
+ *     comment with rendered HTML;
+ *   - the home page's header lacks the three-group site switch (with
+ *     Orchestration linked), or links Compute in transit, which this site's
+ *     switch leaves out (`hideOn` in SiteSwitch.tsx).
  *
  * Needs no secrets and touches no database directly.
  */
@@ -75,6 +78,36 @@ async function checkHealth(base: string): Promise<Result> {
         ? ` schema=${d.schema.status} ${d.schema.applied}/${d.schema.expected}`
         : "");
     return { path, ok: res.status === 200 && d?.healthy === true, detail };
+  } catch (err) {
+    return { path, ok: false, detail: (err as Error).message };
+  }
+}
+
+/** Markers the site switch must (and must not) put in the home page's HTML. */
+const SWITCH_PRESENT = [
+  'data-site-switch="full"',
+  'data-site-switch="compact"',
+  'data-site-group="training"',
+  'href="https://agent-orchestration-explained.vercel.app"',
+];
+const SWITCH_ABSENT = ["compute-in-transit-results.vercel.app"];
+
+async function checkSwitch(base: string): Promise<Result> {
+  const path = "/ (site switch)";
+  try {
+    const res = await fetch(base + "/", { redirect: "manual" });
+    const html = await res.text();
+    const missing = SWITCH_PRESENT.filter((m) => !html.includes(m));
+    const present = SWITCH_ABSENT.filter((m) => html.includes(m));
+    const ok =
+      res.status === 200 && missing.length === 0 && present.length === 0;
+    return {
+      path,
+      ok,
+      detail: ok
+        ? "200 three groups, no Compute in transit"
+        : `${res.status} missing [${missing.join(", ")}] unexpected [${present.join(", ")}]`,
+    };
   } catch (err) {
     return { path, ok: false, detail: (err as Error).message };
   }
@@ -145,6 +178,7 @@ async function main(): Promise<void> {
 
   const results = [await checkHealth(base)];
   for (const path of PAGES) results.push(await checkPage(base, path));
+  results.push(await checkSwitch(base));
   if (commentsSection !== "none") {
     results.push(await checkComments(base, commentsSection));
   }
