@@ -43,11 +43,15 @@ OPT_TOL = 1e-12
 # ---------------------------------------------------------------------------
 # The same forward pass written with torch ops (float64), for autograd.
 # ---------------------------------------------------------------------------
-def torch_loss(tp: dict, config: dict, ids: np.ndarray, targets: np.ndarray):
+def torch_loss(tp: dict, config: dict, ids: np.ndarray, targets: np.ndarray, with_z: bool = True):
+    """The model (and its 29B variants: post-LN, RMSNorm, QK-norm, muP's
+    scales, z-loss) written independently with torch ops, for autograd."""
     H = config["n_heads"]
     B, S = ids.shape
     D = config["d_model"]
     dk = D // H
+    rms = config.get("norm_kind", "layer") == "rms"
+    post = config.get("norm", "pre") == "post"
     E = tp["tok_emb"]
     pe = torch.tensor(M.positional_encoding(S, D))
     x = E[torch.tensor(ids)] + pe
@@ -57,26 +61,50 @@ def torch_loss(tp: dict, config: dict, ids: np.ndarray, targets: np.ndarray):
         var = v.var(-1, keepdim=True, unbiased=False)
         return (v - mu) / torch.sqrt(var + M.EPS) * g + b
 
+    def norm(v, prefix):
+        if rms:
+            return v / torch.sqrt((v * v).mean(-1, keepdim=True) + M.EPS) * tp[f"{prefix}.gamma"]
+        return ln(v, tp[f"{prefix}.gamma"], tp[f"{prefix}.beta"])
+
+    base = config.get("mup_base")
+    scale = 1 / math.sqrt(dk) * math.sqrt((base // H) / dk) if base else 1 / math.sqrt(dk)
     mask = torch.triu(torch.ones(S, S, dtype=torch.bool), 1)
-    for i in range(config["n_blocks"]):
-        p = f"block_{i}"
-        a_in = ln(x, tp[f"{p}.ln1.gamma"], tp[f"{p}.ln1.beta"])
+
+    def attn(a_in, p):
         Q = (a_in @ tp[f"{p}.attn.W_q"]).view(B, S, H, dk).transpose(1, 2)
         K = (a_in @ tp[f"{p}.attn.W_k"]).view(B, S, H, dk).transpose(1, 2)
         V = (a_in @ tp[f"{p}.attn.W_v"]).view(B, S, H, dk).transpose(1, 2)
-        sc = (Q @ K.transpose(-1, -2)) / math.sqrt(dk)
+        if config.get("qk_norm"):
+            Q = ln(Q, tp[f"{p}.attn.q_norm.gamma"], tp[f"{p}.attn.q_norm.beta"])
+            K = ln(K, tp[f"{p}.attn.k_norm.gamma"], tp[f"{p}.attn.k_norm.beta"])
+        sc = (Q @ K.transpose(-1, -2)) * scale
         P = torch.softmax(sc.masked_fill(mask, float("-inf")), -1)
         C = (P @ V).transpose(1, 2).reshape(B, S, D)
-        h = x + C @ tp[f"{p}.attn.W_o"]
-        f_in = ln(h, tp[f"{p}.ln2.gamma"], tp[f"{p}.ln2.beta"])
+        return C @ tp[f"{p}.attn.W_o"]
+
+    def ffn(f_in, p):
         pre = f_in @ tp[f"{p}.ffn.W1"] + tp[f"{p}.ffn.b1"]
         act = torch.nn.functional.gelu(pre, approximate="tanh")
-        x = h + act @ tp[f"{p}.ffn.W2"] + tp[f"{p}.ffn.b2"]
-    xf = ln(x, tp["ln_final.gamma"], tp["ln_final.beta"])
+        return act @ tp[f"{p}.ffn.W2"] + tp[f"{p}.ffn.b2"]
+
+    for i in range(config["n_blocks"]):
+        p = f"block_{i}"
+        if post:
+            h = norm(x + attn(x, p), f"{p}.ln1")
+            x = norm(h + ffn(h, p), f"{p}.ln2")
+        else:
+            h = x + attn(norm(x, f"{p}.ln1"), p)
+            x = h + ffn(norm(h, f"{p}.ln2"), p)
+    xf = norm(x, "ln_final")
     logits = xf @ E.T
-    return torch.nn.functional.cross_entropy(
-        logits.reshape(-1, logits.shape[-1]), torch.tensor(targets).reshape(-1)
-    )
+    if base:
+        logits = logits * (base / D)
+    flat = logits.reshape(-1, logits.shape[-1])
+    ce = torch.nn.functional.cross_entropy(flat, torch.tensor(targets).reshape(-1))
+    if with_z and config.get("z_loss"):
+        lse = torch.logsumexp(flat, -1)
+        ce = ce + config["z_loss"] * (lse * lse).mean()
+    return ce
 
 
 def perturbed(params: dict, seed: int) -> dict:
@@ -108,6 +136,7 @@ def check_autograd(params: dict, config: dict, ids, targets) -> dict:
     tp = {k: torch.tensor(v, requires_grad=True) for k, v in params.items()}
     tl = torch_loss(tp, config, ids, targets)
     tl.backward()
+    tl = torch_loss({k: v.detach() for k, v in tp.items()}, config, ids, targets, with_z=False)
     worst, per = 0.0, {}
     for k in params:
         tg = tp[k].grad.numpy()
@@ -128,9 +157,9 @@ def check_finite_differences(params: dict, config: dict, ids, targets, per_tenso
         for j in picks:
             orig = flat[j]
             flat[j] = orig + FD_H
-            lp = M.loss_only(params, config, ids, targets)
+            lp = M.objective(params, config, ids, targets)
             flat[j] = orig - FD_H
-            lm = M.loss_only(params, config, ids, targets)
+            lm = M.objective(params, config, ids, targets)
             flat[j] = orig
             fd = (lp - lm) / (2 * FD_H)
             ours = grads[k].reshape(-1)[j]
@@ -196,3 +225,35 @@ def check_cosine_schedule(total=200, warmup=0, lr=0.01, min_ratio=0.1) -> dict:
         opt.step()
         sch.step()
     return {"steps": total, "max_abs_err": worst, "ok": worst <= 1e-15}
+
+
+def check_rounding(seed: int = 0, n: int = 20000) -> dict:
+    """precision.round_array (vectorised) against precision.round_to (the
+    Numerics site's bit-exact scalar code), in every format, with and
+    without saturation: random values over 60 binades, and for the FP8
+    formats every value, every midpoint between neighbours and overflow.
+    Equal means the same double with the same sign (any NaN equals NaN)."""
+    import precision as P
+
+    rng = np.random.default_rng(seed)
+    out, worst = {}, 0
+    for fid in P.FORMAT_ORDER:
+        f = P.INFO[fid]
+        xs = list(rng.standard_normal(n) * np.exp(rng.uniform(-30, 30, n)))
+        if f["bits"] == 8:
+            vals = P.positive_values(fid)
+            mids = [(a + b) / 2 for a, b in zip(vals, vals[1:])]
+            xs += vals + mids + [-v for v in vals + mids]
+        xs += [f["max"], f["max"] * 1.0625, f["max"] * 1.5, f["min_sub"] / 2, f["min_sub"] * 0.75,
+               0.0, -0.0, math.inf, -math.inf]
+        xs = np.array(xs)
+        bad = 0
+        for sat in (False, True):
+            a = P.round_array(xs, fid, sat)
+            b = np.array([P.round_to(float(v), fid, sat) for v in xs])
+            nan = np.isnan(a) & np.isnan(b)
+            same = nan | ((a == b) & (np.signbit(a) == np.signbit(b)))
+            bad += int((~same).sum())
+        out[fid] = {"values": int(2 * len(xs)), "mismatches": bad}
+        worst = max(worst, bad)
+    return {"formats": out, "max_mismatches": worst, "ok": worst == 0}

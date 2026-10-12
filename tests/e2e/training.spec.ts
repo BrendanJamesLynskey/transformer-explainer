@@ -12,6 +12,11 @@ import hx from "../unit/fixtures/training/anim_hero.json";
 import ox from "../unit/fixtures/training/anim_objective.json";
 import qx from "../unit/fixtures/training/anim_optim2d.json";
 import tx from "../unit/fixtures/training/train_run.json";
+import ax from "../unit/fixtures/training/anim_attention.json";
+import dx from "../unit/fixtures/training/anim_depth.json";
+import mx from "../unit/fixtures/training/anim_memory.json";
+import rx from "../unit/fixtures/training/anim_rounding.json";
+import sx from "../unit/fixtures/training/anim_schedules.json";
 
 import { bpeCaption, type BpeState } from "@/lib/anim/training/bpe-steps";
 import { heroCaption, type HeroState } from "@/lib/anim/training/hero-steps";
@@ -23,7 +28,24 @@ import {
   optim2dCaption,
   type Optim2dState,
 } from "@/lib/anim/training/optim2d-steps";
+import {
+  attentionGrowthCaption,
+  type AttentionGrowthState,
+} from "@/lib/anim/training/attention-growth-steps";
+import { depthCaption, type DepthState } from "@/lib/anim/training/depth-steps";
+import { memoryCaption } from "@/lib/anim/training/memory-steps";
+import {
+  roundingCaption,
+  type RoundingState,
+} from "@/lib/anim/training/rounding-steps";
+import {
+  scheduleCaption,
+  type ScheduleState,
+} from "@/lib/anim/training/schedule-steps";
+import { LLAMA_7B, type MemEvent } from "@/lib/training/memory";
 import { ALPHABET } from "@/lib/transformer/tokenizer";
+
+import results from "@/data/training/results.json";
 
 function errors(page: Page): string[] {
   const out: string[] = [];
@@ -40,6 +62,11 @@ const SHIPPED = [
   ["03-objective", "The objective"],
   ["04-backprop", "Backprop through the model"],
   ["05-optimisers", "Optimisers"],
+  ["06-learning-rate-and-schedules", "Learning rate, batch size and schedules"],
+  ["07-init-norm-mup", "Initialisation, normalisation and µP"],
+  ["08-stability", "Stability"],
+  ["09-mixed-precision", "Mixed precision"],
+  ["10-memory", "Memory"],
 ] as const;
 
 test.describe("Part 2 pages", () => {
@@ -56,7 +83,7 @@ test.describe("Part 2 pages", () => {
         page.getByRole("link", { name: title, exact: true }),
       ).toHaveAttribute("href", `/training/${slug}`);
     }
-    await expect(page.getByText("coming soon")).toHaveCount(11);
+    await expect(page.getByText("coming soon")).toHaveCount(6);
     await expect(
       page.getByRole("link", { name: "Training over slow links" }),
     ).toHaveCount(0);
@@ -91,13 +118,17 @@ test.describe("Part 2 pages", () => {
       page.getByRole("link", { name: "← The training loop" }),
     ).toHaveAttribute("href", "/training/01-training-loop");
     await page.goto("/training/05-optimisers");
-    // chapter 6 has not shipped: no next link
     await expect(
       page.getByRole("link", { name: /Learning rate, batch size/ }),
-    ).toHaveCount(0);
-    expect(
-      (await page.goto("/training/06-learning-rate-and-schedules"))!.status(),
-    ).toBe(404);
+    ).toHaveAttribute("href", "/training/06-learning-rate-and-schedules");
+    await page.goto("/training/10-memory");
+    // chapter 11 has not shipped: no next link
+    await expect(page.getByRole("link", { name: /Parallelism I/ })).toHaveCount(
+      0,
+    );
+    expect((await page.goto("/training/11-data-parallelism"))!.status()).toBe(
+      404,
+    );
     expect((await page.goto("/training/not-a-chapter"))!.status()).toBe(404);
   });
 
@@ -302,5 +333,104 @@ test.describe("frame tests: the page's frames are scripts/training's", () => {
       );
     }
     await expect(page.getByTestId("optimizer-runs")).toBeVisible();
+  });
+  test("chapter 6 schedules", async ({ page }) => {
+    const fig = await open(
+      page,
+      "/training/06-learning-rate-and-schedules",
+      "schedule-animation",
+    );
+    const want = sx.states as unknown as ScheduleState[];
+    const names = results.schedules.rows.map((r) => r.name);
+    await expect(fig.getByTestId("scrub")).toHaveAttribute(
+      "max",
+      String(want.length - 1),
+    );
+    for (const k of keyFrames(want.length)) {
+      await show(fig, k);
+      await expect(fig.getByTestId("caption")).toHaveText(
+        scheduleCaption(want[k]!, names),
+      );
+    }
+    for (const id of ["lr-sweep-chart", "batch-size-chart"])
+      await expect(page.getByTestId(id)).toBeVisible();
+  });
+
+  test("chapter 7 depth", async ({ page }) => {
+    const fig = await open(
+      page,
+      "/training/07-init-norm-mup",
+      "depth-animation",
+    );
+    for (const std of ["0.25", "0.02"]) {
+      await fig
+        .getByRole("combobox", { name: /Initial standard deviation/ })
+        .selectOption(std);
+      const want = (dx.stds as Record<string, unknown[]>)[std] as DepthState[];
+      for (const k of keyFrames(want.length)) {
+        await show(fig, k);
+        await expect(fig.getByTestId("caption")).toHaveText(
+          depthCaption(want[k]!),
+        );
+      }
+    }
+    for (const id of ["pre-post-chart", "coord-check-chart", "mup-chart"])
+      await expect(page.getByTestId(id)).toBeVisible();
+  });
+
+  test("chapter 8 attention growth", async ({ page }) => {
+    const fig = await open(
+      page,
+      "/training/08-stability",
+      "attention-growth-animation",
+    );
+    const want = ax.states as unknown as AttentionGrowthState[];
+    for (const k of keyFrames(want.length)) {
+      await show(fig, k);
+      await expect(fig.getByTestId("caption")).toHaveText(
+        attentionGrowthCaption(want[k]!),
+      );
+    }
+    await expect(page.getByTestId("bad-batch-chart")).toBeVisible();
+  });
+
+  test("chapter 9 rounding", async ({ page }) => {
+    const fig = await open(
+      page,
+      "/training/09-mixed-precision",
+      "rounding-animation",
+    );
+    const want = rx.states as unknown as RoundingState[];
+    for (const k of keyFrames(want.length)) {
+      await show(fig, k);
+      await expect(fig.getByTestId("caption")).toHaveText(
+        roundingCaption(want[k]!),
+      );
+    }
+    await expect(page.getByTestId("precision-chart")).toBeVisible();
+  });
+
+  test("chapter 10 memory", async ({ page }) => {
+    const fig = await open(page, "/training/10-memory", "memory-animation");
+    const c = mx.cases.find(
+      (x) => x.arch.name === "LLaMA 7B" && x.recompute === "none",
+    )!;
+    const want = c.states as unknown as MemEvent[];
+    for (const k of keyFrames(want.length)) {
+      await show(fig, k);
+      await expect(fig.getByTestId("caption")).toHaveText(
+        memoryCaption(want[k]!, LLAMA_7B),
+      );
+    }
+    await fig
+      .getByRole("combobox", { name: "Activation recomputation" })
+      .selectOption("full");
+    const full = mx.cases.find(
+      (x) => x.arch.name === "LLaMA 7B" && x.recompute === "full",
+    )!.states as unknown as MemEvent[];
+    await expect(fig.getByTestId("scrub")).toHaveAttribute(
+      "max",
+      String(full.length - 1),
+    );
   });
 });

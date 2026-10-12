@@ -5,6 +5,11 @@ results every number on the /training pages comes from.
 
     .venv-fixtures/bin/python scripts/training/make_fixtures.py          # write everything
     .venv-fixtures/bin/python scripts/training/make_fixtures.py --check  # CI: recompute, compare
+    ... make_fixtures.py --groups ch6a,ch8            # recompute (or --check) some groups only
+
+Groups (CI runs one job per group, in parallel): "base" is brief 29A's
+checks, fixtures, default run and optimiser comparison; the rest are brief
+29B's experiments (GROUPS below), each about 2-8 minutes on one CPU core.
 
 Writes:
   tests/unit/fixtures/training/*.json   fixtures for tests/unit/training/*
@@ -53,7 +58,9 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import anim  # noqa: E402
+import anim_b as AB  # noqa: E402
 import checks as C  # noqa: E402
+import experiments as X  # noqa: E402
 import data as D  # noqa: E402
 import model as M  # noqa: E402
 import optim as O  # noqa: E402
@@ -63,6 +70,7 @@ FIX = ROOT / "tests" / "unit" / "fixtures" / "training"
 RESULTS_JSON = ROOT / "src" / "data" / "training" / "results.json"
 RESULTS_MD = ROOT / "results.md"
 CHECKPOINT = ROOT / "public" / "training" / "default-run-weights.json"
+SNAPSHOTS = ROOT / "public" / "training" / "attention-snapshots.json"
 
 PART1 = dict(M.PART1_CONFIG)
 
@@ -378,6 +386,117 @@ def strip(checks: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Brief 29B's experiments (chapters 6-10), by group
+# ---------------------------------------------------------------------------
+GROUPS = {
+    "ch6a": ["lrSweep", "schedules"],
+    "ch6b": ["batchSize", "noiseScale"],
+    "ch7a": ["depthScale", "prePost", "normKind", "coordCheck"],
+    "ch7b": ["mupTransfer"],
+    "ch8": ["badBatch", "attnGrowth", "attnRun"],
+    "ch9": ["precision"],
+    "ch10": ["gradQuant", "memory", "gradRounding"],
+}
+ALL_GROUPS = ["base"] + list(GROUPS)
+
+
+def results_b(ids, groups) -> tuple[dict, dict | None]:
+    """The results.json keys of the 29B groups asked for, and (group ch8)
+    the high-learning-rate run's weight snapshots."""
+    out: dict = {}
+    snap = None
+    if "ch6a" in groups:
+        out["lrSweep"] = X.lr_sweep(ids)
+        out["schedules"] = X.schedules(ids)
+    if "ch6b" in groups:
+        out["batchSize"] = X.batch_size(ids)
+        out["noiseScale"] = X.noise_scale(ids)
+    if "ch7a" in groups:
+        out["depthScale"] = [{"std": s, "pre": X.depth_scale(s, "pre"), "post": X.depth_scale(s, "post")}
+                             for s in X.DEPTH_STDS]
+        out["prePost"] = X.pre_post(ids)
+        out["normKind"] = X.norm_kind(ids)
+        out["coordCheck"] = X.coord_check(ids)
+    if "ch7b" in groups:
+        out["mupTransfer"] = X.mup_transfer(ids)
+    if "ch8" in groups:
+        out["badBatch"] = X.bad_batch(ids)
+        out["attnGrowth"] = X.attention_growth(ids)
+        snap = X.attention_snapshots(ids)
+        out["attnRun"] = {"steps": snap["steps"], "evals": snap["evals"], "stats": snap["stats"]}
+    if "ch9" in groups:
+        out["precision"] = X.precision_runs(ids)
+    if "ch10" in groups:
+        out["gradQuant"] = X.grad_quant(ids)
+        out["memory"] = X.memory_results(ids)
+    return out, snap
+
+
+def post_ln_fixture(ids) -> dict:
+    """Post-LN (chapter 7): loss and gradients of a 4-block post-LN model at
+    initialisation and perturbed, for src/lib/training/model-grad.ts. The
+    reference's post-LN gradients are checked against autograd here too."""
+    cfg = dict(PART1, n_blocks=4, norm="post")
+    train, _ = D.split(ids)
+    x, y = D.sample_batch(train, 3, PART1["seq_len"], M.mulberry32(11))
+    p0 = M.init_params(cfg)
+    pp = C.perturbed(p0, 1)
+    cases = []
+    for name, params in (("init", p0), ("perturbed", pp)):
+        a = C.check_autograd(params, cfg, x, y)
+        if not a["ok"]:
+            sys.exit(f"post-LN autograd check failed: {a['max_scaled_err']}")
+        loss, grads, _ = M.loss_and_grads(params, cfg, x, y)
+        case = {"name": name, "loss": float(loss), "grads": {k: tolist(v) for k, v in grads.items()}}
+        if name == "perturbed":
+            case["params"] = {k: tolist(v) for k, v in params.items()}
+        cases.append(case)
+    return {"config": cfg, "inputs": x.tolist(), "targets": y.tolist(), "cases": cases}
+
+
+def rounding_fixture(n: int = 400, seed: int = 3) -> dict:
+    """Values and their rounding to every format (precision.round_to, the
+    Numerics site's code) for src/lib/training/rounding.ts: random values
+    over 50 binades, every FP8 value and midpoint, the edges."""
+    import precision as Pr
+
+    rng = np.random.default_rng(seed)
+    xs = [float(v) for v in rng.standard_normal(n) * np.exp(rng.uniform(-25, 25, n))]
+    for fid in ("e4m3", "e5m2"):
+        vals = Pr.positive_values(fid)
+        xs += vals + [(a + b) / 2 for a, b in zip(vals, vals[1:])]
+    xs += [65504.0, 65520.0, 1e6, -1e6, 2.0 ** -24, 2.0 ** -25, 3 * 2.0 ** -26, 0.0]
+    out = {}
+    for fid in Pr.FORMAT_ORDER:
+        out[fid] = [Pr.round_to(x, fid) for x in xs]
+        out[fid + "_sat"] = [Pr.round_to(x, fid, True) for x in xs]
+    def enc(v: float):  # JSON has no infinities or NaN
+        if v != v:
+            return "nan"
+        if math.isinf(v):
+            return "inf" if v > 0 else "-inf"
+        return v
+
+    return {"xs": xs, "rounded": {k: [enc(v) for v in vs] for k, vs in out.items()}}
+
+
+def snapshot_file(snap: dict) -> dict:
+    return {
+        "note": "Part 1's model during the baseline run at peak learning rate 0.1 (results.md §8), "
+                "9 significant digits; chapter 8's animation runs the site's forward pass on them.",
+        "config": PART1, "steps": snap["steps"],
+        "params": {str(t): {k: tolist(v) for k, v in AB.snapshot_round(snap["params"][t]).items()}
+                   for t in snap["steps"]},
+    }
+
+
+def load_snapshots(payload: dict) -> dict:
+    return {"steps": payload["steps"],
+            "params": {int(t): {k: np.array(v, dtype=np.float64) for k, v in p.items()}
+                       for t, p in payload["params"].items()}}
+
+
+# ---------------------------------------------------------------------------
 # Writing and checking
 # ---------------------------------------------------------------------------
 def jsonable(x):
@@ -419,8 +538,93 @@ RULES = [
     (r"optimizerCompare\[\d+\]\.(meanEvals\[\d+\]|runs\[\d+\]\.evals\[\d+\]\.val)$", ("skip", 0)),
     (r"optimizerCompare\[\d+\]\.", ("abs", 0.25)),
     (r"results\.json\.(defaultRun|derived)\.", ("rel", 1e-6)),
+    # brief 29B. The same story for its sweeps, only more so: whether a run
+    # leaves chapter 1's plateau, and when, depends on last bits, so on
+    # another CPU a single seed's final loss moved by up to 0.35, a step
+    # count by a factor of 2, and one run at learning rate 1.0 diverged
+    # (measured in CI, 2026-10-12). So per-seed values, curves, spreads and
+    # divergence flags are not compared; the means over seeds are sanity-
+    # checked; and the claims the chapters make are re-checked on the
+    # recomputed numbers (CLAIMS below). The deterministic parts (depth
+    # scale, the 10-step coordinate check, the noise scale along the default
+    # run, memory, rounding) are checked tightly.
+    (r"\.(lrSweep|schedules|prePost|normKind|mupTransfer|attnGrowth|precision|gradQuant|badBatch|batchSize)\."
+     r"(.*\.)?(runs|finals|perLr|stats|meanStats|evals|meanEvals|steps|before|after|final)(\[\d+\])?(\.|$)", ("skip", 0)),
+    (r"\.(sd|diverged|divergedAt|skipped|gradFlushedToZero|updatesLost|bestLr)$", ("skip", 0)),
+    (r"\.(lrSweep|schedules|prePost|normKind|mupTransfer|attnGrowth|precision|gradQuant)\..*\.mean$", ("abs", 0.35)),
+    (r"\.batchSize\.(rows|fit)", ("skip", 0)),
+    (r"\.attnRun\.", ("skip", 0)),
+    (r"attention-snapshots\.json\.params\.", ("skip", 0)),
+    (r"\.noiseScale\.", ("rel", 1e-4)),
+    (r"\.coordCheck\.", ("rel", 1e-7)),
     (r"default-run-weights\.json\.params\.", ("abs", 1e-6)),
 ]
+
+
+def _rows(r, key, **match):
+    return [x for x in r[key]["rows"] if all(x.get(k) == v for k, v in match.items())]
+
+
+def _mean(r, key, **match):
+    return _rows(r, key, **match)[0]["mean"]
+
+
+# What chapters 6-10 claim about the chaotic experiments, re-checked on the
+# recomputed numbers in CI (each claim is robust to the CPU drift above:
+# the margins are several times the spread over seeds). A claim whose
+# experiment group was not recomputed is skipped.
+CLAIMS = [
+    ("lrSweep", "the best peak learning rate is 0.01 or 0.03",
+     lambda r: r["lrSweep"]["bestLr"] in (0.01, 0.03)),
+    ("lrSweep", "lr 0.001 is still on the plateau (> 2.9) and 1.0 learns far less than 0.01",
+     lambda r: _mean(r, "lrSweep", lr=0.001) > 2.9
+     and (_mean(r, "lrSweep", lr=1.0) is None or _mean(r, "lrSweep", lr=1.0) > _mean(r, "lrSweep", lr=0.01) + 0.3)),
+    ("schedules", "every schedule leaves the plateau (mean < 2.6)",
+     lambda r: all(x["mean"] < 2.6 for x in r["schedules"]["rows"])),
+    ("batchSize", "64 windows need under half the steps of 4 windows, and B_crit is between 2 and 100 windows",
+     lambda r: r["batchSize"]["rows"][-1]["steps"] < 0.5 * r["batchSize"]["rows"][0]["steps"]
+     and 2 < r["batchSize"]["fit"]["bCrit"] < 100),
+    ("noiseScale", "the noise scale grows over the run",
+     lambda r: r["noiseScale"]["points"][-1]["bSimple"] > 10 * r["noiseScale"]["points"][0]["bSimple"]),
+    ("prePost", "post-LN without warmup stays on the plateau (> 2.9); pre-LN without warmup trains (< 2.6)",
+     lambda r: _mean(r, "prePost", norm="post", warmup=0) > 2.9 and _mean(r, "prePost", norm="pre", warmup=0) < 2.6),
+    ("normKind", "RMSNorm trains as well as LayerNorm (within 0.2)",
+     lambda r: _mean(r, "normKind", kind="rms") < _mean(r, "normKind", kind="layer") + 0.2),
+    ("coordCheck", "the logits move > 2.5x more at width 256 than 16 under SP, and within 10% under muP",
+     lambda r: r["coordCheck"]["sp"][-1]["logitsDelta"] > 2.5 * r["coordCheck"]["sp"][0]["logitsDelta"]
+     and abs(r["coordCheck"]["mup"][-1]["logitsDelta"] / r["coordCheck"]["mup"][0]["logitsDelta"] - 1) < 0.1),
+    ("mupTransfer", "at width 64, muP's best mean beats the standard parameterisation's best",
+     lambda r: min(x["mean"] for x in _rows(r, "mupTransfer", param="mup", width=64))
+     < min(x["mean"] for x in _rows(r, "mupTransfer", param="sp", width=64))),
+    ("badBatch", "unclipped momentum diverges after the bad batch in every seed; clipped and skipped runs finish below 2.6",
+     lambda r: all(v is None for v in r["badBatch"]["rows"][0]["final"])
+     and all(v is not None and v < 2.6 for row in r["badBatch"]["rows"][1:3] for v in row["final"])),
+    ("attnGrowth", "at lr 0.1 the baseline's largest score exceeds 1,000 and QK-norm's stays under 100; QK-norm's loss is lower by > 0.2",
+     lambda r: _rows(r, "attnGrowth", lr=0.1, name="baseline")[0]["meanStats"][-1]["maxScore"] > 1000
+     and _rows(r, "attnGrowth", lr=0.1, name="QK-norm")[0]["meanStats"][-1]["maxScore"] < 100
+     and _mean(r, "attnGrowth", lr=0.1, name="QK-norm") < _mean(r, "attnGrowth", lr=0.1, name="baseline") - 0.2),
+    ("precision", "FP32, BF16 with master weights and FP16 with loss scaling end within 0.15 of float64; unscaled FP8 stays on the plateau",
+     lambda r: all(abs(_mean(r, "precision", name=n) - _mean(r, "precision", name="float64 (reference)")) < 0.15
+                   for n in ("FP32", "BF16, FP32 master weights", "FP16, dynamic loss scaling"))
+     and _mean(r, "precision", name="FP8 (E4M3 / E5M2), no scaling") > 2.85),
+    ("gradQuant", "2-bit gradients end worse than 8-bit ones",
+     lambda r: _mean(r, "gradQuant", bits=2) > _mean(r, "gradQuant", bits=8) + 0.2),
+]
+
+
+def check_claims(r: dict) -> list[str]:
+    """The CLAIMS whose experiment is in r that do not hold."""
+    bad = []
+    for key, text, ok in CLAIMS:
+        if key in r:
+            try:
+                good = bool(ok(r))
+            except (TypeError, KeyError, IndexError):
+                good = False
+            print(f"  claim {'OK  ' if good else 'FAIL'} {key}: {text}")
+            if not good:
+                bad.append(f"claim does not hold: {key}: {text}")
+    return bad
 
 
 def rule_for(path: str):
@@ -430,11 +634,21 @@ def rule_for(path: str):
     return "default", ("rel", 1e-9)
 
 
+def _num(x) -> bool:
+    return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+
 def compare(a, b, path="", problems=None, stats=None):
     """Numbers by RULES (with a 1e-12 absolute floor), the rest exactly.
     `stats[rule] = largest difference seen`, printed by --check."""
     if problems is None:
         problems = []
+    if rule_for(path)[1][0] == "skip" and path.split(".")[-1].split("[")[0] not in ("checks",):
+        # chaotic values (RULES): not compared at all, even in shape
+        if stats is not None and _num(a) and _num(b):
+            name = rule_for(path)[0]
+            stats[name] = max(stats.get(name, 0.0), abs(a - b))
+        return problems
     if isinstance(a, dict) and isinstance(b, dict):
         if set(a) != set(b):
             problems.append(f"{path}: keys differ {sorted(set(a) ^ set(b))}")
@@ -446,11 +660,14 @@ def compare(a, b, path="", problems=None, stats=None):
             problems.append(f"{path}: length {len(a)} != {len(b)}")
         for i, (x, y) in enumerate(zip(a, b)):
             compare(x, y, f"{path}[{i}]", problems, stats)
-    elif isinstance(a, float) or isinstance(b, float):
-        if a is None or b is None:
-            problems.append(f"{path}: {a} != {b}")
-            return problems
+    elif (isinstance(a, float) or isinstance(b, float)
+          or (_num(a) and _num(b) and rule_for(path)[0] != "default")
+          or ((a is None) != (b is None) and rule_for(path)[1][0] == "skip")):
         name, (kind, tol) = rule_for(path)
+        if a is None or b is None:
+            if kind != "skip":
+                problems.append(f"{path}: {a} != {b}")
+            return problems
         d = abs(a - b)
         if stats is not None:
             stats[name] = max(stats.get(name, 0.0), d if kind == "abs" else d / max(1e-300, max(abs(a), abs(b))))
@@ -464,34 +681,79 @@ def compare(a, b, path="", problems=None, stats=None):
     return problems
 
 
-def build(ids, text, window_params=None) -> tuple[dict, dict]:
-    """Every output file. `window_params`: the weights chapters 3 and 4 use
-    (default: this run's final weights; --check passes the committed ones,
-    so those fixtures are checked exactly whatever the long run's drift)."""
-    grads_fix, checks_g = gradients_fixture(ids)
-    opt_fix, checks_o = optimizers_fixture(ids)
-    bpe = bpe_fixture(text)
-    files = {
-        FIX / "gradients.json": grads_fix,
-        FIX / "optimizers.json": opt_fix,
-        FIX / "schedules.json": schedules_fixture(),
-        FIX / "bpe.json": bpe,
-        FIX / "train_run.json": train_fixture(ids),
-    }
-    for name, payload in anim.fixtures(ids, text).items():
-        files[FIX / name] = payload
-    res = results(ids, checks_g, checks_o, bpe)
-    trained = res.pop("defaultRunParams")
+def build(ids, text, groups, check: bool) -> tuple[dict, dict]:
+    """The output files of the groups asked for. results.json's payload
+    holds only those groups' keys (main merges or compares them).
+
+    With `check`, what is derived from a long, chaotic run is rebuilt from
+    the committed files instead of this machine's recomputation, so it is
+    checked exactly whatever the run's drift: chapters 3, 4 and 9's
+    fixtures from the committed default-run weights, chapter 6's from the
+    committed schedule runs, chapter 8's from the committed snapshots."""
+    files: dict = {}
+    checks: dict = {}
+    res: dict = {}
+    committed = json.loads(RESULTS_JSON.read_text()) if RESULTS_JSON.exists() else {}
+    trained = None
+    if "base" in groups:
+        grads_fix, checks_g = gradients_fixture(ids)
+        opt_fix, checks_o = optimizers_fixture(ids)
+        checks_o["rounding"] = C.check_rounding()
+        bpe = bpe_fixture(text)
+        files.update({
+            FIX / "gradients.json": grads_fix,
+            FIX / "optimizers.json": opt_fix,
+            FIX / "schedules.json": schedules_fixture(),
+            FIX / "bpe.json": bpe,
+            FIX / "train_run.json": train_fixture(ids),
+        })
+        for name, payload in anim.fixtures(ids, text).items():
+            files[FIX / name] = payload
+        res = results(ids, checks_g, checks_o, bpe)
+        trained = res.pop("defaultRunParams")
+        files[CHECKPOINT] = {
+            "note": "Part 1's model after the default training run (results.md), trained by "
+                    "scripts/training/make_fixtures.py; chapter 1 trains the same run in the browser.",
+            "config": PART1, "steps": DEFAULT_TRAIN["steps"],
+            "params": {k: tolist(v) for k, v in trained.items()},
+        }
+        checks = {"gradients": checks_g, "optimizers": checks_o}
+    if check or trained is None:
+        ck = json.loads(CHECKPOINT.read_text())
+        trained = {k: np.array(v, dtype=np.float64) for k, v in ck["params"].items()}
+    if "base" in groups:
+        for name, payload in anim.window_fixtures(trained).items():
+            files[FIX / name] = payload
+    rb, snap = results_b(ids, groups)
+    res.update(rb)
     files[RESULTS_JSON] = res
-    files[CHECKPOINT] = {
-        "note": "Part 1's model after the default training run (results.md), trained by "
-                "scripts/training/make_fixtures.py; chapter 1 trains the same run in the browser.",
-        "config": PART1, "steps": DEFAULT_TRAIN["steps"],
-        "params": {k: tolist(v) for k, v in trained.items()},
-    }
-    for name, payload in anim.window_fixtures(trained if window_params is None else window_params).items():
-        files[FIX / name] = payload
-    return files, {"gradients": checks_g, "optimizers": checks_o}
+    if snap is not None:
+        files[SNAPSHOTS] = snapshot_file(snap)
+    # chapters 6-10's animation fixtures
+    if "ch6a" in groups:
+        sched = committed["schedules"] if check else rb["schedules"]
+        files[FIX / "anim_schedules.json"] = {"states": AB.schedule_states(sched)}
+    if "ch7a" in groups:
+        files[FIX / "gradients_post.json"] = post_ln_fixture(ids)
+        files[FIX / "anim_depth.json"] = {"depth": X.DEPTH, "text": X.DEPTH_TEXT,
+                                         "stds": {str(s): AB.depth_states(s) for s in X.DEPTH_STDS}}
+    if "ch8" in groups:
+        payload = json.loads(SNAPSHOTS.read_text()) if check else jsonable(files[SNAPSHOTS])
+        run = committed["attnRun"] if check else rb["attnRun"]
+        sn = load_snapshots(payload)
+        sn["evals"] = run["evals"]
+        files[FIX / "anim_attention.json"] = {"text": AB.ATTN_TEXT, "block": AB.ATTN_BLOCK,
+                                             "head": AB.ATTN_HEAD, "states": AB.attention_states(sn)}
+    if "ch10" in groups:
+        files[FIX / "rounding.json"] = rounding_fixture()
+        res["gradRounding"] = [{k: st[k] for k in ("fmt", "scaleExp", "nonzero", "zero", "overflow", "meanRelErr")}
+                               for st in AB.rounding_states(trained)]
+        files[FIX / "anim_rounding.json"] = {"text": AB.GRAD_TEXT, "lo": AB.HIST_LO, "hi": AB.HIST_HI,
+                                            "states": AB.rounding_states(trained)}
+        files[FIX / "anim_memory.json"] = {"recipe": AB.MIXED, "cases": [
+            {"arch": a, "recompute": r, "states": AB.memory_states(a, r)}
+            for a in (AB.MEM.LLAMA_7B, AB.MEM.PART1_MEM) for r in ("none", "selective", "full")]}
+    return files, checks
 
 
 def all_ok(checks: dict) -> list[str]:
@@ -512,19 +774,22 @@ def render_committed_md() -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--groups", default=",".join(ALL_GROUPS),
+                    help=f"comma-separated subset of {ALL_GROUPS}")
     args = ap.parse_args()
+    groups = [g for g in args.groups.split(",") if g]
+    unknown = set(groups) - set(ALL_GROUPS)
+    if unknown:
+        sys.exit(f"unknown groups {sorted(unknown)}; choose from {ALL_GROUPS}")
     torch.set_default_dtype(torch.float64)
     text = D.load_corpus()
     ids = M.encode_chars(text)
-    window_params = None
-    if args.check:
-        ck = json.loads(CHECKPOINT.read_text())
-        window_params = {k: np.array(v, dtype=np.float64) for k, v in ck["params"].items()}
-    files, checks = build(ids, text, window_params)
+    t0 = time.time()
+    files, checks = build(ids, text, groups, args.check)
+    print(f"groups {groups}: computed in {time.time() - t0:.0f} s")
     bad = all_ok(checks)
     import results_md  # noqa: E402
 
-    md = results_md.render(files[RESULTS_JSON])
     if bad:
         sys.exit(f"correctness checks FAILED: {bad}")
     if args.check:
@@ -532,11 +797,18 @@ def main() -> None:
         stats: dict[str, float] = {}
         for path, payload in files.items():
             committed = json.loads(path.read_text())
+            if path == RESULTS_JSON:
+                missing = set(payload) - set(committed)
+                if missing:
+                    problems.append(f"results.json lacks {sorted(missing)}")
+                committed = {k: committed[k] for k in payload if k in committed}
             compare(jsonable(payload), committed, str(path.relative_to(ROOT)), problems, stats)
         print("largest difference from the committed files, by rule (abs, or rel for 'rel' rules):")
         for rx, (kind, tol) in RULES + [("default", ("rel", 1e-9))]:
             if rx in stats:
                 print(f"  {stats[rx]:.3e}  ({kind} {tol})  {rx}")
+        print("the chapters' claims, on the recomputed numbers:")
+        problems += check_claims(jsonable(files[RESULTS_JSON]))
         committed_md = render_committed_md()
         if RESULTS_MD.read_text() != committed_md:
             problems.append("results.md is not the rendering of the committed results.json")
@@ -550,11 +822,21 @@ def main() -> None:
             sys.exit(f"{len(problems)} differences from the committed files")
         print(f"check OK: {len(files)} files agree; all correctness checks pass")
         return
+    # write: merge the groups computed into the committed results.json
+    res = files.pop(RESULTS_JSON)
+    if set(groups) != set(ALL_GROUPS) and RESULTS_JSON.exists():
+        merged = json.loads(RESULTS_JSON.read_text())
+        merged.update(jsonable(res))
+        res = merged
+    files[RESULTS_JSON] = res
+    bad = check_claims(jsonable(res))
+    if bad:
+        print("WARNING: " + "; ".join(bad))
     for path, payload in files.items():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(dump(payload))
         print(f"wrote {path.relative_to(ROOT)}")
-    RESULTS_MD.write_text(md)
+    RESULTS_MD.write_text(results_md.render(jsonable(res)))
     print(f"wrote {RESULTS_MD.relative_to(ROOT)}")
 
 

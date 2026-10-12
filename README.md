@@ -122,8 +122,9 @@ model's behaviour.
 
 ## Part 2: Training
 
-Chapters 1–5 of 16 are live (brief 29A; the rest follow). How the numbers
-are made:
+Chapters 1–10 of 16 are live (1–5: brief 29A; 6–10, learning rate and
+schedules, initialisation and µP, stability, mixed precision and memory:
+brief 29B; the rest follow). How the numbers are made:
 
 - **A reference trainer** in `scripts/training/` (NumPy float64): Part 1's
   model with a hand-written backward pass for every operation. Its
@@ -142,6 +143,23 @@ are made:
   written by `scripts/training/make_fixtures.py`, seeded and recomputed in
   CI. The animations' states are frame-tested against the reference
   (`tests/unit/training/anim-frames.test.ts`, `tests/e2e/training.spec.ts`).
+- **Chapters 6–10's experiments** (`scripts/training/experiments.py`):
+  learning-rate sweep, schedules, batch size and gradient noise scale,
+  pre-LN vs post-LN, LayerNorm vs RMSNorm, a µP coordinate check and width
+  sweep, a bad batch and attention-logit growth with their cures, emulated
+  BF16/FP16/FP8 training and quantised gradients, and the memory model.
+  Each setting runs three seeds and the pages quote mean ± standard
+  deviation: at high learning rates training is chaotic, and a single run
+  moves by about 0.1 between CPUs. Low precision is emulated by rounding
+  (`scripts/training/precision.py`, the number formats vendored from the
+  [Numerics site](https://github.com/BrendanJamesLynskey/numerics-explained),
+  MIT, same author; `src/lib/training/rounding.ts` in the browser).
+- **GPU notebooks** (`notebooks/*.ipynb`, Colab): the same comparisons at
+  GPU scale (µP width sweep, attention-logit growth, mixed precision,
+  activation checkpointing). Each runs a tiny `SMOKE=1` version on the CPU
+  in CI (`scripts/training/notebook_smoke.py`); their GPU results are
+  pending and are never quoted until a run's output file is in
+  `notebooks/results/`.
 - **Corpus:** _Alice's Adventures in Wonderland_ (Project Gutenberg #11,
   public domain), lower-cased to the 64-character alphabet; see
   [`public/training/CORPUS.md`](public/training/CORPUS.md).
@@ -349,11 +367,15 @@ python -m venv .venv-fixtures
 .venv-fixtures/bin/python scripts/training/make_fixtures.py --check  # CI
 ```
 
-It runs the correctness checks, the training runs (about a minute and a
-half on an old i7) and writes `tests/unit/fixtures/training/*.json`,
-`src/data/training/results.json`, `results.md` and
-`public/training/default-run-weights.json`. It does not touch Part 1's
-fixtures. `scripts/training/prepare_corpus.py` rebuilds the corpus from the
+It runs the correctness checks, the training runs and chapters 6–10's
+experiments (about 45 minutes on an old i7; `--groups base,ch6a,…` runs a
+subset, and CI runs one job per group in parallel) and writes
+`tests/unit/fixtures/training/*.json`, `src/data/training/results.json`,
+`results.md`, `public/training/default-run-weights.json` and
+`public/training/attention-snapshots.json`. It does not touch Part 1's
+fixtures. `python scripts/training/notebooks_build.py` regenerates the
+notebooks and `.venv-fixtures/bin/python scripts/training/notebook_smoke.py`
+smoke-tests them. `scripts/training/prepare_corpus.py` rebuilds the corpus from the
 Gutenberg file (it checks the source's SHA-256).
 
 ## Project layout
@@ -373,7 +395,8 @@ src/lib/analytics.ts      Event ingestion + admin aggregates
 tests/unit/               Vitest, including PyTorch-fixture comparisons
 tests/e2e/                Playwright + axe-core
 scripts/                  seed-db, verify-maths, capture-screenshots, reference.py
-scripts/training/         Part 2's NumPy reference trainer, PyTorch checks, fixtures, results.md
+scripts/training/         Part 2's NumPy reference trainer, PyTorch checks, experiments, fixtures, results.md
+notebooks/                Colab notebooks: chapters 7-10's experiments at GPU scale
 ```
 
 ## Architecture highlights

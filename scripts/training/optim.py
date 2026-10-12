@@ -53,18 +53,22 @@ class Optimizer:
     """One optimiser over a dict of parameters, stepping them in place."""
 
     def __init__(self, kind: str, params: dict, momentum=0.9, beta1=0.9, beta2=0.999,
-                 eps=1e-8, weight_decay=0.0):
+                 eps=1e-8, weight_decay=0.0, lr_mult=None):
         assert kind in ("sgd", "momentum", "adam", "adamw")
         self.kind = kind
         self.mu, self.b1, self.b2, self.eps, self.wd = momentum, beta1, beta2, eps, weight_decay
         self.t = 0
+        # per-parameter learning-rate factors (muP, model.lr_multipliers); None = all 1
+        self.lr_mult = lr_mult
         self.buf = {k: None for k in params}
         self.m = {k: np.zeros_like(v) for k, v in params.items()}
         self.v = {k: np.zeros_like(v) for k, v in params.items()}
 
     def step(self, params: dict, grads: dict, lr: float) -> None:
         self.t += 1
+        base_lr = lr
         for k, p in params.items():
+            lr = base_lr * self.lr_mult[k] if self.lr_mult else base_lr
             g = grads[k]
             wd = self.wd if decays(p) else 0.0
             if self.kind == "sgd":

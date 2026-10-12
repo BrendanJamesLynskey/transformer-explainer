@@ -248,3 +248,46 @@
   background-color: rgb(0 114 178 / 0.18);
   border-color: #0072b2;
 }
+
+/* Part 2, chapters 6-10 (brief 29B): schedules green, the residual stream
+ * and norms sky blue, attention scores vermillion, rounding and loss scales
+ * orange, memory terms purple. */
+.eq-panel .hl-warm,
+.eq-panel .hl-cosine,
+.eq-panel .hl-decay {
+  border-color: #009e73;
+}
+.eq-panel .hl-resid,
+.eq-panel .hl-prenorm,
+.eq-panel .hl-postnorm {
+  border-color: #56b4e9;
+}
+.eq-panel .hl-score,
+.eq-panel .hl-ent {
+  border-color: #d55e00;
+}
+.eq-panel .hl-round,
+.eq-panel .hl-lscale {
+  border-color: #e69f00;
+}
+.eq-panel .hl-memw,
+.eq-panel .hl-memopt,
+.eq-panel .hl-memact {
+  border-color: #cc79a7;
+}
+.eq-panel[data-hl~="warm"] .hl-warm,
+.eq-panel[data-hl~="cosine"] .hl-cosine,
+.eq-panel[data-hl~="decay"] .hl-decay,
+.eq-panel[data-hl~="resid"] .hl-resid,
+.eq-panel[data-hl~="prenorm"] .hl-prenorm,
+.eq-panel[data-hl~="postnorm"] .hl-postnorm,
+.eq-panel[data-hl~="score"] .hl-score,
+.eq-panel[data-hl~="ent"] .hl-ent,
+.eq-panel[data-hl~="round"] .hl-round,
+.eq-panel[data-hl~="lscale"] .hl-lscale,
+.eq-panel[data-hl~="memw"] .hl-memw,
+.eq-panel[data-hl~="memopt"] .hl-memopt,
+.eq-panel[data-hl~="memact"] .hl-memact {
+  background-color: rgb(0 114 178 / 0.18);
+  border-color: #0072b2;
+}

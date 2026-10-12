@@ -29,6 +29,11 @@ const PAGES = [
   "/training/03-objective",
   "/training/04-backprop",
   "/training/05-optimisers",
+  "/training/06-learning-rate-and-schedules",
+  "/training/07-init-norm-mup",
+  "/training/08-stability",
+  "/training/09-mixed-precision",
+  "/training/10-memory",
 ] as const;
 
 for (const scheme of ["light", "dark", "dark-390"] as const) {

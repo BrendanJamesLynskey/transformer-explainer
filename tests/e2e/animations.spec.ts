@@ -21,6 +21,12 @@ const ANIMATIONS = [
   ["/training/03-objective", "objective-animation"],
   ["/training/04-backprop", "backprop-animation"],
   ["/training/05-optimisers", "optim2d-animation"],
+  // brief 29B
+  ["/training/06-learning-rate-and-schedules", "schedule-animation"],
+  ["/training/07-init-norm-mup", "depth-animation"],
+  ["/training/08-stability", "attention-growth-animation"],
+  ["/training/09-mixed-precision", "rounding-animation"],
+  ["/training/10-memory", "memory-animation"],
 ] as const;
 
 async function step(fig: Locator): Promise<number> {
