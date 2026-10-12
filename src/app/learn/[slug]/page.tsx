@@ -1,29 +1,15 @@
 /**
- * /learn/[slug] — render an MDX section with the three-layer toggle pinned
- * at the top.
+ * /learn/[slug] — a Part 1 (Inference) chapter: an MDX section with the
+ * three-layer toggle pinned at the top.
  *
  * Server Component. Validates the slug against the catalogue, reads the
- * MDX from disk, and hands it to `next-mdx-remote/rsc` with our components
- * map.
- *
- * Maths: `remark-math` turns `$…$` / `$$…$$` into maths nodes and
- * `rehype-katex` renders them to HTML on the server, so the Maths layer
- * arrives as finished markup and no KaTeX JavaScript is shipped. Only the
- * KaTeX stylesheet (and its fonts) is loaded, and only on these pages.
+ * MDX from disk and renders it with the shared `ChapterArticle` (also used
+ * by /training/[slug]). Only the KaTeX stylesheet (and its fonts) is
+ * loaded, and only on chapter pages.
  */
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MDXRemote } from "next-mdx-remote/rsc";
-import rehypeKatex from "rehype-katex";
-import remarkMath from "remark-math";
 
-import { CommentSection } from "@/components/interactive/CommentSection";
-import { EventTracker } from "@/components/interactive/EventTracker";
-import { LayerToggle } from "@/components/interactive/LayerToggle";
-import { ProgressTracker } from "@/components/interactive/ProgressTracker";
-import { getSession } from "@/lib/auth";
-import { runOrFallback } from "@/lib/db-fallback";
-import { mdxComponents } from "@/lib/mdx/components";
+import { ChapterArticle } from "@/components/mdx/ChapterArticle";
 import {
   SECTIONS,
   getSectionMeta,
@@ -63,73 +49,19 @@ export default async function SectionPage({
   const idx = SECTIONS.findIndex((s) => s.slug === params.slug);
   const prev = idx > 0 ? SECTIONS[idx - 1] : null;
   const next = idx < SECTIONS.length - 1 ? SECTIONS[idx + 1] : null;
-
-  const session = await runOrFallback("learn:auth", getSession, null);
-  const userId = (session?.user as { id?: string } | undefined)?.id ?? null;
+  const link = (s: (typeof SECTIONS)[number] | null | undefined) =>
+    s ? { href: `/learn/${s.slug}`, title: s.title } : null;
 
   return (
-    <article className="mx-auto max-w-3xl px-6 py-10">
-      <div className="flex flex-wrap items-baseline justify-between gap-4">
-        <div>
-          <Link
-            href="/learn"
-            className="focus-ring rounded font-mono text-xs uppercase tracking-widest text-accent hover:underline dark:text-indigo-300"
-          >
-            ← /learn
-          </Link>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-            {meta.title}
-          </h1>
-          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-            {meta.summary}
-          </p>
-        </div>
-        <LayerToggle />
-      </div>
-
-      <div className="prose prose-neutral dark:prose-invert mt-8 max-w-none">
-        <MDXRemote
-          source={mdx}
-          components={mdxComponents}
-          options={{
-            mdxOptions: {
-              remarkPlugins: [remarkMath],
-              rehypePlugins: [rehypeKatex],
-            },
-          }}
-        />
-      </div>
-
-      <nav className="mt-12 flex items-center justify-between border-t border-neutral-200 pt-6 text-sm dark:border-neutral-800">
-        {prev ? (
-          <Link
-            href={`/learn/${prev.slug}`}
-            className="focus-ring rounded text-neutral-600 hover:text-accent dark:text-neutral-400"
-          >
-            ← {prev.title}
-          </Link>
-        ) : (
-          <span aria-hidden />
-        )}
-        {next ? (
-          <Link
-            href={`/learn/${next.slug}`}
-            className="focus-ring rounded text-neutral-600 hover:text-accent dark:text-neutral-400"
-          >
-            {next.title} →
-          </Link>
-        ) : (
-          <span aria-hidden />
-        )}
-      </nav>
-
-      <CommentSection
-        sectionSlug={params.slug}
-        signedIn={userId !== null}
-        currentUserId={userId}
-      />
-      <ProgressTracker sectionSlug={params.slug} signedIn={userId !== null} />
-      <EventTracker sectionSlug={params.slug} />
-    </article>
+    <ChapterArticle
+      backHref="/learn"
+      backLabel="← /learn"
+      title={meta.title}
+      summary={meta.summary}
+      mdx={mdx}
+      prev={link(prev)}
+      next={link(next)}
+      sectionKey={params.slug}
+    />
   );
 }

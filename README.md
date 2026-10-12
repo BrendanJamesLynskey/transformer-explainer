@@ -1,9 +1,13 @@
 # Transformer Decoder Explainer
 
-A graphical, interactive web explainer of the Transformer decoder. Type your
-own tokens and watch every operation — embeddings, masked self-attention,
-FFN, layer-norm, residuals, multi-block stacking, next-token sampling —
-execute on the server and visualise step-by-step in the browser.
+A graphical, interactive web explainer of how a decoder-only transformer
+runs, and how it is trained. **Part 1, Inference** (`/learn`): type your own
+tokens and watch every operation — embeddings, masked self-attention, FFN,
+layer-norm, residuals, multi-block stacking, next-token sampling — execute
+and visualise step-by-step in the browser. **Part 2, Training**
+(`/training`): train that same model, from the same initial weights, in
+your browser, and follow the loss, backpropagation and the optimiser step
+by step.
 
 The codebase is itself a teaching artefact: a real-world Next.js 14 app with
 strict TypeScript, Drizzle / Postgres, Auth.js, MDX content, D3
@@ -66,7 +70,12 @@ graphs, multi-agent patterns and durable execution; two more agent sites are mar
 
 ## What you can do
 
-- Walk through the decoder one operation at a time at `/learn`.
+- Walk through the decoder one operation at a time at `/learn` (Part 1).
+- Train it at `/training` (Part 2): watch three real training steps, then
+  run 2,000 in a Web Worker and see the loss curve land on the recorded
+  run; BPE learnt live on the corpus; cross-entropy and `p − y` position by
+  position; the gradient's way back through every op; four optimisers in a
+  valley and on the real model.
 - Toggle three layers — **Concept / Maths / Code** — inside any section to
   control how deep the explanation goes.
 - Run the full pipeline end-to-end on `/playground` with named-seed presets,
@@ -110,6 +119,36 @@ The weights are random (seeded, N(0, 0.02), as at the start of training),
 so the attention weights are nearly uniform and the next-token
 probabilities nearly flat: the animations show the mechanism, not a trained
 model's behaviour.
+
+## Part 2: Training
+
+Chapters 1–5 of 16 are live (brief 29A; the rest follow). How the numbers
+are made:
+
+- **A reference trainer** in `scripts/training/` (NumPy float64): Part 1's
+  model with a hand-written backward pass for every operation. Its
+  gradients match PyTorch autograd and central finite differences, its
+  optimisers (SGD, momentum, Adam, Adam + L2, AdamW, global-norm clipping)
+  match `torch.optim`, and its cosine schedule matches `CosineAnnealingLR`
+  ([results.md §3](results.md#3-correctness-checks)).
+- **The browser's trainer** in `src/lib/training/` is the same algorithm in
+  TypeScript, matched to the reference's fixtures step for step (the first
+  200 steps to 1e-9, the whole 2,000-step default run to 1e-7). It starts
+  from Part 1's initialiser (`src/lib/transformer/init.ts`), so the model it
+  trains is literally Part 1's, and it runs in a Web Worker
+  (`src/workers/train.worker.ts`).
+- **Every number on a Training page** is read from
+  `src/data/training/results.json` (rendered as [results.md](results.md)),
+  written by `scripts/training/make_fixtures.py`, seeded and recomputed in
+  CI. The animations' states are frame-tested against the reference
+  (`tests/unit/training/anim-frames.test.ts`, `tests/e2e/training.spec.ts`).
+- **Corpus:** _Alice's Adventures in Wonderland_ (Project Gutenberg #11,
+  public domain), lower-cased to the 64-character alphabet; see
+  [`public/training/CORPUS.md`](public/training/CORPUS.md).
+- **Concept coverage:** `scripts/cit_concept_audit.py` lists the training
+  concepts the [Compute in Transit results site](https://compute-in-transit-results.vercel.app)
+  relies on and checks each is explained by a shipped Training chapter
+  (CI; chapters not shipped yet are reported as pending).
 
 ## Screenshots
 
@@ -266,6 +305,8 @@ pnpm test:e2e              # Playwright (boots `pnpm dev` itself)
 pnpm verify:maths          # cross-check TS ops vs. PyTorch fixtures
 pnpm lighthouse            # Lighthouse CI on a `pnpm build` (needs Chrome)
 pnpm smoke <url>           # post-deploy check of /api/health, every page, a comment list
+python scripts/training/make_fixtures.py --check   # Part 2's PyTorch checks + fixtures (needs torch)
+python3 scripts/cit_concept_audit.py               # Part 2 explains the CiT site's concepts
 ```
 
 E2E runs against a real `pnpm dev` server with the seeded test database;
@@ -298,20 +339,41 @@ sampler's top-k and top-p masks, checked by `anim-frames-b.test.ts` and
 `anim-frames-b.spec.ts`. The other fixtures come out byte-identical when it
 is re-run.
 
+### Part 2 (Training)
+
+```bash
+python -m venv .venv-fixtures
+.venv-fixtures/bin/pip install -r scripts/training/requirements.txt \
+  --extra-index-url https://download.pytorch.org/whl/cpu
+.venv-fixtures/bin/python scripts/training/make_fixtures.py          # write
+.venv-fixtures/bin/python scripts/training/make_fixtures.py --check  # CI
+```
+
+It runs the correctness checks, the training runs (about a minute and a
+half on an old i7) and writes `tests/unit/fixtures/training/*.json`,
+`src/data/training/results.json`, `results.md` and
+`public/training/default-run-weights.json`. It does not touch Part 1's
+fixtures. `scripts/training/prepare_corpus.py` rebuilds the corpus from the
+Gutenberg file (it checks the source's SHA-256).
+
 ## Project layout
 
 ```
-content/decoder/          MDX sections
+content/decoder/          MDX sections (Part 1, /learn)
+content/training/         MDX chapters (Part 2, /training)
 src/app/                  App Router routes (learn, playground, admin, api/*)
 src/components/viz/       D3 charts (one file per concept)
 src/components/interactive/  Widgets used inside MDX + on /playground
 src/lib/transformer/      Pure-TS maths — file per operation
+src/lib/training/         Backward passes, loss, optimisers, schedules, BPE, the trainer
+src/workers/              The in-browser trainer (Web Worker)
 src/lib/db/               Drizzle schema + client
 src/lib/auth/             Auth.js config + helpers
 src/lib/analytics.ts      Event ingestion + admin aggregates
 tests/unit/               Vitest, including PyTorch-fixture comparisons
 tests/e2e/                Playwright + axe-core
 scripts/                  seed-db, verify-maths, capture-screenshots, reference.py
+scripts/training/         Part 2's NumPy reference trainer, PyTorch checks, fixtures, results.md
 ```
 
 ## Architecture highlights

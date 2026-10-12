@@ -1,0 +1,82 @@
+The loss is the one number training lowers. For a language model it is the next-token cross-entropy: at every position, minus the log of the probability the model gave the character that actually came next. Below, the window "alice was" is scored position by position, and the gradient each position sends back into the logits, $p - y$, appears beside it.
+
+<ObjectiveAnimation>
+  <Eq
+    label="At position i the logits z become probabilities p by softmax; y is the target, the next character; the loss is minus log of p at the target; the gradient of the loss with respect to the logits is p minus the one-hot vector of the target, divided by the number of positions; the total loss is the mean over positions"
+    tex="\begin{gathered} \htmlClass{hl-p}{p = \operatorname{softmax}(\htmlClass{hl-z}{z_i})}, \qquad \htmlClass{hl-y}{y_i = x_{i+1}} \\ \htmlClass{hl-loss}{\ell_i = -\log p_{y_i}}, \qquad \htmlClass{hl-grad}{\frac{\partial L}{\partial z_i} = \frac{p - \mathbf{1}_{y_i}}{N}} \\ \htmlClass{hl-mean}{L = \tfrac{1}{N} \textstyle\sum_i \ell_i}, \qquad \text{perplexity} = e^{L} \end{gathered}"
+  />
+</ObjectiveAnimation>
+
+<Layer kind="concept">
+
+<span id="t-next-token" />
+**One forward pass, eight predictions: next-token prediction.** Feed the 8
+characters "alice wa" in, and the model returns 8 rows of 64 logits, one row per
+position ([Part 1, chapter 7](/learn/07-sampling) turns one such row into a
+sampled token). Thanks to the causal mask, row $i$ only saw characters $1 \dots
+i$, so it is a genuine prediction of character $i + 1$. Training scores all 8 at
+once; this is what makes transformers efficient to train, compared with
+generating, where the next token must wait for the one before.
+
+<span id="t-cross-entropy" />
+**Why minus the log: cross-entropy.** A model that gives the right character
+probability 1 pays nothing; probability 1/2 costs $\ln 2 \approx 0.69$;
+probability 1/64 costs $\ln 64 \approx 4.16$. Being confidently wrong is
+expensive without limit, which pushes the model to keep some probability on
+everything plausible. Averaged over the text, this loss is the number of nats
+the model needs to encode the next character: the *cross-entropy* between the
+text and the model.
+
+**Initialised vs trained.** Switch the weights. At initialisation every probability is close to 1/64 and every position costs about 4.16. After the default run (chapter 1) the model puts real probability on the right character where the text is predictable ("e" after "alic", a space after "alice", "a" after " w") and stays unsure where it could go many ways (what follows "alice " could be almost any word).
+
+**The gradient, $p - y$.** The last picture at each position is $\partial L / \partial z$: the right character's logit is pushed _up_ by $1 - p_y$, every other logit _down_ by its own probability, all divided by the number of positions. The pushes sum to zero. When the model is already right ($p_y \approx 1$) the gradient vanishes; when it is confidently wrong it is large. Everything in the next chapter starts from this vector.
+
+**Perplexity.** $e^{L}$ turns the loss back into a count: the recorded run ends at a validation perplexity of <R k="derived.valPerplexity" d={1} />, against <R k="derived.unigramPerplexity" d={1} /> for a model that knows only letter frequencies and 64 for a uniform guess. Perplexities are only comparable with the same tokeniser: a token covers more text than a character, so per-token perplexities of BPE models are larger numbers for the same skill.
+
+**Label smoothing** replaces the one-hot target with $(1 - \varepsilon)\mathbf 1_y + \varepsilon/V$, so the model is never pushed towards probability exactly 1 ([Szegedy et al. 2015, §7](https://arxiv.org/abs/1512.00567)). It is common in translation and image classification; language-model pretraining usually uses the plain loss, as here.
+
+</Layer>
+
+<Layer kind="maths">
+
+With logits $z \in \mathbb R^{V}$ and $p = \operatorname{softmax}(z)$,
+
+$$
+\ell = -\log p_y = -z_y + \log \sum_{j} e^{z_j},
+\qquad
+\frac{\partial \ell}{\partial z_k} = -\mathbf 1[k = y] + \frac{e^{z_k}}{\sum_j e^{z_j}} = p_k - \mathbf 1[k = y].
+$$
+
+The code computes $\log\sum_j e^{z_j}$ as $m + \log\sum_j e^{z_j - m}$ with $m = \max_j z_j$, so no exponential overflows. For the mean over $N = B S$ positions each row's gradient is divided by $N$.
+
+Minimising the expected cross-entropy is maximum-likelihood estimation: $L$ is the negative log-likelihood of the training text under the model, per token. Its minimum over all possible models is the entropy of the text's true next-token distribution, which no model can beat; the gap above it is the KL divergence from the true distribution to the model's.
+
+</Layer>
+
+<Layer kind="code">
+
+`src/lib/training/loss.ts`, checked against the NumPy reference (and through it against `torch.nn.functional.cross_entropy`):
+
+```ts
+for (let i = 0; i < logits.length; i++) {
+  const z = logits[i]!;
+  let m = -Infinity;
+  for (const v of z) if (v > m) m = v;
+  const e = z.map((v) => Math.exp(v - m));
+  let s = 0;
+  for (const v of e) s += v;
+  // logsumexp(z) = m + log Σ exp(z − m): the max shift keeps exp finite
+  perPosition.push(m + Math.log(s) - z[targets[i]!]!);
+  probs.push(e.map((v) => v / s));
+}
+```
+
+and its gradient, the whole of the backward pass of the loss:
+
+```ts
+return probs.map((p, i) =>
+  p.map((v, j) => (v - (j === targets[i] ? 1 : 0)) / n),
+);
+```
+
+</Layer>

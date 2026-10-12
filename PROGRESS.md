@@ -815,3 +815,50 @@ to the family's visual standard.
   layer and the distribution is nearly flat (top token ≈ 1.9% at τ = 1);
   the captions give the real numbers, and the default τ = 0.1 with top-k
   (k = 5) makes the reshaping visible.
+
+## Brief 29A — Part 2, Training: the trainer and chapters 1–5 (2026-10-12)
+
+Training becomes Part 2 of this site (`29_decoder_site_training_brief.md`).
+29A builds the trainer and the first five chapters; 29B–29E follow.
+
+- [x] Reference trainer `scripts/training/` (NumPy float64): Part 1's model
+      with a hand-written backward pass for every op. Gradients = PyTorch
+      autograd (≤ 1.2e-16 scaled) and central differences (552 entries,
+      ≤ 1e-9 abs); SGD / momentum / Adam / Adam + L2 / AdamW + clipping =
+      `torch.optim` over 25 steps (≤ 2.2e-16); cosine = `CosineAnnealingLR`.
+      `make_fixtures.py` writes the fixtures, `src/data/training/results.json`,
+      `results.md` and the default run's weights; CI job
+      `training-reference` runs `--check` (torch 2.11.0 CPU pinned).
+- [x] TS trainer `src/lib/training/` (backward ops, loss, optimisers,
+      schedules, data, BPE, trainer), matched to the fixtures: 200 steps to
+      1e-9, the whole 2,000-step default run to 1e-7 (unit tests). Starts from
+      `init.ts`. Runs in a Web Worker (`src/workers/train.worker.ts`).
+- [x] Corpus: _Alice's Adventures in Wonderland_ (Gutenberg #11, public
+      domain; `public/training/CORPUS.md`); character BPE (Python = TS).
+- [x] `/training` index + `/training/[slug]` via a shared `ChapterArticle`
+      (also used by `/learn/[slug]`, unchanged URLs); header sections
+      Inference / Training (`PartNav`, `aria-current` by route); home, about,
+      layout description and `SPEC.md` (§15) reframed.
+- [x] Chapters 01–05 (`content/training/`), each opening with a
+      model-driven animation (hero, BPE, cross-entropy, backprop, optimisers)
+      frame-tested against `scripts/training/anim.py`; ch 1 has the live
+      trainer; numbers via `<R k="…" />` from results.json.
+- [x] `scripts/cit_concept_audit.py` + `scripts/cit_terms.py`: 36 concepts
+      from the CiT results site, 17 explained (ch 1–5), 19 pending (29B/29C);
+      CI job `cit-concept-audit`.
+- [x] e2e: `training.spec.ts`; the five animations added to
+      `animations.spec.ts`; Part 2 pages in `a11y.spec.ts`; LHCI audits
+      `/training`, `/training/01-training-loop`, `/training/04-backprop`.
+
+**Deviations:**
+
+- The reference is a new `scripts/training/` package beside
+  `scripts/reference.py` (which is unchanged; its fixtures stay
+  byte-identical). Its initialiser port equals `reference.py`'s (checked).
+- Comments, progress and analytics of Training chapters are stored under
+  `training-<slug>` in the existing text columns: no schema change.
+- `--check` compares the long training runs with looser tolerances than
+  the fixtures (`RULES` in `make_fixtures.py`): another CPU's last-bit
+  differences grow over thousands of steps, fastest in the chaotic
+  high-learning-rate runs.
+- README GIFs of the Part 2 animations are 29C's.

@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s · Transformer Explainer",
   },
   description:
-    "A graphical, interactive explainer of the Transformer decoder. Type in tokens and watch every operation execute step-by-step.",
+    "How a decoder-only transformer runs, and how it is trained: a graphical, interactive explainer. Watch every operation execute, then train the same model in your browser.",
 };
 
 export default function RootLayout({

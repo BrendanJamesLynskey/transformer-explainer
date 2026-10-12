@@ -1,0 +1,128 @@
+Training is one loop, repeated: take a batch of text, run the model forward, score its guesses with a loss, send the gradient of that loss back through every weight, and nudge each weight downhill. Below, Part 1's model, with the same random weights you met in [the overview](/learn/01-overview), takes three real steps of that loop in your browser. Press play, or step through it with the arrow keys.
+
+<TrainingLoopHero>
+  <Eq
+    label="A batch of windows from the corpus; the forward pass gives the model's probability for each next character; the loss is the mean of minus log of those probabilities; its gradient with respect to every weight comes from backpropagation; the optimiser turns the gradient into an update of the weights"
+    tex="\begin{gathered} \htmlClass{hl-batch}{(x, y) \sim \text{corpus}}, \qquad \htmlClass{hl-fwd}{p_\theta(y_i \mid x_{\le i})} \\ \htmlClass{hl-loss}{L(\theta) = -\tfrac{1}{N} \textstyle\sum_{i} \log p_\theta(y_i \mid x_{\le i})} \\ \htmlClass{hl-grad}{g = \nabla_\theta L}, \qquad \htmlClass{hl-update}{\theta \leftarrow \theta - \eta \cdot \mathrm{AdamW}(g)} \end{gathered}"
+  />
+</TrainingLoopHero>
+
+Three steps teach the mechanism, not the language. To see the language arrive, run the loop a couple of thousand times. This is the same code as the animation above, in a Web Worker so the page stays responsive.
+
+<LiveTrainerPanel />
+
+<Layer kind="concept">
+
+<span id="t-training-step" />
+**What the loop is doing.** One *training step* is one turn of the loop: one
+batch, one forward and backward pass, one update. At the start the weights are
+random, so the model gives every one of the 64 characters about the same
+probability: its loss is about $\ln 64 = $ <R k="model.lnV" d={2} />, the score
+of pure guessing (the recorded run starts at
+<R k="defaultRun.evals.0.val" d={3} />
+). Each step looks at <R k="derived.predictionsPerStep" /> next-character
+predictions (16 windows of 8 characters) and moves every weight a little in the
+direction that would have made the right characters more likely.
+
+<span id="t-loss-curve" />
+**What the curve shows.** The *loss curve* is the loss plotted against the
+training step. By step 200 the validation loss has fallen to
+<R k="defaultRun.evals.2.val" d={2} />, close to
+<R k="corpus.unigramEntropy" d={2} />, which is what a model scores if it knows
+only how common each letter is (the *unigram entropy* of the training text). It
+then sits there for several hundred steps. A model this small, started this
+small, first learns the letter frequencies through its output layer, and only
+later finds that the previous characters (which attention must route to the
+current position) tell it much more. Once it does, the loss falls again:
+<R k="defaultRun.evals.10.val" d={2} /> at step 1,000 and
+<R k="defaultRun.evals.-1.val" d={3} /> at step 2,000, a *perplexity* of
+<R k="derived.valPerplexity" d={1} /> (on average the model is as unsure as a
+fair choice among about ten characters, against 64 at the start).
+
+<span id="t-validation-loss" />
+**Training loss vs validation loss.** The orange line is the loss on the batch
+each step trained on; it is noisy because every batch is different. The blue
+dots, evaluated every 100 steps, score a fixed set of windows from the last 10%
+of the book, text the model never trains on: the *validation loss*. Runs are
+compared by their final validation loss, or by how many steps they need to reach
+a given one. If the training loss kept falling while the validation loss rose,
+the model would be memorising its training text (*overfitting*). Here the two
+stay together: the run sees each training character about
+<R k="derived.epochs" d={1} /> times, which is far too little to memorise
+<R k="corpus.trainChars" sep /> characters with <R k="model.params" sep />
+weights.
+
+<span id="t-seeds" />
+**Seeds.** Everything random here is seeded: the weights (seed 42, Part 1's),
+the order of the batches (data seed 1) and the sampler (seed 7). The same seeds
+give the same run on any machine, which is why your browser's run lands on the
+recorded one. A different data seed gives a slightly different curve; real
+experiments repeat a run over several seeds and report the mean and the spread
+(mean ± standard deviation), because a difference smaller than the seed-to-seed
+spread is not a difference, and a result from a single seed is a hypothesis
+until it is repeated.
+
+<span id="t-parameters" />
+**Weights, or parameters.** The model is a function with
+<R k="model.params" sep /> adjustable numbers: the embedding table, the
+attention and FFN matrices, the LayerNorm gains and shifts. These are its
+*parameters* (or weights), and training changes nothing else. A model's size is
+quoted as its parameter count: <R k="model.params" sep /> here, millions to
+hundreds of billions for real language models. Each training step changes every
+one of them at once.
+
+**The samples** under the chart are the model writing on its own: start from "alice ", predict a distribution over the next character, draw one (temperature 0.8, as in [Part 1's sampling chapter](/learn/07-sampling)), append it, repeat. At step 0 it is noise; by the end it has learnt spaces, common short words and punctuation, but not sense: with 8 characters of context and about five thousand weights, it cannot.
+
+</Layer>
+
+<Layer kind="maths">
+
+One step of training, for parameters $\theta$, learning rate $\eta_t$ and a batch of $B$ windows of $S$ tokens:
+
+$$
+\begin{aligned}
+L(\theta) &= -\frac{1}{BS}\sum_{b=1}^{B}\sum_{i=1}^{S} \log p_\theta\big(y_{b,i} \mid x_{b,1..i}\big) && \text{mean next-token cross-entropy} \\
+g &= \nabla_\theta L(\theta) && \text{backpropagation (chapter 4)} \\
+g &\leftarrow g \cdot \min\!\big(1, c / \lVert g \rVert\big) && \text{clip the global norm at } c = 1 \\
+\theta &\leftarrow \mathrm{AdamW}(\theta, g, \eta_t) && \text{the optimiser (chapter 5)}
+\end{aligned}
+$$
+
+with $\eta_t$ rising linearly for 50 steps and then following a half cosine from 0.01 down to 0.001. Perplexity is $e^{L}$: a model with loss $L$ is, on average, as uncertain as a uniform choice among $e^{L}$ tokens, so the uniform guess over 64 characters has perplexity 64 and loss $\ln 64$.
+
+The default run, every hyperparameter and every loss above are in [results.md §4](https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md#4-the-default-run-chapter-1).
+
+</Layer>
+
+<Layer kind="code">
+
+The loop, as `src/lib/training/trainer.ts` runs it (in the worker and in the animation):
+
+```ts
+export function trainStep(tr: Trainer, batch?: Batch): StepLog {
+  const { cfg } = tr;
+  const b =
+    batch ?? sampleBatch(tr.train, cfg.batch, cfg.model.seq_len, tr.rng);
+  const { loss, grads } = lossAndGrads(
+    tr.params,
+    cfg.model,
+    b.inputs,
+    b.targets,
+  );
+  const { norm, scale } =
+    cfg.clip === null
+      ? { norm: NaN, scale: 1 }
+      : clipByGlobalNorm(grads, cfg.clip);
+  const lr = lrAt(tr.t, { ...cfg.schedule, total: cfg.steps });
+  optimizerStep(tr.opt, tr.params, grads, lr);
+  const log = { step: tr.t, lr, loss, gradNorm: norm, clipScale: scale };
+  tr.t += 1;
+  return log;
+}
+```
+
+The same four lines are the heart of every training loop, from this toy to a model trained on thousands of accelerators; in PyTorch they are `loss = model(x, y)`, `loss.backward()`, `clip_grad_norm_(…)` and `opt.step()`.
+
+**How it is checked.** `scripts/training/` is a NumPy reference of this trainer with a hand-written backward pass. Its gradients match PyTorch autograd to <R k="checks.gradients.autograd_perturbed.max_scaled_err" /> (relative) and central finite differences to <R k="checks.gradients.fd_perturbed.max_abs_err" />; its AdamW steps match `torch.optim.AdamW` to <R k="checks.optimizers.adamw.max_abs_err" />. The TypeScript trainer matches the reference step for step: the unit tests replay the first 200 steps of the default run to 1e-9, and the whole 2,000-step run to within 1e-7 of the recorded weights.
+
+</Layer>
