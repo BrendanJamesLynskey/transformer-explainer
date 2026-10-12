@@ -167,7 +167,9 @@ export default function BpeAnimation({
           fill="currentColor"
           data-testid="bpe-count"
         >
-          {`the book: ${s.tokensAfter.toLocaleString("en-GB")} tokens (${(states[0]!.tokensBefore / s.tokensAfter).toFixed(2)} characters each); the first line: ${s.excerpt.length}`}
+          {phone
+            ? `book: ${s.tokensAfter.toLocaleString("en-GB")} tokens · first line: ${s.excerpt.length}`
+            : `the book: ${s.tokensAfter.toLocaleString("en-GB")} tokens (${(states[0]!.tokensBefore / s.tokensAfter).toFixed(2)} characters each); the first line: ${s.excerpt.length}`}
         </text>
         {chips.map((c, i) => (
           <g key={i}>

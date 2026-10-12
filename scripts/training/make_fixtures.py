@@ -412,9 +412,11 @@ VOLATILE = {"seconds", "environment"}
 RULES = [
     (r"\.checks\..*\.(max_abs_err|max_scaled_err|max_ratio|loss_err|loss_ours|loss_torch)$", ("skip", 0)),
     # chaotic at the higher learning rates: a CPU's last-bit differences
-    # moved single runs' final losses by up to 0.12 (measured in CI,
-    # 2026-10-12), so this is a sanity check, and the pages quote the mean
-    # and spread over three seeds, not single runs
+    # moved single runs' final losses by about 0.1 and points on their
+    # curves by up to 0.2 (measured in CI, 2026-10-12), so this is a sanity
+    # check, and the pages quote the mean and spread over three seeds
+    # the curves: where a run leaves the plateau shifts, so skip them
+    (r"optimizerCompare\[\d+\]\.(meanEvals\[\d+\]|runs\[\d+\]\.evals\[\d+\]\.val)$", ("skip", 0)),
     (r"optimizerCompare\[\d+\]\.", ("abs", 0.25)),
     (r"results\.json\.(defaultRun|derived)\.", ("rel", 1e-6)),
     (r"default-run-weights\.json\.params\.", ("abs", 1e-6)),

@@ -101,7 +101,7 @@ def render(r: dict) -> str:
     w("beta2 0.99 for Adam and AdamW, AdamW weight decay 0.01; three data seeds (1, 2, 3) per")
     w("setting. Mean ± standard deviation of the final validation loss over the seeds.")
     w("Single runs at the higher learning rates are chaotic: recomputed on another CPU, a run's")
-    w("final loss moved by up to 0.12 (last-bit differences in the matrix products, amplified),")
+    w("final loss moved by about 0.1 (last-bit differences in the matrix products, amplified),")
     w("so only differences well beyond the spread mean anything.")
     w("")
     w("| Optimiser | Learning rate | Final validation loss (mean ± sd) | Seeds 1, 2, 3 | Best for this optimiser |")
