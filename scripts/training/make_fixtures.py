@@ -19,18 +19,29 @@ weights (BLAS and libm can differ in the last bits between machines, and
 thousands of training steps amplify that), with a 1e-12 absolute floor;
 everything else exactly. results.md must be the rendering of results.json.
 
-Determinism: NumPy float64, single-threaded BLAS is not required (no
-randomness comes from NumPy except the seeded perturbation in checks.py),
-torch 2.11.0 CPU (pinned in scripts/training/requirements.txt).
+Determinism: NumPy float64 with one BLAS thread; the only NumPy randomness
+is the seeded perturbation in checks.py; torch 2.11.0 CPU (pinned in
+scripts/training/requirements.txt). Training at a high learning rate is
+chaotic, so a last-bit difference in a matrix product grows over a few
+hundred steps: CI pins OpenBLAS's kernel and NumPy's SIMD paths to the
+ones the committed files were made with, so it recomputes them bit for bit.
 """
 
 from __future__ import annotations
+
+import os
+
+# Reproducible across machines: one BLAS thread (set before NumPy loads).
+# CI also pins OpenBLAS's kernel and NumPy's SIMD dispatch to this
+# machine's (an AVX-only Ivy Bridge): see .github/workflows/ci.yml.
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
 import argparse
 import hashlib
 import json
 import math
 import platform
+import re
 import sys
 import time
 from pathlib import Path
@@ -471,7 +482,12 @@ def main() -> None:
         if RESULTS_MD.read_text() != committed_md:
             problems.append("results.md is not the rendering of the committed results.json")
         if problems:
-            print("\n".join(problems[:40]))
+            print("\n".join(problems[:20]))
+            by: dict[str, int] = {}
+            for pr in problems:
+                k = re.sub(r"\[\d+\]", "[]", pr.split(":")[0])
+                by[k] = by.get(k, 0) + 1
+            print("\n".join(f"{n:6d}  {k}" for k, n in sorted(by.items(), key=lambda kv: -kv[1])))
             sys.exit(f"{len(problems)} differences from the committed files")
         print(f"check OK: {len(files)} files agree; all correctness checks pass")
         return
