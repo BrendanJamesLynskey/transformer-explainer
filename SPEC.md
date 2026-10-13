@@ -511,3 +511,19 @@ standard), and every number on it comes from `results.md`.
 `scripts/cit_concept_audit.py` lists the training concepts the Compute in
 Transit results site relies on, each mapped to the Training chapter that
 explains it; CI runs it with `--strict` (every concept explained).
+
+### 15.6 Its own address (brief 29E)
+
+Part 2 is served at `transformer-training-explained.vercel.app`, a second
+domain on the same Vercel project, by host-based middleware
+(`src/middleware.ts`, `src/lib/site/hosts.ts`): `/` there goes to
+`/training`; Part 1 paths go to the decoder host; the decoder host's
+`/training*` 308-redirects to the training host (never on localhost, CI or
+preview hosts). Canonical URLs and the training host's sitemap point at the
+training host. The header names the site per route and host
+(`SiteSwitch current="training"` on Training pages, brand
+"transformer-training", no Playground link), and links the other part on its
+own host. Each Training chapter links its deck (`TRAINING_DECKS` in
+`src/lib/mdx/sections.ts`). Sign-in on the training host uses Auth.js's
+redirect proxy through the decoder host's registered GitHub callback; no
+schema change.

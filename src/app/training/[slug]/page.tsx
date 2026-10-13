@@ -7,12 +7,15 @@ import { notFound } from "next/navigation";
 
 import { ChapterArticle } from "@/components/mdx/ChapterArticle";
 import {
+  TRAINING_DECKS,
   TRAINING_SECTIONS,
   getTrainingMeta,
   isTrainingSlug,
   readTrainingMdx,
+  trainingDeckUrl,
   trainingSectionKey,
 } from "@/lib/mdx/sections";
+import { trainingCanonical } from "@/lib/site/hosts";
 
 import "katex/dist/katex.min.css";
 
@@ -34,6 +37,8 @@ export async function generateMetadata({
   return {
     title: `${meta.title} · Training`,
     description: meta.summary,
+    // Part 2's address is the training host, wherever the page is served
+    alternates: { canonical: trainingCanonical(`/training/${params.slug}`) },
   };
 }
 
@@ -68,6 +73,12 @@ export default async function TrainingChapterPage({
       prev={link(prev)}
       next={link(next)}
       sectionKey={trainingSectionKey(params.slug)}
+      deck={{
+        num: TRAINING_DECKS[params.slug].num,
+        // the deck's short title (before any subtitle)
+        title: TRAINING_DECKS[params.slug].title.split(": ")[0]!,
+        href: trainingDeckUrl(params.slug),
+      }}
     />
   );
 }

@@ -152,6 +152,106 @@ export const TRAINING_SECTIONS = [
 
 export type TrainingSlug = (typeof TRAINING_SECTIONS)[number]["slug"];
 
+/**
+ * The slide deck for each Training chapter (the Transformer Training deck
+ * series, hub `LLM_Hub_Transformer_Training`, brief 29D): one deck per
+ * chapter group, so some decks cover two or three chapters.
+ */
+export const TRAINING_DECKS: Record<
+  TrainingSlug,
+  { num: string; repo: string; title: string }
+> = {
+  "01-training-loop": {
+    repo: "Transformer_Training_01_Training_Loop_and_Objective",
+    num: "01",
+    title: "The Training Loop and the Objective",
+  },
+  "02-data-and-tokens": {
+    repo: "Transformer_Training_02_Data_and_Tokenisation",
+    num: "02",
+    title: "Data and Tokenisation",
+  },
+  "03-objective": {
+    repo: "Transformer_Training_01_Training_Loop_and_Objective",
+    num: "01",
+    title: "The Training Loop and the Objective",
+  },
+  "04-backprop": {
+    repo: "Transformer_Training_03_Backpropagation",
+    num: "03",
+    title: "Backpropagation Through a Transformer",
+  },
+  "05-optimisers": {
+    repo: "Transformer_Training_04_Optimisers",
+    num: "04",
+    title: "Optimisers: SGD, Momentum, Adam, AdamW",
+  },
+  "06-learning-rate-and-schedules": {
+    repo: "Transformer_Training_05_Learning_Rate_and_Batch_Size",
+    num: "05",
+    title: "Learning Rate, Schedules and Batch Size",
+  },
+  "07-init-norm-mup": {
+    repo: "Transformer_Training_06_Init_Norm_and_muP",
+    num: "06",
+    title: "Initialisation, Normalisation and µP",
+  },
+  "08-stability": {
+    repo: "Transformer_Training_07_Stability",
+    num: "07",
+    title: "Stability: Loss Spikes and Their Cures",
+  },
+  "09-mixed-precision": {
+    repo: "Transformer_Training_08_Mixed_Precision",
+    num: "08",
+    title: "Mixed Precision: BF16, FP16, FP8 and Quantised Gradients",
+  },
+  "10-memory": {
+    repo: "Transformer_Training_09_Memory",
+    num: "09",
+    title: "Memory: Sixteen Bytes per Parameter, and Activations",
+  },
+  "11-data-parallelism": {
+    repo: "Transformer_Training_10_Data_Parallelism_and_ZeRO",
+    num: "10",
+    title: "Data Parallelism, All-Reduce and ZeRO",
+  },
+  "12-model-parallelism": {
+    repo: "Transformer_Training_11_Model_Parallelism",
+    num: "11",
+    title: "Model Parallelism: Pipeline, Tensor, Sequence and Expert",
+  },
+  "13-slow-links": {
+    repo: "Transformer_Training_12_Training_over_Slow_Links",
+    num: "12",
+    title: "Training over Slow Links: Top-k, Error Feedback, DeMo, DiLoCo",
+  },
+  "14-scaling-laws": {
+    repo: "Transformer_Training_13_Scaling_Laws_and_Running_a_Job",
+    num: "13",
+    title: "Scaling Laws, Running a Real Job, and After Pretraining",
+  },
+  "15-running-a-real-job": {
+    repo: "Transformer_Training_13_Scaling_Laws_and_Running_a_Job",
+    num: "13",
+    title: "Scaling Laws, Running a Real Job, and After Pretraining",
+  },
+  "16-after-pretraining": {
+    repo: "Transformer_Training_13_Scaling_Laws_and_Running_a_Job",
+    num: "13",
+    title: "Scaling Laws, Running a Real Job, and After Pretraining",
+  },
+};
+
+/** The deck hub and each deck are served from GitHub Pages. */
+export const TRAINING_DECK_HUB =
+  "https://brendanjameslynskey.github.io/LLM_Hub_Transformer_Training/";
+
+/** The address of a Training chapter's slide deck. */
+export function trainingDeckUrl(slug: TrainingSlug): string {
+  return `https://brendanjameslynskey.github.io/${TRAINING_DECKS[slug].repo}/`;
+}
+
 const TRAINING_SLUG_SET = new Set<string>(TRAINING_SECTIONS.map((s) => s.slug));
 
 export function isTrainingSlug(slug: string): slug is TrainingSlug {

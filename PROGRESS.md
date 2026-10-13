@@ -938,3 +938,29 @@ attention-growth,rounding,memory}-steps.ts`), frame-tested against
 - The IsoFLOP sweep's small budgets have no interior minimum (larger widths
   stay on chapter 1's plateau); the frontier is fitted on the budgets that
   do, by a rule fixed before the sweep ran.
+
+## Brief 29E — Training gets its own address (2026-10-12)
+
+- [x] `src/middleware.ts` + `src/lib/site/hosts.ts`: host-based routing
+      (training host `/` → `/training`, Part 1 paths → decoder host;
+      decoder host `/training*` → 308 to the training host; no redirects
+      off the production hosts). `src/lib/site/context.ts` hands the site
+      and the other part's origin to Server Components.
+- [x] Header per route and host: brand "transformer-training" and "Site:
+      Training" on Training pages, Part 1 / Part 2 labels, no Playground on
+      Training; links to the other part go to the other host (header, home,
+      about, /training, MDX links via `siteHref`).
+- [x] Canonical URLs of `/training*` on the training host; `/sitemap.xml`
+      and `/robots.txt` per host.
+- [x] Sign-in on the training host: Auth.js `redirectProxyUrl` = the decoder
+      host's `/api/auth` in production (`AUTH_REDIRECT_PROXY_URL` overrides);
+      both legs tested against the installed Auth.js.
+- [x] Each Training chapter links its slide deck (`TRAINING_DECKS`); the
+      index links the deck hub.
+- [x] `SiteSwitch.tsx`: Training → `https://transformer-training-explained.vercel.app`
+      (same file on all 12 sites).
+- [x] Tests: `site-hosts.test.ts`, `auth-proxy.test.ts`, e2e `hosts.spec.ts`
+      (`training.localhost` / `decoder.localhost`); `pnpm smoke` checks both
+      hosts (redirects, canonical, header) given the production decoder URL.
+- [ ] Owner: add the domain to the Vercel project and deploy
+      (`_handoff/simulation_followups/merge_deploy_29E.sh`).

@@ -3,11 +3,15 @@
  * (`/training/[slug]`): the title, the three-layer toggle, the MDX, the
  * previous/next links, the comments, progress and analytics.
  *
+ * Links inside the MDX to the other part (`/learn/…` from a Training
+ * chapter) go to the other part's host (`src/lib/site/hosts.ts`).
+ *
  * Server Component. Maths: `remark-math` turns `$…$` / `$$…$$` into maths
  * nodes and `rehype-katex` renders them to HTML on the server, so the Maths
  * layer arrives as finished markup and no KaTeX JavaScript is shipped.
  */
 import Link from "next/link";
+import type { ComponentPropsWithoutRef } from "react";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
@@ -19,8 +23,13 @@ import { ProgressTracker } from "@/components/interactive/ProgressTracker";
 import { getSession } from "@/lib/auth";
 import { runOrFallback } from "@/lib/db-fallback";
 import { mdxComponents } from "@/lib/mdx/components";
+import { getSiteContext } from "@/lib/site/context";
+import { siteHref } from "@/lib/site/hosts";
 
 type NavLink = { href: string; title: string } | null;
+
+/** The chapter's slide deck (Training chapters). */
+type Deck = { num: string; title: string; href: string };
 
 export async function ChapterArticle({
   backHref,
@@ -32,6 +41,7 @@ export async function ChapterArticle({
   prev,
   next,
   sectionKey,
+  deck,
 }: {
   backHref: string;
   backLabel: string;
@@ -44,9 +54,18 @@ export async function ChapterArticle({
   next: NavLink;
   /** the key comments, progress and analytics are stored under */
   sectionKey: string;
+  /** the chapter's slide deck, linked under the summary */
+  deck?: Deck;
 }): Promise<JSX.Element> {
   const session = await runOrFallback("learn:auth", getSession, null);
   const userId = (session?.user as { id?: string } | undefined)?.id ?? null;
+  const ctx = getSiteContext();
+  const components = {
+    ...mdxComponents,
+    a: (props: ComponentPropsWithoutRef<"a">) => (
+      <a {...props} href={props.href ? siteHref(props.href, ctx) : undefined} />
+    ),
+  };
 
   return (
     <article className="mx-auto max-w-3xl px-6 py-10">
@@ -72,11 +91,23 @@ export async function ChapterArticle({
         </div>
         <LayerToggle />
       </div>
+      {deck && (
+        <p className="mt-3 text-sm text-neutral-500 dark:text-neutral-400">
+          Slides for this chapter:{" "}
+          <a
+            href={deck.href}
+            data-chapter-deck
+            className="focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300"
+          >
+            Transformer Training {deck.num}, {deck.title}
+          </a>
+        </p>
+      )}
 
       <div className="prose prose-neutral dark:prose-invert mt-8 max-w-none">
         <MDXRemote
           source={mdx}
-          components={mdxComponents}
+          components={components}
           options={{
             mdxOptions: {
               remarkPlugins: [remarkMath],

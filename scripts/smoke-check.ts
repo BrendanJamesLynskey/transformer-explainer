@@ -9,6 +9,15 @@
  *
  * With no argument it checks http://localhost:3000.
  *
+ * Part 2 (Training) has its own address (brief 29E, src/lib/site/hosts.ts).
+ * Given the production decoder host, the check also covers the training
+ * host (or name it with `--training <url>`): every Training page answers 200
+ * there, with its canonical URL on the training host and a header naming the
+ * Training site; the decoder host's `/training*` 308-redirects to it; the
+ * training host's `/` goes to `/training` and its `/learn` back to the
+ * decoder host. Against one local server (no `--training`), both parts are
+ * checked on that one host, as before.
+ *
  * It also fetches one section's comment list, which must hold at least one
  * visible comment, so the server-side Markdown sanitiser actually runs. A
  * list with no visible comments never calls it, and that is how a comment
@@ -27,30 +36,37 @@
  *   - the comment list is not a 200 `{ ok: true }`, or has no visible
  *     comment with rendered HTML;
  *   - the home page's header lacks the three-group site switch (with
- *     Orchestration linked), or links Compute in transit, which this site's
- *     switch leaves out (`hideOn` in SiteSwitch.tsx).
+ *     Orchestration linked and Training on the training host), or links
+ *     Compute in transit, which the switch leaves out (`unlisted`);
+ *   - (two hosts) a redirect, canonical URL or header name is wrong.
  *
  * Needs no secrets and touches no database directly.
  */
 import { SECTIONS, TRAINING_SECTIONS } from "@/lib/mdx/sections";
+import { DECODER_ORIGIN, TRAINING_ORIGIN } from "@/lib/site/hosts";
 
 /** Section whose comment list is checked (it must have a visible comment). */
 const DEFAULT_COMMENTS_SECTION = "07-sampling";
 
-const PAGES = [
+/** Part 1 and the site's other pages: served by the decoder host. */
+const DECODER_PAGES = [
   "/",
   "/learn",
   ...SECTIONS.map((s) => `/learn/${s.slug}`),
+  "/playground",
+  "/experiments",
+  "/about",
+  "/signin",
+];
+
+/** Part 2's pages: served by the training host (or the one local host). */
+const TRAINING_PAGES = [
   "/training",
   // all 16 Part 2 chapters (29A: 1-5, 29B: 6-10, 29C: 11-16)
   ...TRAINING_SECTIONS.map((s) => `/training/${s.slug}`),
   "/training/corpus.txt",
   "/training/default-run-weights.json",
   "/training/attention-snapshots.json",
-  "/playground",
-  "/experiments",
-  "/about",
-  "/signin",
 ];
 
 type Result = { path: string; ok: boolean; detail: string };
@@ -94,13 +110,14 @@ const SWITCH_PRESENT = [
   'data-site-switch="menu"',
   'data-site-group="training"',
   'href="https://agent-orchestration-explained.vercel.app"',
+  `href="${TRAINING_ORIGIN}"`,
 ];
 const SWITCH_ABSENT = ["compute-in-transit-results.vercel.app"];
 
-async function checkSwitch(base: string): Promise<Result> {
-  const path = "/ (site switch)";
+async function checkSwitch(base: string, page = "/"): Promise<Result> {
+  const path = `${page} (site switch)`;
   try {
-    const res = await fetch(base + "/", { redirect: "manual" });
+    const res = await fetch(base + page, { redirect: "manual" });
     const html = await res.text();
     const missing = SWITCH_PRESENT.filter((m) => !html.includes(m));
     const present = SWITCH_ABSENT.filter((m) => html.includes(m));
@@ -112,6 +129,66 @@ async function checkSwitch(base: string): Promise<Result> {
       detail: ok
         ? "200 three groups, no Compute in transit"
         : `${res.status} missing [${missing.join(", ")}] unexpected [${present.join(", ")}]`,
+    };
+  } catch (err) {
+    return { path, ok: false, detail: (err as Error).message };
+  }
+}
+
+/** Expect a redirect with this status to exactly this location. */
+async function checkRedirect(
+  url: string,
+  status: number,
+  location: string,
+): Promise<Result> {
+  const path = `${url} → ${status}`;
+  try {
+    const res = await fetch(url, { redirect: "manual" });
+    const got = res.headers.get("location") ?? "";
+    const ok = res.status === status && got === location;
+    return { path, ok, detail: `${res.status} → ${got || "(none)"}` };
+  } catch (err) {
+    return { path, ok: false, detail: (err as Error).message };
+  }
+}
+
+/** The site the header names, and the menu button's label, in a page's HTML. */
+function headerNames(html: string): { site: string; label: string } {
+  const site = /data-site-name="([a-z]+)"/.exec(html)?.[1] ?? "?";
+  const label =
+    /Site:<\/span><span class="font-medium">([^<]+)<\/span>/.exec(html)?.[1] ??
+    "?";
+  return { site, label };
+}
+
+/**
+ * A page's header names `site` with the menu reading "Site: <label>", and
+ * (when given) its canonical URL is `canonical`.
+ */
+async function checkHeader(
+  url: string,
+  site: string,
+  label: string,
+  canonical?: string,
+): Promise<Result> {
+  const path = `${url} (header)`;
+  try {
+    const res = await fetch(url, { redirect: "manual" });
+    const html = await res.text();
+    const names = headerNames(html);
+    const canon =
+      /<link rel="canonical" href="([^"]+)"/.exec(html)?.[1] ?? "(none)";
+    const ok =
+      res.status === 200 &&
+      names.site === site &&
+      names.label === label &&
+      (canonical === undefined || canon === canonical);
+    return {
+      path,
+      ok,
+      detail:
+        `${res.status} site=${names.site} "Site: ${names.label}"` +
+        (canonical === undefined ? "" : ` canonical=${canon}`),
     };
   } catch (err) {
     return { path, ok: false, detail: (err as Error).message };
@@ -153,9 +230,14 @@ async function checkComments(base: string, slug: string): Promise<Result> {
   }
 }
 
-/** Parse `[url] [--comments-section <slug|none>]`. */
-function parseArgs(argv: string[]): { base: string; commentsSection: string } {
+/** Parse `[url] [--training <url>] [--comments-section <slug|none>]`. */
+function parseArgs(argv: string[]): {
+  base: string;
+  training: string | null;
+  commentsSection: string;
+} {
   let base = "http://localhost:3000";
+  let training: string | null = null;
   let commentsSection = DEFAULT_COMMENTS_SECTION;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
@@ -163,6 +245,10 @@ function parseArgs(argv: string[]): { base: string; commentsSection: string } {
       commentsSection = argv[++i] ?? "";
     } else if (arg.startsWith("--comments-section=")) {
       commentsSection = arg.slice("--comments-section=".length);
+    } else if (arg === "--training") {
+      training = argv[++i] ?? "";
+    } else if (arg.startsWith("--training=")) {
+      training = arg.slice("--training=".length);
     } else {
       base = arg;
     }
@@ -174,16 +260,64 @@ function parseArgs(argv: string[]): { base: string; commentsSection: string } {
     console.error(`Unknown section for --comments-section: ${commentsSection}`);
     process.exit(2);
   }
-  return { base: base.replace(/\/$/, ""), commentsSection };
+  base = base.replace(/\/$/, "");
+  // the production decoder host implies the production training host
+  if (training === null && base === DECODER_ORIGIN) training = TRAINING_ORIGIN;
+  return {
+    base,
+    training: training?.replace(/\/$/, "") ?? null,
+    commentsSection,
+  };
 }
 
 async function main(): Promise<void> {
-  const { base, commentsSection } = parseArgs(process.argv.slice(2));
-  console.log(`Smoke-checking ${base}`);
+  const { base, training, commentsSection } = parseArgs(process.argv.slice(2));
+  console.log(
+    `Smoke-checking ${base}` + (training ? ` and ${training} (Training)` : ""),
+  );
 
   const results = [await checkHealth(base)];
-  for (const path of PAGES) results.push(await checkPage(base, path));
+  for (const path of DECODER_PAGES) results.push(await checkPage(base, path));
   results.push(await checkSwitch(base));
+  results.push(await checkHeader(`${base}/learn`, "decoder", "Decoder"));
+  const chapter = `/training/${TRAINING_SECTIONS[12]!.slug}`;
+  if (training) {
+    // Part 2 on its own host; the old address redirects there
+    results.push(await checkHealth(training));
+    for (const path of TRAINING_PAGES)
+      results.push(await checkPage(training, path));
+    results.push(await checkPage(training, "/signin"));
+    results.push(await checkSwitch(training, "/training"));
+    results.push(
+      await checkHeader(
+        training + chapter,
+        "training",
+        "Training",
+        TRAINING_ORIGIN + chapter,
+      ),
+    );
+    results.push(
+      await checkRedirect(`${training}/`, 307, `${training}/training`),
+    );
+    results.push(
+      await checkRedirect(`${training}/learn`, 308, `${base}/learn`),
+    );
+    for (const path of ["/training", chapter])
+      results.push(
+        await checkRedirect(`${base}${path}`, 308, `${training}${path}`),
+      );
+  } else {
+    for (const path of TRAINING_PAGES)
+      results.push(await checkPage(base, path));
+    results.push(
+      await checkHeader(
+        base + chapter,
+        "training",
+        "Training",
+        TRAINING_ORIGIN + chapter,
+      ),
+    );
+  }
   if (commentsSection !== "none") {
     results.push(await checkComments(base, commentsSection));
   }
