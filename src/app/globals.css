@@ -27,8 +27,8 @@
   }
 
   /* Code blocks scroll sideways on narrow screens rather than widening the
-   * page. (The `prose` classes on the lesson pages come from no plugin, so
-   * nothing else sets this.) */
+   * page. (No typography plugin is loaded; the long-form text is styled by
+   * the `.mdx-content` rules below.) */
   pre {
     @apply overflow-x-auto;
   }
@@ -343,4 +343,68 @@
 .eq-panel[data-hl~="front"] .hl-front {
   background-color: rgb(0 114 178 / 0.18);
   border-color: #0072b2;
+}
+
+/* Long-form text: the chapters' MDX, /about and comment bodies (brief 32).
+ * The `prose` classes these pages used came from no plugin
+ * (@tailwindcss/typography is not installed), so links looked like plain
+ * text and paragraphs ran together. These rules are copied from
+ * llm-inference-explained's `.mdx-content`, which has the same problem
+ * solved without the plugin. Block rules apply only to the MDX's own
+ * blocks: direct children of the text column and of a `<Layer>` body (and
+ * list items), so the widgets' and animations' markup keeps its own
+ * spacing. MDX output carries no class attribute, so `:not([class])` keeps
+ * the links and inline-code rules off component markup. */
+@layer components {
+  :is(.mdx-content, .mdx-content .te-layer > div, .mdx-content li) > p {
+    @apply my-4 leading-7;
+  }
+  :is(.mdx-content, .mdx-content .te-layer > div) > p:first-child,
+  .mdx-content li > p:first-child {
+    @apply mt-0;
+  }
+  :is(.mdx-content, .mdx-content .te-layer > div) > p:last-child,
+  .mdx-content li > p:last-child {
+    @apply mb-0;
+  }
+  :is(.mdx-content, .mdx-content .te-layer > div) > h2 {
+    @apply mb-3 mt-10 text-xl font-semibold tracking-tight;
+  }
+  :is(.mdx-content, .mdx-content .te-layer > div) > h3 {
+    @apply mb-2 mt-8 text-lg font-semibold;
+  }
+  :is(.mdx-content, .mdx-content .te-layer > div, .mdx-content li) > ul {
+    @apply my-4 list-disc space-y-1 pl-6 leading-7;
+  }
+  :is(.mdx-content, .mdx-content .te-layer > div, .mdx-content li) > ol {
+    @apply my-4 list-decimal space-y-1 pl-6 leading-7;
+  }
+  .mdx-content a:not([class]) {
+    @apply rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300 dark:decoration-indigo-300/50 dark:hover:decoration-indigo-300;
+  }
+  .mdx-content :not(pre) > code:not([class]) {
+    @apply rounded bg-neutral-100 px-1 py-0.5 font-mono text-[0.85em] dark:bg-neutral-800;
+  }
+  :is(.mdx-content, .mdx-content .te-layer > div) > pre {
+    @apply my-4 rounded-lg bg-neutral-100 p-4 text-sm leading-6 dark:bg-neutral-900;
+  }
+  :is(.mdx-content, .mdx-content .te-layer > div) > table {
+    @apply my-4 block max-w-full overflow-x-auto text-sm;
+  }
+  .mdx-content th:not([class]) {
+    @apply border-b border-neutral-300 px-3 py-1.5 text-left font-semibold dark:border-neutral-700;
+  }
+  .mdx-content td:not([class]) {
+    @apply border-b border-neutral-200 px-3 py-1.5 align-top dark:border-neutral-800;
+  }
+  :is(.mdx-content, .mdx-content .te-layer > div) > blockquote {
+    @apply my-4 border-l-4 border-neutral-300 pl-4 text-neutral-600 dark:border-neutral-700 dark:text-neutral-300;
+  }
+  /* Comment bodies: smaller text, tighter paragraphs. */
+  .mdx-content-sm {
+    @apply text-sm;
+  }
+  .mdx-content.mdx-content-sm > p {
+    @apply my-2 leading-6;
+  }
 }

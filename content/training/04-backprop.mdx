@@ -84,6 +84,6 @@ addVecTo(v(grads, `${p}.ln2.beta`), n2.dBeta);
 const dh = addInto(dx, n2.dX);
 ```
 
-The `record` calls are what the animation draws. The NumPy twin is `scripts/training/model.py:backward`; `checks.py` compares it with `torch.autograd` on the same forward pass (agreement <R k="checks.gradients.autograd_perturbed.max_scaled_err" />, relative) and with central differences on <R k="checks.gradients.fd_perturbed.entries" /> sampled weights (largest error <R k="checks.gradients.fd_perturbed.max_abs_err" />).
+The `record` calls are what the animation draws. The NumPy twin is `scripts/training/model.py:backward`; `checks.py` compares it with `torch.autograd` on the same forward pass (agreement <R k="checks.gradients.autograd_perturbed.max_scaled_err" sig={2} />, relative) and with central differences on <R k="checks.gradients.fd_perturbed.entries" /> sampled weights (largest error <R k="checks.gradients.fd_perturbed.max_abs_err" sig={2} />).
 
 </Layer>

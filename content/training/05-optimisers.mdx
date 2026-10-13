@@ -76,7 +76,7 @@ $$
 \end{aligned}
 $$
 
-Defaults: $\mu = 0.9$, $\beta_1 = 0.9$, $\beta_2 = 0.999$ (0.99 in the default run), $\epsilon = 10^{-8}$. The valley is $f(x, y) = \tfrac12\big((x-2)^2 + 50(y-1)^2\big)$: SGD is stable only for $\eta < 2/50$, and then its error along $x$ shrinks by a factor $1 - \eta$ per step. These are PyTorch's definitions: each optimiser is checked against `torch.optim` over 25 steps on the model (largest difference <R k="checks.optimizers.adamw.max_abs_err" /> for AdamW).
+Defaults: $\mu = 0.9$, $\beta_1 = 0.9$, $\beta_2 = 0.999$ (0.99 in the default run), $\epsilon = 10^{-8}$. The valley is $f(x, y) = \tfrac12\big((x-2)^2 + 50(y-1)^2\big)$: SGD is stable only for $\eta < 2/50$, and then its error along $x$ shrinks by a factor $1 - \eta$ per step. These are PyTorch's definitions: each optimiser is checked against `torch.optim` over 25 steps on the model (largest difference <R k="checks.optimizers.adamw.max_abs_err" sig={2} /> for AdamW).
 
 </Layer>
 
