@@ -969,7 +969,7 @@ attention-growth,rounding,memory}-steps.ts`), frame-tested against
 
 - [x] Numbers print at the precision the chapter asks for. next-mdx-remote 6
       defaults to `blockJS: true`, which deleted every `d={…}` / `div={…}` prop
-      on `<R>` (284 of them, all in Training), so chapters printed raw floats
+      on `<R>` (215 props on 203 tags, all in Training), so chapters printed raw floats
       ("0.5318892633600001 s") and, where `div={1e9}` was lost, bytes instead
       of GB. Chapters now compile with `blockJS: false` and
       `blockDangerousJS: true` (`src/lib/mdx/options.ts`): the MDX is
