@@ -128,6 +128,12 @@ second is the systems model's ceiling, its fitted matrix-multiply efficiency
 $\eta = $ <R k="systems.validation.eta" d={3} /> (chapter 12 shows where that
 number comes from and how well the model predicts published runs).
 
+**The hardware underneath.** [Racks, chapter
+4](https://ai-racks-explained.vercel.app/learn/04-scale-up-nvlink) runs this ring all-reduce on a rack's NVLink,
+inside its switches and over the network, and [chapter
+9](https://ai-racks-explained.vercel.app/learn/09-training-clusters) shows where a job's data-parallel traffic
+lands on racks and the network (the Racks site, in the Hardware track).
+
 </Layer>
 
 <Layer kind="maths">
