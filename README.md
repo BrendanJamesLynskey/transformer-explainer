@@ -51,11 +51,13 @@ full-stack reference application.
 It is the first of a family of companion sites, linked from every page's
 header in four tracks; the header always shows where you are ("Track ›
 Site"). "Foundations" is this repository's two sites, Decoder and Training.
-"Hardware" (Kernels · Silicon · Racks, soon):
+"Hardware" (Kernels · Silicon · Racks):
 [GPU Kernels Explained](https://gpu-kernels-explained.vercel.app/)
-shows how a GPU executes the maths and
+shows how a GPU executes the maths,
 [Systolic Arrays Explained](https://systolic-arrays-explained.vercel.app/)
-the matrix hardware of TPUs. "Inference" (Serving · Architectures ·
+the matrix hardware of TPUs and
+[AI Racks Explained](https://ai-racks-explained.vercel.app/)
+the GPUs, networks, power and cooling of a rack. "Inference" (Serving · Architectures ·
 Numerics · Trade-offs):
 [LLM Inference Explained](https://llm-inference-explained.vercel.app/)
 (Serving) shows how a model is served,

@@ -246,7 +246,12 @@ test.describe("companion site", () => {
           "Inside a matrix engine",
           "https://systolic-arrays-explained.vercel.app",
         ],
-        ["racks", "Racks", "GPUs, networks, power, cooling at scale", ""],
+        [
+          "racks",
+          "Racks",
+          "GPUs, networks, power, cooling at scale",
+          "https://ai-racks-explained.vercel.app",
+        ],
         [
           "inference",
           "Serving",

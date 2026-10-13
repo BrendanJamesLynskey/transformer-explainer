@@ -99,6 +99,13 @@ count allows; results.md §11a lists every assumption.
 
 <ValidationChart />
 
+**The hardware underneath.** [Racks, chapter 9: training
+clusters](https://ai-racks-explained.vercel.app/learn/09-training-clusters) places a tensor × pipeline × data
+parallel job on NVL72 racks and on 8-GPU servers, group by group, and counts
+the pipeline hops that cross the network; [chapter
+4](https://ai-racks-explained.vercel.app/learn/04-scale-up-nvlink) is the NVLink domain that tensor parallelism
+stays inside (the Racks site, in the Hardware track).
+
 </Layer>
 
 <Layer kind="maths">

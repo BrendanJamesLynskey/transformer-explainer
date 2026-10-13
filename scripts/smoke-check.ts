@@ -110,6 +110,7 @@ const SWITCH_PRESENT = [
   'data-site-switch="menu"',
   'data-site-group="foundations"',
   'data-site-group="hardware"',
+  'href="https://ai-racks-explained.vercel.app"',
   'href="https://agent-orchestration-explained.vercel.app"',
   `href="${TRAINING_ORIGIN}"`,
 ];
