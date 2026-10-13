@@ -63,6 +63,6 @@ export function scheduleCaption(s: ScheduleState, names: string[]): string {
     return `${n} lr ${s.lrs[k]!.toPrecision(2)}, loss ${v === null ? "–" : v!.toFixed(3)}`;
   });
   if (s.step === 0)
-    return `Step 0: every run starts from Part 1's weights at loss ${s.vals[0]!.toFixed(3)}. ${names.length} schedules, peak learning rate ${s.lrs[0]}.`;
+    return `Step 0: every run starts from the Decoder's weights at loss ${s.vals[0]!.toFixed(3)}. ${names.length} schedules, peak learning rate ${s.lrs[0]}.`;
   return `Step ${s.step.toLocaleString("en-GB")}: ${parts.join(" · ")}.`;
 }

@@ -1,4 +1,4 @@
-One device trains Part 1's model in seconds; a frontier model would take one device centuries. The first way to share the work is to give every device a full copy of the model and a different slice of the batch, then make the copies agree. Below, four workers hold real gradients of the trained model, each from its own windows, and a ring sums them without any worker sending more than a fixed share of its vector.
+One device trains the Decoder's model in seconds; a frontier model would take one device centuries. The first way to share the work is to give every device a full copy of the model and a different slice of the batch, then make the copies agree. Below, four workers hold real gradients of the trained model, each from its own windows, and a ring sums them without any worker sending more than a fixed share of its vector.
 
 <RingAllReduceAnimation>
   <Eq
@@ -11,10 +11,10 @@ One device trains Part 1's model in seconds; a frontier model would take one dev
 
 <span id="t-data-parallel" />
 **Data parallelism.** Every worker (a GPU, or a whole machine) holds a full copy
-of the model, [Part 1's decoder](/learn/01-overview) here, and gets its own
-share of each batch. Each runs the forward and backward passes of chapters 1 and
-4 on its share; then the workers' gradients are averaged and every copy takes
-the same optimiser step, so the copies stay identical. The average of $W$
+of the model, [the Decoder site's model](/learn/01-overview) here, and gets its
+own share of each batch. Each runs the forward and backward passes of chapters 1
+and 4 on its share; then the workers' gradients are averaged and every copy
+takes the same optimiser step, so the copies stay identical. The average of $W$
 workers' mean gradients over $B/W$ windows each is exactly the mean gradient
 over the whole batch of $B$: data parallelism changes where the arithmetic
 happens, not what it computes. Checked on the model: chapter 13's four simulated

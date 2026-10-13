@@ -24,7 +24,7 @@ export function ModelChoice({
         className="focus-ring h-11 rounded border border-neutral-300 bg-white px-2 text-sm dark:border-neutral-700 dark:bg-neutral-950"
       >
         <option value="trained">after the default run (2,000 steps)</option>
-        <option value="init">at initialisation (Part 1&apos;s)</option>
+        <option value="init">at initialisation (the Decoder&apos;s)</option>
       </select>
     </label>
   );

@@ -361,7 +361,7 @@ export default function IsoflopAnimation({
     <AnimationPanel
       testId={testId}
       title="IsoFLOP curves on a toy model"
-      summary="Part 1's model at eight widths, each trained for exactly the tokens a compute budget allows (C = 6ND), three seeds each (means shown). Bigger budgets favour bigger models; the parabolas' minima trace the compute-optimal frontier."
+      summary="The Decoder's model at eight widths, each trained for exactly the tokens a compute budget allows (C = 6ND), three seeds each (means shown). Bigger budgets favour bigger models; the parabolas' minima trace the compute-optimal frontier."
       stepper={st}
       stepLabel="step"
       caption={isoflopCaption(s, rows)}

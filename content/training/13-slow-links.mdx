@@ -9,7 +9,7 @@ Inside a data centre, chapter 11's gradient sync rides links of hundreds of giga
 
 <Layer kind="concept">
 
-**This chapter is a toy, and says how far it is from the real thing.** Part 1's
+**This chapter is a toy, and says how far it is from the real thing.** The Decoder's
 model has 5,376 parameters; here four simulated workers in one process each
 train it on four of the default run's sixteen windows per step, for 2,000
 steps, on one book, on a CPU, three seeds per setting. The
@@ -35,7 +35,7 @@ link. Training over slow links means sending less, sending less often, or both.
 **Top-k sparsification.** Send only the $k$ largest values of a vector (and
 where they are), here 1 in 16 per tensor. Most of a gradient's coordinates are
 small at any one step, so most of the step survives. But each kept value needs
-its position too: for Part 1's model 2 bytes of BF16 value and 2 bytes of
+its position too: for the Decoder's model 2 bytes of BF16 value and 2 bytes of
 position, so 1 value in 16 costs 4/32 of the dense bytes, not 1/16. Deep
 Gradient Compression ([Lin et al. 2018](https://arxiv.org/abs/1712.01887)) does
 this to an accumulated momentum: each worker adds its gradient into a local

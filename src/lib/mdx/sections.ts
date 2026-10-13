@@ -60,7 +60,7 @@ export const TRAINING_SECTIONS = [
     slug: "01-training-loop",
     title: "The training loop",
     summary:
-      "Batch, forward, loss, backward, update: Part 1's model trains in your browser.",
+      "Batch, forward, loss, backward, update: the Decoder's model trains in your browser.",
   },
   {
     slug: "02-data-and-tokens",
@@ -266,14 +266,14 @@ export function getTrainingMeta(
 
 /**
  * The key a Training chapter's comments, progress and analytics are stored
- * under (`training-01-training-loop`): the same text columns as Part 1's
+ * under (`training-01-training-loop`): the same text columns as the Decoder's
  * chapters, so no schema change, and never equal to a Part 1 slug.
  */
 export function trainingSectionKey(slug: TrainingSlug): string {
   return `training-${slug}`;
 }
 
-/** Slugs whose comment threads exist: Part 1's slugs and Part 2's keys. */
+/** Slugs whose comment threads exist: the Decoder's slugs and Training's keys. */
 export function isCommentableSlug(slug: string): boolean {
   if (isValidSlug(slug)) return true;
   return (

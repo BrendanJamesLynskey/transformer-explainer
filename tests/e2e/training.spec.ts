@@ -98,7 +98,7 @@ const SHIPPED = [
   ["16-after-pretraining", "After pretraining"],
 ] as const;
 
-test.describe("Part 2 pages", () => {
+test.describe("Training pages", () => {
   test("the index lists 16 chapters, every one linked", async ({ page }) => {
     await page.goto("/training");
     await expect(
@@ -113,30 +113,54 @@ test.describe("Part 2 pages", () => {
     await expect(page.getByText("coming soon")).toHaveCount(0);
   });
 
-  test("the header has an Inference and a Training section, marked by route", async ({
+  test("the header names the site by route, with that site's own nav", async ({
     page,
   }) => {
     await page.goto("/training/03-objective");
     const header = page.locator("header");
-    await expect(
-      header.getByRole("link", { name: "Part 2: Training" }),
-    ).toHaveAttribute("aria-current", "page");
-    await header.getByRole("link", { name: "Part 1: Inference" }).click();
+    await expect(header.locator("[data-site-brand]")).toHaveText(
+      /^Foundations\W+Training$/,
+    );
+    await expect(header.locator("a[data-site-chapters]")).toHaveAttribute(
+      "href",
+      "/training",
+    );
+    await expect(header.getByRole("link", { name: "Playground" })).toHaveCount(
+      0,
+    );
+    await expect(header.getByText(/Part [12]/)).toHaveCount(0);
+    // the chapter index leads back to the decoder
+    await page.goto("/training");
+    await page.getByRole("link", { name: "← The decoder" }).click();
     await expect(page).toHaveURL(/\/learn$/);
+    await expect(header.locator("[data-site-brand]")).toHaveText(
+      /^Foundations\W+Decoder$/,
+    );
+    await expect(header.locator("a[data-site-chapters]")).toHaveAttribute(
+      "href",
+      "/learn",
+    );
     await expect(
-      header.getByRole("link", { name: "Part 1: Inference" }),
-    ).toHaveAttribute("aria-current", "page");
+      header.getByRole("link", { name: "Playground" }),
+    ).toBeVisible();
+    // and the decoder's index (and its last chapter) go on to Training
     await expect(
-      header.getByRole("link", { name: "Part 2: Training" }),
-    ).not.toHaveAttribute("aria-current", "page");
+      page.getByRole("link", { name: "Next: Training →" }),
+    ).toHaveAttribute("href", "/training");
+    await page.goto("/learn/07-sampling");
+    await expect(
+      page
+        .locator("article nav")
+        .getByRole("link", { name: "Next: Training →" }),
+    ).toHaveAttribute("href", "/training");
   });
 
-  test("chapters chain with previous / next links and a part label", async ({
+  test("chapters chain with previous / next links and a chapter label", async ({
     page,
   }) => {
     await page.goto("/training/02-data-and-tokens");
     await expect(
-      page.getByText("Part 2 · Training · chapter 2 of 16"),
+      page.getByText("Chapter 2 of 16", { exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "← The training loop" }),
@@ -151,7 +175,7 @@ test.describe("Part 2 pages", () => {
     ).toHaveAttribute("href", "/training/11-data-parallelism");
     await page.goto("/training/16-after-pretraining");
     await expect(
-      page.getByText("Part 2 · Training · chapter 16 of 16"),
+      page.getByText("Chapter 16 of 16", { exact: true }),
     ).toBeVisible();
     // the last chapter has no next link
     await expect(page.locator("article nav a")).toHaveCount(1);
@@ -169,23 +193,27 @@ test.describe("Part 2 pages", () => {
     expect(bad.status()).toBe(404);
   });
 
-  test("the home and about pages frame both parts", async ({ page }) => {
+  test("the home and about pages frame both Foundations sites, by name", async ({
+    page,
+  }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "How a decoder-only transformer runs, and how it is trained.",
     );
     await expect(
-      page.getByRole("link", { name: "Part 2: Training →" }),
+      page.getByRole("link", { name: "Next: Training →" }),
     ).toHaveAttribute("href", "/training");
+    await expect(page.locator("main").getByText(/Part [12]/)).toHaveCount(0);
     await page.goto("/about");
     await expect(
-      page.locator("main").getByRole("link", { name: "Part 2: Training" }),
+      page.locator("main").getByRole("link", { name: "Training", exact: true }),
     ).toBeVisible();
+    await expect(page.locator("main").getByText(/Part [12]/)).toHaveCount(0);
   });
 });
 
 test.describe("the live trainer", () => {
-  test("trains Part 1's model for 200 steps in a worker and matches the reference", async ({
+  test("trains the Decoder's model for 200 steps in a worker and matches the reference", async ({
     page,
   }) => {
     test.setTimeout(120_000);

@@ -3,13 +3,17 @@
  *
  * Server Component. Reads the current session via `auth()` and renders a
  * link to the `/signin` page, or a sign-out button driven by a Server
- * Action. The site's two parts, Inference (`/learn`) and Training
- * (`/training`), lead the navigation (`PartNav`).
+ * Action.
  *
- * The two parts have two addresses (`src/lib/site/hosts.ts`). On Training
- * pages the header names the Training site: its own name on the left, the
- * site menu reading "Site: Training", and no Part 1 extras (Playground);
- * links to the other part go to the other host.
+ * One deployment serves two sites of the Foundations track, each at its own
+ * address (`src/lib/site/hosts.ts`): Decoder (`/learn`, the playground) and
+ * Training (`/training`). The header names the site the page belongs to, as
+ * its place in the companion sites ("Foundations › Decoder" or
+ * "Foundations › Training", from the site switch's `SitePlace`, so it never
+ * drifts from the menu), and its nav lists only that site's pages: Learn
+ * (its chapters), Playground on Decoder, About. The other site is one entry
+ * in the site menu, and the chapter indexes link it ("Next: Training →",
+ * "← The decoder").
  */
 import Link from "next/link";
 
@@ -18,8 +22,7 @@ import { runOrFallback } from "@/lib/db-fallback";
 import { getSiteContext } from "@/lib/site/context";
 import { siteHref } from "@/lib/site/hosts";
 
-import { PartNav } from "./PartNav";
-import { SiteSwitch } from "./SiteSwitch";
+import { placeOf, SitePlace, SiteSwitch } from "./SiteSwitch";
 
 async function signOutAction() {
   "use server";
@@ -41,16 +44,24 @@ export async function SiteHeader(): Promise<JSX.Element> {
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
         <Link
           href={training ? href("/training") : href("/")}
+          title={placeOf(ctx.site).title}
           data-site-name={ctx.site}
-          className="focus-ring rounded font-mono text-sm font-medium tracking-tight"
+          data-site-brand
+          className="focus-ring whitespace-nowrap rounded text-sm tracking-tight"
         >
-          {training ? "transformer-training" : "transformer-explainer"}
+          <SitePlace current={ctx.site} />
         </Link>
-        <nav className="flex flex-wrap items-center gap-1 text-sm sm:gap-3">
-          <PartNav
-            inferenceHref={href("/learn")}
-            trainingHref={href("/training")}
-          />
+        <nav
+          aria-label="Site"
+          className="flex flex-wrap items-center gap-1 text-sm sm:gap-3"
+        >
+          <Link
+            href={training ? href("/training") : href("/learn")}
+            data-site-chapters
+            className="focus-ring rounded px-2 py-1 text-neutral-700 hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-white"
+          >
+            Learn
+          </Link>
           {!training && (
             <Link
               href={href("/playground")}

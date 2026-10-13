@@ -36,20 +36,29 @@ test.describe("the training host", () => {
     await expect(page).toHaveURL(`${TRAINING}/training`);
     const header = page.locator("header");
     await expect(header.locator("[data-site-name]")).toHaveText(
-      "transformer-training",
+      /^Foundations\W+Training$/,
     );
     await expect(header.locator("[data-site-name]")).toHaveAttribute(
       "href",
       "/training",
     );
     const menu = header.locator("[data-site-switch='menu']");
-    await expect(menu.locator("summary")).toHaveText(/Site:\s*Training/);
-    // Part 2 is the current part; Part 1 is on the decoder host
+    await expect(menu.locator("summary")).toHaveText(
+      /^Foundations\W+Training\W*$/,
+    );
+    // the nav is this site's own: Learn is the Training chapters; no "Part 1/2"
+    await expect(header.locator("a[data-site-chapters]")).toHaveText("Learn");
+    await expect(header.locator("a[data-site-chapters]")).toHaveAttribute(
+      "href",
+      "/training",
+    );
+    await expect(header.getByText(/Part [12]/)).toHaveCount(0);
+    // the chapter index links back to the decoder, on the decoder host
     await expect(
-      header.getByRole("link", { name: "Part 2: Training" }),
-    ).toHaveAttribute("aria-current", "page");
+      page.locator("main [data-sibling-site='decoder'] a"),
+    ).toHaveText("← The decoder");
     await expect(
-      header.getByRole("link", { name: "Part 1: Inference" }),
+      page.locator("main [data-sibling-site='decoder'] a"),
     ).toHaveAttribute("href", `${TRAINING_DECODER}/learn`);
     await expect(header.getByRole("link", { name: "About" })).toHaveAttribute(
       "href",
@@ -60,15 +69,17 @@ test.describe("the training host", () => {
     );
     // the menu highlights Training
     await menu.locator("summary").click();
-    await expect(
-      menu.getByRole("link", { name: "Training", exact: true }),
-    ).toHaveAttribute("aria-current", "true");
-    await expect(
-      menu.getByRole("link", { name: "Training", exact: true }),
-    ).toHaveAttribute("href", TRAINING_PROD);
+    await expect(menu.locator("[data-site-key='training']")).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    await expect(menu.locator("[data-site-key='training']")).toHaveAttribute(
+      "href",
+      TRAINING_PROD,
+    );
   });
 
-  test("chapter links stay on the training host; Part 1 links go to the decoder host", async ({
+  test("chapter links stay on the training host; Decoder links go to the decoder host", async ({
     page,
   }) => {
     await page.goto(`${TRAINING}/training/01-training-loop`);
@@ -78,19 +89,23 @@ test.describe("the training host", () => {
     await expect(
       page.getByRole("link", { name: /Data and tokenisation →/ }),
     ).toHaveAttribute("href", "/training/02-data-and-tokens");
-    // a Part 1 link inside the chapter text
+    // chapter 1 steps back to the other Foundations site
+    await expect(
+      page.locator("article nav").getByRole("link", { name: "← The decoder" }),
+    ).toHaveAttribute("href", `${TRAINING_DECODER}/learn`);
+    // a Decoder link inside the chapter text
     await expect(
       page.locator("article a", { hasText: "the overview" }),
     ).toHaveAttribute("href", `${TRAINING_DECODER}/learn/01-overview`);
   });
 
-  test("Part 1 pages asked for on the training host move to the decoder host", async ({
+  test("Decoder pages asked for on the training host move to the decoder host", async ({
     page,
   }) => {
     await page.goto(`${TRAINING}/learn/03-attention`);
     await expect(page).toHaveURL(`${TRAINING_DECODER}/learn/03-attention`);
     await expect(page.locator("header [data-site-name]")).toHaveText(
-      "transformer-explainer",
+      /^Foundations\W+Decoder$/,
     );
     const res = await page.request.get(`${TRAINING}/about?x=1`, {
       maxRedirects: 0,
@@ -117,7 +132,9 @@ test.describe("the training host", () => {
     expect(comments.status()).toBe(200);
   });
 
-  test("its sitemap lists Part 2 at the training host", async ({ page }) => {
+  test("its sitemap lists the Training pages at the training host", async ({
+    page,
+  }) => {
     const res = await page.request.get(`${TRAINING}/sitemap.xml`);
     const xml = await res.text();
     expect(xml).toContain(`<loc>${TRAINING_PROD}/training/13-slow-links</loc>`);
@@ -132,15 +149,27 @@ test.describe("the training host", () => {
 test.describe("the decoder host", () => {
   test.beforeEach(async ({ page }) => stubEvents(page));
 
-  test("names the Decoder site on Part 1 pages", async ({ page }) => {
+  test("names the Decoder site on its pages", async ({ page }) => {
     await page.goto(`${DECODER}/learn`);
     const header = page.locator("header");
     await expect(header.locator("[data-site-name]")).toHaveText(
-      "transformer-explainer",
+      /^Foundations\W+Decoder$/,
     );
     await expect(
       header.locator("[data-site-switch='menu'] summary"),
-    ).toHaveText(/Site:\s*Decoder/);
+    ).toHaveText(/^Foundations\W+Decoder\W*$/);
+    await expect(header.locator("a[data-site-chapters]")).toHaveAttribute(
+      "href",
+      "/learn",
+    );
+    await expect(header.getByText(/Part [12]/)).toHaveCount(0);
+    // the chapter index goes on to Training (this host: relative)
+    await expect(
+      page.locator("main [data-sibling-site='training'] a"),
+    ).toHaveText("Next: Training →");
+    await expect(
+      page.locator("main [data-sibling-site='training'] a"),
+    ).toHaveAttribute("href", "/training");
     await expect(
       header.getByRole("link", { name: "Playground" }),
     ).toBeVisible();
@@ -153,7 +182,7 @@ test.describe("the decoder host", () => {
     await expect(page).toHaveURL(`${DECODER}/training/13-slow-links`);
     await expect(
       page.locator("header [data-site-switch='menu'] summary"),
-    ).toHaveText(/Site:\s*Training/);
+    ).toHaveText(/^Foundations\W+Training\W*$/);
     // canonical: the training host, wherever the page is served
     await expect(page.locator("link[rel='canonical']")).toHaveAttribute(
       "href",
@@ -166,7 +195,7 @@ test.describe("the decoder host", () => {
     );
   });
 
-  test("its sitemap lists Part 1 at the decoder host and no Training page", async ({
+  test("its sitemap lists the Decoder pages at the decoder host and no Training page", async ({
     page,
   }) => {
     const xml = await (await page.request.get(`${DECODER}/sitemap.xml`)).text();

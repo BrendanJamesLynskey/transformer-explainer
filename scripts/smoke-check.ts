@@ -35,7 +35,7 @@
  *     bounces to sign-in is caught too);
  *   - the comment list is not a 200 `{ ok: true }`, or has no visible
  *     comment with rendered HTML;
- *   - the home page's header lacks the three-group site switch (with
+ *   - the home page's header lacks the four-track site switch (with
  *     Orchestration linked and Training on the training host), or links
  *     Compute in transit, which the switch leaves out (`unlisted`);
  *   - (two hosts) a redirect, canonical URL or header name is wrong.
@@ -108,7 +108,8 @@ async function checkHealth(base: string): Promise<Result> {
 /** Markers the site switch must (and must not) put in the home page's HTML. */
 const SWITCH_PRESENT = [
   'data-site-switch="menu"',
-  'data-site-group="training"',
+  'data-site-group="foundations"',
+  'data-site-group="hardware"',
   'href="https://agent-orchestration-explained.vercel.app"',
   `href="${TRAINING_ORIGIN}"`,
 ];
@@ -127,7 +128,7 @@ async function checkSwitch(base: string, page = "/"): Promise<Result> {
       path,
       ok,
       detail: ok
-        ? "200 three groups, no Compute in transit"
+        ? "200 four tracks, no Compute in transit"
         : `${res.status} missing [${missing.join(", ")}] unexpected [${present.join(", ")}]`,
     };
   } catch (err) {
@@ -155,17 +156,34 @@ async function checkRedirect(
   }
 }
 
-/** The site the header names, and the menu button's label, in a page's HTML. */
-function headerNames(html: string): { site: string; label: string } {
-  const site = /data-site-name="([a-z]+)"/.exec(html)?.[1] ?? "?";
-  const label =
-    /Site:<\/span><span class="font-medium">([^<]+)<\/span>/.exec(html)?.[1] ??
-    "?";
-  return { site, label };
+/** "Track › Site" from the first `SitePlace` at or after `from` in the HTML. */
+function placeAt(html: string, from: number): string {
+  const m =
+    /data-site-place="[a-z]+"><span[^>]*>([^<]+)<\/span>.*?<span class="font-medium">([^<]+)<\/span>/s.exec(
+      html.slice(Math.max(from, 0)),
+    );
+  return m ? `${m[1]} › ${m[2]}` : "?";
 }
 
 /**
- * A page's header names `site` with the menu reading "Site: <label>", and
+ * The site the header names, the place its brand shows and the place the
+ * menu button shows ("Foundations › Training"), in a page's HTML.
+ */
+function headerNames(html: string): {
+  site: string;
+  brand: string;
+  label: string;
+} {
+  const site = /data-site-name="([a-z]+)"/.exec(html)?.[1] ?? "?";
+  const at = html.search(/data-site-name="/);
+  const brand = at < 0 ? "?" : placeAt(html, at);
+  const label = placeAt(html, html.indexOf("<summary"));
+  return { site, brand, label };
+}
+
+/**
+ * A page's header names `site`, its brand and the menu button both read
+ * `label` ("Foundations › Training"), the header never says "Part 1/2", and
  * (when given) its canonical URL is `canonical`.
  */
 async function checkHeader(
@@ -181,16 +199,19 @@ async function checkHeader(
     const names = headerNames(html);
     const canon =
       /<link rel="canonical" href="([^"]+)"/.exec(html)?.[1] ?? "(none)";
+    const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? "";
     const ok =
       res.status === 200 &&
       names.site === site &&
       names.label === label &&
+      names.brand === label &&
+      !/Part [12]/.test(header) &&
       (canonical === undefined || canon === canonical);
     return {
       path,
       ok,
       detail:
-        `${res.status} site=${names.site} "Site: ${names.label}"` +
+        `${res.status} site=${names.site} brand="${names.brand}" menu="${names.label}"` +
         (canonical === undefined ? "" : ` canonical=${canon}`),
     };
   } catch (err) {
@@ -282,10 +303,12 @@ async function main(): Promise<void> {
   const results = [await checkHealth(base)];
   for (const path of DECODER_PAGES) results.push(await checkPage(base, path));
   results.push(await checkSwitch(base));
-  results.push(await checkHeader(`${base}/learn`, "decoder", "Decoder"));
+  results.push(
+    await checkHeader(`${base}/learn`, "decoder", "Foundations › Decoder"),
+  );
   const chapter = `/training/${TRAINING_SECTIONS[12]!.slug}`;
   if (training) {
-    // Part 2 on its own host; the old address redirects there
+    // Training on its own host; the old address redirects there
     results.push(await checkHealth(training));
     for (const path of TRAINING_PAGES)
       results.push(await checkPage(training, path));
@@ -295,7 +318,7 @@ async function main(): Promise<void> {
       await checkHeader(
         training + chapter,
         "training",
-        "Training",
+        "Foundations › Training",
         TRAINING_ORIGIN + chapter,
       ),
     );
@@ -316,7 +339,7 @@ async function main(): Promise<void> {
       await checkHeader(
         base + chapter,
         "training",
-        "Training",
+        "Foundations › Training",
         TRAINING_ORIGIN + chapter,
       ),
     );

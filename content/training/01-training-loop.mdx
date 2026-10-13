@@ -1,4 +1,4 @@
-Training is one loop, repeated: take a batch of text, run the model forward, score its guesses with a loss, send the gradient of that loss back through every weight, and nudge each weight downhill. Below, Part 1's model, with the same random weights you met in [the overview](/learn/01-overview), takes three real steps of that loop in your browser. Press play, or step through it with the arrow keys.
+Training is one loop, repeated: take a batch of text, run the model forward, score its guesses with a loss, send the gradient of that loss back through every weight, and nudge each weight downhill. Below, the Decoder's model, with the same random weights you met in [the Decoder site's overview](/learn/01-overview), takes three real steps of that loop in your browser. Press play, or step through it with the arrow keys.
 
 <TrainingLoopHero>
   <Eq
@@ -53,14 +53,14 @@ stay together: the run sees each training character about
 weights.
 
 <span id="t-seeds" />
-**Seeds.** Everything random here is seeded: the weights (seed 42, Part 1's),
-the order of the batches (data seed 1) and the sampler (seed 7). The same seeds
-give the same run on any machine, which is why your browser's run lands on the
-recorded one. A different data seed gives a slightly different curve; real
-experiments repeat a run over several seeds and report the mean and the spread
-(mean ± standard deviation), because a difference smaller than the seed-to-seed
-spread is not a difference, and a result from a single seed is a hypothesis
-until it is repeated.
+**Seeds.** Everything random here is seeded: the weights (seed 42, the
+Decoder's), the order of the batches (data seed 1) and the sampler (seed 7). The
+same seeds give the same run on any machine, which is why your browser's run
+lands on the recorded one. A different data seed gives a slightly different
+curve; real experiments repeat a run over several seeds and report the mean and
+the spread (mean ± standard deviation), because a difference smaller than the
+seed-to-seed spread is not a difference, and a result from a single seed is a
+hypothesis until it is repeated.
 
 <span id="t-parameters" />
 **Weights, or parameters.** The model is a function with
@@ -71,7 +71,7 @@ quoted as its parameter count: <R k="model.params" sep /> here, millions to
 hundreds of billions for real language models. Each training step changes every
 one of them at once.
 
-**The samples** under the chart are the model writing on its own: start from "alice ", predict a distribution over the next character, draw one (temperature 0.8, as in [Part 1's sampling chapter](/learn/07-sampling)), append it, repeat. At step 0 it is noise; by the end it has learnt spaces, common short words and punctuation, but not sense: with 8 characters of context and about five thousand weights, it cannot.
+**The samples** under the chart are the model writing on its own: start from "alice ", predict a distribution over the next character, draw one (temperature 0.8, as in [the Decoder's sampling chapter](/learn/07-sampling)), append it, repeat. At step 0 it is noise; by the end it has learnt spaces, common short words and punctuation, but not sense: with 8 characters of context and about five thousand weights, it cannot.
 
 </Layer>
 

@@ -1,13 +1,15 @@
 /**
- * /learn — index of explainer sections.
+ * /learn — the Decoder site's chapter index.
  *
  * Server Component. Reads the section catalogue (single source of truth in
- * `src/lib/mdx/sections.ts`) and lists each one with its title and summary.
+ * `src/lib/mdx/sections.ts`) and lists each one with its title and summary,
+ * under a link to the next site in the Foundations track, Training.
  */
 import Link from "next/link";
 
 import { getSession } from "@/lib/auth";
 import { runOrFallback } from "@/lib/db-fallback";
+import { SiblingSite } from "@/components/ui/SiblingSite";
 import { SECTIONS, readSectionMdx } from "@/lib/mdx/sections";
 import { listForUser } from "@/lib/progress";
 
@@ -42,7 +44,8 @@ export default async function LearnIndex(): Promise<JSX.Element> {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
-      <p className="font-mono text-xs uppercase tracking-widest text-accent dark:text-indigo-300">
+      <SiblingSite from="decoder" />
+      <p className="mt-8 font-mono text-xs uppercase tracking-widest text-accent dark:text-indigo-300">
         /learn
       </p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">

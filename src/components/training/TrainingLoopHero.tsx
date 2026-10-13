@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Chapter 1's hero: three real training steps of Part 1's model. A batch of
+ * Chapter 1's hero: three real training steps of the Decoder's model. A batch of
  * 4 windows flows forward (each target's probability lights its cell), the
  * loss lights up per position, the gradient flows back group by group (last
  * layer first, with ‖g‖), and AdamW updates the weights (‖Δθ‖/‖θ‖ per group,
@@ -308,7 +308,7 @@ export default function TrainingLoopHero({
     <AnimationPanel
       testId={testId}
       title="One training step, three times"
-      summary={`Part 1's model, at its initial weights, takes ${HERO.steps} AdamW steps (learning rate ${HERO.lr}) on batches of ${HERO.batch} windows from the corpus, computed in your browser.`}
+      summary={`The Decoder's model, at its initial weights, takes ${HERO.steps} AdamW steps (learning rate ${HERO.lr}) on batches of ${HERO.batch} windows from the corpus, computed in your browser.`}
       stepper={st}
       stepLabel="state"
       caption={heroCaption(s)}

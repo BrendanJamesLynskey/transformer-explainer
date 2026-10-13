@@ -28,16 +28,18 @@ export default function AboutPage(): JSX.Element {
       <section className="prose prose-neutral dark:prose-invert max-w-none">
         <p>
           This is a graphical, interactive explainer of how a decoder-only
-          transformer runs, and how it is trained. Part 1 (Inference): type your
-          own tokens, watch every operation execute, and sample the next token
-          end-to-end. Part 2 (Training): train that same model, from the same
-          initial weights, on a public-domain book in your browser, and follow
-          the loss, the gradients and the optimiser step by step. Every matrix
-          you see is the actual value the model computed — the visualisations
-          are not a separate model.
+          transformer runs, and how it is trained, in two sites of the
+          Foundations track. Decoder (<code>/learn</code>): type your own
+          tokens, watch every operation execute, and sample the next token
+          end-to-end. Training (<code>/training</code>, at its own address):
+          train that same model, from the same initial weights, on a
+          public-domain book in your browser, and follow the loss, the gradients
+          and the optimiser step by step. Every matrix you see is the actual
+          value the model computed — the visualisations are not a separate
+          model.
         </p>
         <p>
-          Part 2&rsquo;s trainer has a hand-written backward pass for every
+          Training&rsquo;s trainer has a hand-written backward pass for every
           operation. A NumPy reference of it matches PyTorch autograd and finite
           differences, its optimisers match <code>torch.optim</code>, and the
           TypeScript trainer matches the reference step for step (the checks and
@@ -179,8 +181,8 @@ export default function AboutPage(): JSX.Element {
             >
               Alice&rsquo;s Adventures in Wonderland
             </a>{" "}
-            (Project Gutenberg eBook #11, public domain). Part 2&rsquo;s
-            training text, lower-cased to the 64-character alphabet.
+            (Project Gutenberg eBook #11, public domain). The Training
+            site&rsquo;s text, lower-cased to the 64-character alphabet.
           </li>
           <li>
             Narayanan et al., 2021 —{" "}
@@ -262,14 +264,14 @@ export default function AboutPage(): JSX.Element {
           href="/learn"
           className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
         >
-          → Part 1: Inference
+          → Decoder
         </Link>{" "}
         ·{" "}
         <Link
           href={siteHref("/training", ctx)}
           className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
         >
-          Part 2: Training
+          Training
         </Link>
       </p>
     </main>

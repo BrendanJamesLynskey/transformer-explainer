@@ -12,7 +12,7 @@ The loss is the one number training lowers. For a language model it is the next-
 <span id="t-next-token" />
 **One forward pass, eight predictions: next-token prediction.** Feed the 8
 characters "alice wa" in, and the model returns 8 rows of 64 logits, one row per
-position ([Part 1, chapter 7](/learn/07-sampling) turns one such row into a
+position ([Decoder, chapter 7](/learn/07-sampling) turns one such row into a
 sampled token). Thanks to the causal mask, row $i$ only saw characters $1 \dots
 i$, so it is a genuine prediction of character $i + 1$. Training scores all 8 at
 once; this is what makes transformers efficient to train, compared with

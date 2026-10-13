@@ -1,4 +1,4 @@
-Pretraining makes a model that continues text; the assistants people talk to are that model trained further, on far less data chosen far more carefully. The objective barely changes, but what it is applied to does. Below, Part 1's trained model reads a prompt and a response: pretraining would score every character, fine-tuning scores only the response's; then two continuations of one prompt, compared the way preference training compares them.
+Pretraining makes a model that continues text; the assistants people talk to are that model trained further, on far less data chosen far more carefully. The objective barely changes, but what it is applied to does. Below, the Decoder's model, trained, reads a prompt and a response: pretraining would score every character, fine-tuning scores only the response's; then two continuations of one prompt, compared the way preference training compares them.
 
 <SftAnimation>
   <Eq
@@ -60,12 +60,12 @@ variant of PPO (also in FT 04). Feedback written by a model from a list of
 principles instead of by people is Constitutional AI and RLAIF:
 [FT 05](https://brendanjameslynskey.github.io/FT_05_Constitutional_AI_and_RLAIF/).
 
-**What carries over from Part 2.** All of it. Every stage above is the
+**What carries over from these chapters.** All of it. Every stage above is the
 training loop of chapter 1 with a different dataset and a different loss: the
 same backward pass (chapter 4), optimisers (5), learning-rate care (6),
 stability tricks (8), precision (9), memory (10) and parallelism (11 and 12),
 at a fraction of pretraining's compute. And the model that comes out runs
-exactly as [Part 1](/learn) describes.
+exactly as [the Decoder site](/learn) describes.
 
 </Layer>
 
@@ -98,7 +98,7 @@ $\log 2$; it falls as the model moves probability from $y_l$ to $y_w$.
 <Layer kind="code">
 
 The per-character log probabilities in the animation,
-`src/lib/anim/training/sft-steps.ts` (Part 1's forward pass on a window of the
+`src/lib/anim/training/sft-steps.ts` (the Decoder's forward pass on a window of the
 last 8 characters; matched to `scripts/training/anim_c.py`):
 
 ```ts

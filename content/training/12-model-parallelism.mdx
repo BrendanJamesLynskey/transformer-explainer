@@ -33,12 +33,12 @@ where the idle time goes.
 
 **Tensor parallelism.** Cut each layer's matrices instead
 ([Shoeybi et al. 2019](https://arxiv.org/abs/1909.08053), Megatron-LM). The
-feed-forward network's first matrix ([Part 1, chapter 4](/learn/04-ffn)) is
+feed-forward network's first matrix ([Decoder, chapter 4](/learn/04-ffn)) is
 split by columns, so each of $t$ devices computes its own slice of the hidden
 layer, GELU included, with no communication; the second matrix is split by
 rows, so each device produces a partial sum of the output, and one all-reduce
 adds them. Attention splits the same way, a group of heads per device
-([Part 1, chapter 3](/learn/03-attention): the heads are already independent).
+([Decoder, chapter 3](/learn/03-attention): the heads are already independent).
 That is two all-reduces of the activations per layer in the forward pass and
 two in the backward pass, every layer, every micro-batch: far more
 communication than data parallelism's once-per-step gradient sync, which is

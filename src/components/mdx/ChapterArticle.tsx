@@ -45,7 +45,7 @@ export async function ChapterArticle({
 }: {
   backHref: string;
   backLabel: string;
-  /** e.g. "Part 2 · Training · chapter 1"; omitted on Part 1 pages */
+  /** e.g. "Chapter 1 of 16" (Training); omitted on Decoder pages */
   partLabel?: string;
   title: string;
   summary: string;
