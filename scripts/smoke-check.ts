@@ -145,7 +145,10 @@ async function checkRedirect(
   try {
     const res = await fetch(url, { redirect: "manual" });
     const got = res.headers.get("location") ?? "";
-    const ok = res.status === status && got === location;
+    // a relative Location (Vercel sends "/training" for a same-host redirect)
+    // is resolved against the request, as a browser does
+    const resolved = got ? new URL(got, url).href : "";
+    const ok = res.status === status && resolved === new URL(location).href;
     return { path, ok, detail: `${res.status} → ${got || "(none)"}` };
   } catch (err) {
     return { path, ok: false, detail: (err as Error).message };
