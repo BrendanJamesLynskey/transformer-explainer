@@ -964,3 +964,24 @@ attention-growth,rounding,memory}-steps.ts`), frame-tested against
       hosts (redirects, canonical, header) given the production decoder URL.
 - [ ] Owner: add the domain to the Vercel project and deploy
       (`_handoff/simulation_followups/merge_deploy_29E.sh`).
+
+## Brief 32 — chapter numbers and text styling (2026-10-13)
+
+- [x] Numbers print at the precision the chapter asks for. next-mdx-remote 6
+      defaults to `blockJS: true`, which deleted every `d={…}` / `div={…}` prop
+      on `<R>` (215 props on 203 tags, all in Training), so chapters printed raw floats
+      ("0.5318892633600001 s") and, where `div={1e9}` was lost, bytes instead
+      of GB. Chapters now compile with `blockJS: false` and
+      `blockDangerousJS: true` (`src/lib/mdx/options.ts`): the MDX is
+      first-party and in this repo. `<R sig={2}>` prints the six tiny
+      agreement figures (chapters 1, 4, 5) as "9.4 × 10⁻¹⁷".
+- [x] Chapter text is styled: the `prose` classes came from no plugin, so
+      links looked like text and paragraphs ran together. `.mdx-content`
+      rules in `globals.css` (copied from llm-inference-explained) style
+      paragraphs, lists, links (colour + underline, light and dark), inline
+      code, code blocks and tables, on chapters, `/about` and comment bodies.
+      `remark-gfm` (as on the sister sites) makes chapter 9's table a table.
+- [x] Test: `tests/unit/mdx-numbers.test.ts` renders all 7 Decoder and 16
+      Training chapters with the site's options and fails on any `\d\.\d{7,}`
+      in the text or any `<R d={n}>` not printing n decimals (it fails 16
+      tests with `blockJS: true`).

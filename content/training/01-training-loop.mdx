@@ -123,6 +123,6 @@ export function trainStep(tr: Trainer, batch?: Batch): StepLog {
 
 The same four lines are the heart of every training loop, from this toy to a model trained on thousands of accelerators; in PyTorch they are `loss = model(x, y)`, `loss.backward()`, `clip_grad_norm_(…)` and `opt.step()`.
 
-**How it is checked.** `scripts/training/` is a NumPy reference of this trainer with a hand-written backward pass. Its gradients match PyTorch autograd to <R k="checks.gradients.autograd_perturbed.max_scaled_err" /> (relative) and central finite differences to <R k="checks.gradients.fd_perturbed.max_abs_err" />; its AdamW steps match `torch.optim.AdamW` to <R k="checks.optimizers.adamw.max_abs_err" />. The TypeScript trainer matches the reference step for step: the unit tests replay the first 200 steps of the default run to 1e-9, and the whole 2,000-step run to within 1e-7 of the recorded weights.
+**How it is checked.** `scripts/training/` is a NumPy reference of this trainer with a hand-written backward pass. Its gradients match PyTorch autograd to <R k="checks.gradients.autograd_perturbed.max_scaled_err" sig={2} /> (relative) and central finite differences to <R k="checks.gradients.fd_perturbed.max_abs_err" sig={2} />; its AdamW steps match `torch.optim.AdamW` to <R k="checks.optimizers.adamw.max_abs_err" sig={2} />. The TypeScript trainer matches the reference step for step: the unit tests replay the first 200 steps of the default run to 1e-9, and the whole 2,000-step run to within 1e-7 of the recorded weights.
 
 </Layer>

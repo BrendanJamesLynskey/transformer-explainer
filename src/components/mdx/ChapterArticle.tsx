@@ -8,13 +8,13 @@
  *
  * Server Component. Maths: `remark-math` turns `$…$` / `$$…$$` into maths
  * nodes and `rehype-katex` renders them to HTML on the server, so the Maths
- * layer arrives as finished markup and no KaTeX JavaScript is shipped.
+ * layer arrives as finished markup and no KaTeX JavaScript is shipped (the
+ * compile options are in `src/lib/mdx/options.ts`). The text is styled by
+ * the `.mdx-content` rules in `globals.css`.
  */
 import Link from "next/link";
 import type { ComponentPropsWithoutRef } from "react";
 import { MDXRemote } from "next-mdx-remote/rsc";
-import rehypeKatex from "rehype-katex";
-import remarkMath from "remark-math";
 
 import { CommentSection } from "@/components/interactive/CommentSection";
 import { EventTracker } from "@/components/interactive/EventTracker";
@@ -23,6 +23,7 @@ import { ProgressTracker } from "@/components/interactive/ProgressTracker";
 import { getSession } from "@/lib/auth";
 import { runOrFallback } from "@/lib/db-fallback";
 import { mdxComponents } from "@/lib/mdx/components";
+import { chapterMdxOptions } from "@/lib/mdx/options";
 import { getSiteContext } from "@/lib/site/context";
 import { siteHref } from "@/lib/site/hosts";
 
@@ -106,16 +107,11 @@ export async function ChapterArticle({
         </p>
       )}
 
-      <div className="prose prose-neutral dark:prose-invert mt-8 max-w-none">
+      <div className="mdx-content mt-8">
         <MDXRemote
           source={mdx}
           components={components}
-          options={{
-            mdxOptions: {
-              remarkPlugins: [remarkMath],
-              rehypePlugins: [rehypeKatex],
-            },
-          }}
+          options={chapterMdxOptions}
         />
       </div>
 

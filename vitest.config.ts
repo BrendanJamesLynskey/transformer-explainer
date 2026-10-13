@@ -2,6 +2,9 @@ import { defineConfig } from "vitest/config";
 import path from "node:path";
 
 export default defineConfig({
+  // tsconfig keeps JSX for Next ("preserve"); tests that render a component
+  // (tests/unit/mdx-numbers.test.ts renders <R>) need the automatic runtime.
+  esbuild: { jsx: "automatic" },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

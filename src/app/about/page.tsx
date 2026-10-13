@@ -25,7 +25,7 @@ export default function AboutPage(): JSX.Element {
         </h1>
       </header>
 
-      <section className="prose prose-neutral dark:prose-invert max-w-none">
+      <section className="mdx-content">
         <p>
           This is a graphical, interactive explainer of how a decoder-only
           transformer runs, and how it is trained, in two sites of the
@@ -46,7 +46,7 @@ export default function AboutPage(): JSX.Element {
           their tolerances are in{" "}
           <a
             href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md"
-            className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+            className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
           >
             results.md
           </a>
@@ -82,7 +82,7 @@ export default function AboutPage(): JSX.Element {
             Vaswani et al., 2017 —{" "}
             <a
               href="https://arxiv.org/abs/1706.03762"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -96,7 +96,7 @@ export default function AboutPage(): JSX.Element {
             Radford et al., 2019 —{" "}
             <a
               href="https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -109,7 +109,7 @@ export default function AboutPage(): JSX.Element {
             Hendrycks &amp; Gimpel, 2016 —{" "}
             <a
               href="https://arxiv.org/abs/1606.08415"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -121,7 +121,7 @@ export default function AboutPage(): JSX.Element {
             Andrej Karpathy —{" "}
             <a
               href="https://github.com/karpathy/nanoGPT"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -130,7 +130,7 @@ export default function AboutPage(): JSX.Element {
             and{" "}
             <a
               href="https://www.youtube.com/watch?v=kCc8FmEb1nY"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -142,7 +142,7 @@ export default function AboutPage(): JSX.Element {
             Kingma &amp; Ba, 2014 —{" "}
             <a
               href="https://arxiv.org/abs/1412.6980"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -151,7 +151,7 @@ export default function AboutPage(): JSX.Element {
             , and Loshchilov &amp; Hutter, 2017 —{" "}
             <a
               href="https://arxiv.org/abs/1711.05101"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -163,7 +163,7 @@ export default function AboutPage(): JSX.Element {
             Sennrich, Haddow &amp; Birch, 2015 —{" "}
             <a
               href="https://arxiv.org/abs/1508.07909"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -175,7 +175,7 @@ export default function AboutPage(): JSX.Element {
             Lewis Carroll, 1865 —{" "}
             <a
               href="https://www.gutenberg.org/ebooks/11"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -188,7 +188,7 @@ export default function AboutPage(): JSX.Element {
             Narayanan et al., 2021 —{" "}
             <a
               href="https://arxiv.org/abs/2104.04473"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -198,7 +198,7 @@ export default function AboutPage(): JSX.Element {
             , and Grattafiori et al., 2024 —{" "}
             <a
               href="https://arxiv.org/abs/2407.21783"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -211,7 +211,7 @@ export default function AboutPage(): JSX.Element {
             Peng et al., 2024 —{" "}
             <a
               href="https://arxiv.org/abs/2411.19870"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -220,7 +220,7 @@ export default function AboutPage(): JSX.Element {
             , and Douillard et al., 2023 —{" "}
             <a
               href="https://arxiv.org/abs/2311.08105"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -232,7 +232,7 @@ export default function AboutPage(): JSX.Element {
             3blue1brown —{" "}
             <a
               href="https://www.3blue1brown.com/topics/neural-networks"
-              className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+              className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -249,7 +249,7 @@ export default function AboutPage(): JSX.Element {
           MIT. Use the code as a learning resource, fork it, ship it. See{" "}
           <a
             href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/LICENSE"
-            className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+            className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
             rel="noopener noreferrer"
             target="_blank"
           >
@@ -262,14 +262,14 @@ export default function AboutPage(): JSX.Element {
       <p className="text-sm">
         <Link
           href="/learn"
-          className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+          className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
         >
           → Decoder
         </Link>{" "}
         ·{" "}
         <a
           href={siteHref("/training", ctx)}
-          className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
+          className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
         >
           Training
         </a>

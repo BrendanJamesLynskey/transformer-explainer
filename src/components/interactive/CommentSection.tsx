@@ -228,7 +228,7 @@ function CommentBody({
         {own ? "you" : "user"} · {new Date(c.createdAt).toLocaleString()}
       </p>
       <div
-        className="prose prose-sm prose-neutral dark:prose-invert mt-1 max-w-none"
+        className="mdx-content mdx-content-sm mt-1"
         dangerouslySetInnerHTML={{ __html: c.bodyHtml }}
       />
     </article>
