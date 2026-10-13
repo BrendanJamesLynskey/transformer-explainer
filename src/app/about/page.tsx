@@ -267,12 +267,12 @@ export default function AboutPage(): JSX.Element {
           → Decoder
         </Link>{" "}
         ·{" "}
-        <Link
+        <a
           href={siteHref("/training", ctx)}
           className="focus-ring rounded text-accent hover:underline dark:text-indigo-300"
         >
           Training
-        </Link>
+        </a>
       </p>
     </main>
   );

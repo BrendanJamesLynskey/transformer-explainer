@@ -84,12 +84,12 @@ export default async function TrainingIndex(): Promise<JSX.Element> {
       </p>
       <p className="mt-3 text-neutral-600 dark:text-neutral-300">
         New to the model itself? Start with{" "}
-        <Link
+        <a
           href={siteHref("/learn", ctx)}
           className="focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300"
         >
           the Decoder site
-        </Link>
+        </a>
         . Prefer slides? Every chapter has a deck in the{" "}
         <a
           href={TRAINING_DECK_HUB}

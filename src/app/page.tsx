@@ -79,12 +79,12 @@ export default function HomePage(): JSX.Element {
             >
               Start the Decoder chapters →
             </Link>
-            <Link
+            <a
               href={siteHref("/training", ctx)}
               className="focus-ring rounded border border-neutral-300 px-4 py-2 text-sm font-medium hover:border-accent dark:border-neutral-700"
             >
               Next: Training →
-            </Link>
+            </a>
             <Link
               href="/playground"
               className="focus-ring rounded border border-neutral-300 px-4 py-2 text-sm font-medium hover:border-accent dark:border-neutral-700"
@@ -116,21 +116,37 @@ export default function HomePage(): JSX.Element {
         aria-label="Ways in"
         className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
-        {ENTRY_POINTS.map((e) => (
-          <Link
-            key={e.href}
-            href={siteHref(e.href, ctx)}
-            className="focus-ring group rounded-lg border border-neutral-200 p-5 hover:border-accent dark:border-neutral-800 dark:hover:border-indigo-400"
-          >
-            <h2 className="font-semibold">{e.title}</h2>
-            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-              {e.blurb}
-            </p>
-            <p className="mt-4 text-sm font-medium text-accent dark:text-indigo-300">
-              {e.cta}
-            </p>
-          </Link>
-        ))}
+        {ENTRY_POINTS.map((e) => {
+          const content = (
+            <>
+              <h2 className="font-semibold">{e.title}</h2>
+              <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+                {e.blurb}
+              </p>
+              <p className="mt-4 text-sm font-medium text-accent dark:text-indigo-300">
+                {e.cta}
+              </p>
+            </>
+          );
+          // Training is the other Foundations site: a full page load
+          return e.href === "/training" ? (
+            <a
+              key={e.href}
+              href={siteHref(e.href, ctx)}
+              className="focus-ring group rounded-lg border border-neutral-200 p-5 hover:border-accent dark:border-neutral-800 dark:hover:border-indigo-400"
+            >
+              {content}
+            </a>
+          ) : (
+            <Link
+              key={e.href}
+              href={siteHref(e.href, ctx)}
+              className="focus-ring group rounded-lg border border-neutral-200 p-5 hover:border-accent dark:border-neutral-800 dark:hover:border-indigo-400"
+            >
+              {content}
+            </Link>
+          );
+        })}
       </nav>
 
       <p className="mt-12 text-sm text-neutral-600 dark:text-neutral-400">

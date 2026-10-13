@@ -67,6 +67,7 @@ export default async function SectionPage({
         link(next) ?? {
           href: siteHref("/training", getSiteContext()),
           title: "Next: Training",
+          crossSite: true,
         }
       }
       sectionKey={params.slug}

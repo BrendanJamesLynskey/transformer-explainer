@@ -77,6 +77,7 @@ export default async function TrainingChapterPage({
         link(prev) ?? {
           href: siteHref("/learn", ctx),
           title: "The decoder",
+          crossSite: true,
         }
       }
       next={link(next)}

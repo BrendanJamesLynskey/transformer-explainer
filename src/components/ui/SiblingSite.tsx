@@ -7,8 +7,6 @@
  *
  * Server Component.
  */
-import Link from "next/link";
-
 import { getSiteContext } from "@/lib/site/context";
 import { siteHref } from "@/lib/site/hosts";
 
@@ -36,12 +34,14 @@ export function SiblingSite({
       data-sibling-site={from === "decoder" ? "training" : "decoder"}
       className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-neutral-600 dark:text-neutral-400"
     >
-      <Link
+      {/* a full page load, never a client-side transition: the header,
+          rendered once by the root layout, must name the other site */}
+      <a
         href={siteHref(s.to, getSiteContext())}
         className="focus-ring inline-flex min-h-11 items-center rounded-md border border-neutral-300 px-3 font-medium text-neutral-900 hover:border-accent dark:border-neutral-700 dark:text-neutral-100 dark:hover:border-indigo-400"
       >
         {s.label}
-      </Link>
+      </a>
       <span>{s.blurb}</span>
     </p>
   );

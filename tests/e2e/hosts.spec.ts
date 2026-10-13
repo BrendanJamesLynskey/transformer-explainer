@@ -95,7 +95,7 @@ test.describe("the training host", () => {
     ).toHaveAttribute("href", `${TRAINING_DECODER}/learn`);
     // a Decoder link inside the chapter text
     await expect(
-      page.locator("article a", { hasText: "the overview" }),
+      page.locator("article a", { hasText: "the Decoder site's overview" }),
     ).toHaveAttribute("href", `${TRAINING_DECODER}/learn/01-overview`);
   });
 
