@@ -112,6 +112,7 @@ const SWITCH_PRESENT = [
   'data-site-group="hardware"',
   'href="https://ai-racks-explained.vercel.app"',
   'href="https://agent-orchestration-explained.vercel.app"',
+  'href="https://agent-evals-explained.vercel.app"',
   `href="${TRAINING_ORIGIN}"`,
 ];
 const SWITCH_ABSENT = ["compute-in-transit-results.vercel.app"];
