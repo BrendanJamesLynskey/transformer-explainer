@@ -15,7 +15,8 @@ import {
   trainingDeckUrl,
   trainingSectionKey,
 } from "@/lib/mdx/sections";
-import { trainingCanonical } from "@/lib/site/hosts";
+import { getSiteContext } from "@/lib/site/context";
+import { siteHref, trainingCanonical } from "@/lib/site/hosts";
 
 import "katex/dist/katex.min.css";
 
@@ -58,6 +59,7 @@ export default async function TrainingChapterPage({
     return n && (await readTrainingMdx(n.slug)) ? n : null;
   };
   const prev = idx > 0 ? TRAINING_SECTIONS[idx - 1]! : null;
+  const ctx = getSiteContext();
   const next = await readyNext();
   const link = (s: (typeof TRAINING_SECTIONS)[number] | null) =>
     s ? { href: `/training/${s.slug}`, title: s.title } : null;
@@ -66,11 +68,18 @@ export default async function TrainingChapterPage({
     <ChapterArticle
       backHref="/training"
       backLabel="← /training"
-      partLabel={`Part 2 · Training · chapter ${idx + 1} of ${TRAINING_SECTIONS.length}`}
+      partLabel={`Chapter ${idx + 1} of ${TRAINING_SECTIONS.length}`}
       title={meta.title}
       summary={meta.summary}
       mdx={mdx}
-      prev={link(prev)}
+      // the first chapter steps back to the other Foundations site
+      prev={
+        link(prev) ?? {
+          href: siteHref("/learn", ctx),
+          title: "The decoder",
+          crossSite: true,
+        }
+      }
       next={link(next)}
       sectionKey={trainingSectionKey(params.slug)}
       deck={{

@@ -2,7 +2,7 @@
 
 /**
  * Chapter 7's hero: scale through depth at initialisation. An 8-block
- * version of Part 1's model, pre-LN beside post-LN, on "alice was": the
+ * version of the Decoder's model, pre-LN beside post-LN, on "alice was": the
  * forward pass fills in the RMS of the residual stream entering each block;
  * the backward pass then fills in each block's gradient norm, from the top.
  * Computed in the browser by the trainer's forward and backward passes
@@ -199,7 +199,7 @@ export default function DepthAnimation({
     <AnimationPanel
       testId={testId}
       title="Scale through depth: pre-LN vs post-LN"
-      summary={`Part 1's model with ${DEPTH} blocks instead of 2, at initialisation, on "alice was". Blue: how large the residual stream is entering each block. Orange: how large each block's weight gradients are, filled in by the backward pass from the top.`}
+      summary={`The Decoder's model with ${DEPTH} blocks instead of 2, at initialisation, on "alice was". Blue: how large the residual stream is entering each block. Orange: how large each block's weight gradients are, filled in by the backward pass from the top.`}
       stepper={st}
       stepLabel="stage"
       caption={depthCaption(s)}

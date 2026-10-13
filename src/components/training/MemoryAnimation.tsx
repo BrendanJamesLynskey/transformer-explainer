@@ -273,7 +273,7 @@ export default function MemoryAnimation({
           aria-label="Model"
         >
           <option value="llama">LLaMA 7B (6.74B parameters)</option>
-          <option value="part1">Part 1&apos;s model (5,376)</option>
+          <option value="part1">The Decoder&apos;s model (5,376)</option>
         </select>
       </label>
       <label className="flex min-w-0 flex-col gap-1 text-sm">

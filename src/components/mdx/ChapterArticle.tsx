@@ -26,7 +26,9 @@ import { mdxComponents } from "@/lib/mdx/components";
 import { getSiteContext } from "@/lib/site/context";
 import { siteHref } from "@/lib/site/hosts";
 
-type NavLink = { href: string; title: string } | null;
+/** `crossSite`: the other Foundations site, reached with a full page load
+ * (the root layout's header must re-render to name it). */
+type NavLink = { href: string; title: string; crossSite?: boolean } | null;
 
 /** The chapter's slide deck (Training chapters). */
 type Deck = { num: string; title: string; href: string };
@@ -45,7 +47,7 @@ export async function ChapterArticle({
 }: {
   backHref: string;
   backLabel: string;
-  /** e.g. "Part 2 · Training · chapter 1"; omitted on Part 1 pages */
+  /** e.g. "Chapter 1 of 16" (Training); omitted on Decoder pages */
   partLabel?: string;
   title: string;
   summary: string;
@@ -119,22 +121,40 @@ export async function ChapterArticle({
 
       <nav className="mt-12 flex items-center justify-between border-t border-neutral-200 pt-6 text-sm dark:border-neutral-800">
         {prev ? (
-          <Link
-            href={prev.href}
-            className="focus-ring rounded text-neutral-600 hover:text-accent dark:text-neutral-400"
-          >
-            ← {prev.title}
-          </Link>
+          prev.crossSite ? (
+            <a
+              href={prev.href}
+              className="focus-ring rounded text-neutral-600 hover:text-accent dark:text-neutral-400"
+            >
+              ← {prev.title}
+            </a>
+          ) : (
+            <Link
+              href={prev.href}
+              className="focus-ring rounded text-neutral-600 hover:text-accent dark:text-neutral-400"
+            >
+              ← {prev.title}
+            </Link>
+          )
         ) : (
           <span aria-hidden />
         )}
         {next ? (
-          <Link
-            href={next.href}
-            className="focus-ring rounded text-neutral-600 hover:text-accent dark:text-neutral-400"
-          >
-            {next.title} →
-          </Link>
+          next.crossSite ? (
+            <a
+              href={next.href}
+              className="focus-ring rounded text-neutral-600 hover:text-accent dark:text-neutral-400"
+            >
+              {next.title} →
+            </a>
+          ) : (
+            <Link
+              href={next.href}
+              className="focus-ring rounded text-neutral-600 hover:text-accent dark:text-neutral-400"
+            >
+              {next.title} →
+            </Link>
+          )
         ) : (
           <span aria-hidden />
         )}

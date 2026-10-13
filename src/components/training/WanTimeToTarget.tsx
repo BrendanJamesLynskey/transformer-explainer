@@ -34,7 +34,7 @@ export type WanRow = {
 const SIZES = [
   {
     key: "toy",
-    label: "Part 1's model (5,376), 32 tokens per worker per step",
+    label: "The Decoder's model (5,376), 32 tokens per worker per step",
     N: 5376,
     tokens: 32,
   },

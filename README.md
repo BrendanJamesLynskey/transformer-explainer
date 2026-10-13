@@ -1,10 +1,11 @@
 # Transformer Decoder Explainer
 
 A graphical, interactive web explainer of how a decoder-only transformer
-runs, and how it is trained. **Part 1, Inference** (`/learn`): type your own
+runs, and how it is trained, as the two sites of the **Foundations** track
+of the companion sites. **Decoder** (`/learn`): type your own
 tokens and watch every operation — embeddings, masked self-attention, FFN,
 layer-norm, residuals, multi-block stacking, next-token sampling — execute
-and visualise step-by-step in the browser. **Part 2, Training**
+and visualise step-by-step in the browser. **Training**
 (`/training`): train that same model, from the same initial weights, in
 your browser, and follow the loss, backpropagation and the optimiser step
 by step, then out to the cluster: parallelism, training over slow links,
@@ -15,9 +16,9 @@ strict TypeScript, Drizzle / Postgres, Auth.js, MDX content, D3
 visualisations, and a pure-TypeScript transformer library that's verified
 against PyTorch fixtures to within `1e-5`.
 
-**Live:** Part 1, Inference, at
+**Live:** Decoder at
 [transformer-decoder-explained.vercel.app](https://transformer-decoder-explained.vercel.app/);
-Part 2, Training, at its own address,
+Training at its own address,
 [transformer-training-explained.vercel.app](https://transformer-training-explained.vercel.app/)
 (the same deployment; see [Two addresses](#two-addresses-one-deployment)).
 
@@ -48,22 +49,22 @@ hub (Transformer Architecture sub-area) and is referenced from the
 full-stack reference application.
 
 It is the first of a family of companion sites, linked from every page's
-header in three groups. The "Inference" group (Decoder · Inference ·
-Architectures · Kernels · Numerics · Silicon · Trade-offs):
+header in four tracks; the header always shows where you are ("Track ›
+Site"). "Foundations" is this repository's two sites, Decoder and Training.
+"Hardware" (Kernels · Silicon · Racks, soon):
+[GPU Kernels Explained](https://gpu-kernels-explained.vercel.app/)
+shows how a GPU executes the maths and
+[Systolic Arrays Explained](https://systolic-arrays-explained.vercel.app/)
+the matrix hardware of TPUs. "Inference" (Serving · Architectures ·
+Numerics · Trade-offs):
 [LLM Inference Explained](https://llm-inference-explained.vercel.app/)
-shows how a model is served,
+(Serving) shows how a model is served,
 [LLM Architectures Explained](https://llm-architectures-explained.vercel.app/)
 how real models' designs differ,
-[GPU Kernels Explained](https://gpu-kernels-explained.vercel.app/)
-how a GPU executes the maths,
 [Numerics Explained](https://numerics-explained.vercel.app/)
 the number formats and quantisation behind it,
-[Systolic Arrays Explained](https://systolic-arrays-explained.vercel.app/)
-the matrix hardware of TPUs,
 [Inference Trade-offs Explained](https://inference-tradeoffs-explained.vercel.app/)
-which serving lever helps which metric. The "Training" group holds this
-site's own second part, Training, marked "soon" until it ships. The "Agents"
-group starts with
+which serving lever helps which metric. "Agents" starts with
 [Agent Harnesses Explained](https://agent-harnesses-explained.vercel.app/),
 the loop, tools, context and permissions that turn a model into an agent;
 then [Agent Protocols Explained](https://agent-protocols-explained.vercel.app/),
@@ -75,8 +76,8 @@ graphs, multi-agent patterns and durable execution; two more agent sites are mar
 
 ## What you can do
 
-- Walk through the decoder one operation at a time at `/learn` (Part 1).
-- Train it at `/training` (Part 2): watch three real training steps, then
+- Walk through the decoder one operation at a time at `/learn` (Decoder).
+- Train it at `/training` (Training): watch three real training steps, then
   run 2,000 in a Web Worker and see the loss curve land on the recorded
   run; BPE learnt live on the corpus; cross-entropy and `p − y` position by
   position; the gradient's way back through every op; four optimisers in a
@@ -128,9 +129,9 @@ so the attention weights are nearly uniform and the next-token
 probabilities nearly flat: the animations show the mechanism, not a trained
 model's behaviour.
 
-## Part 2: Training
+## Training
 
-Part 2 lives at
+The Training site lives at
 [transformer-training-explained.vercel.app](https://transformer-training-explained.vercel.app/),
 and each chapter links its slide deck in the
 [Transformer Training deck series](https://brendanjameslynskey.github.io/LLM_Hub_Transformer_Training/).
@@ -141,14 +142,15 @@ Both parts are one Next.js app and one Vercel project with two domains
 (brief 29E). `src/middleware.ts` routes by host (`src/lib/site/hosts.ts`,
 unit-tested in `tests/unit/site-hosts.test.ts`):
 
-- the training host's `/` goes to `/training`; its Part 1 paths
+- the training host's `/` goes to `/training`; its Decoder paths
   (`/learn…`, `/playground`, `/about`) go to the decoder host;
 - the decoder host's `/training…` 308-redirects to the training host, so
   old links keep working;
 - every Training page's canonical URL, and the training host's
   `/sitemap.xml`, are on the training host;
-- the header names the site it is on ("transformer-training", "Site:
-  Training") and links the other part on the other host;
+- the header names the site it is on ("Foundations › Training" or
+  "Foundations › Decoder", on its brand and on the site menu's button, brief 30) with that site's own nav, and each chapter index links the other site
+  on its host ("Next: Training →", "← The decoder");
 - sign-in works on both: the GitHub OAuth app keeps its one callback on the
   decoder host, and Auth.js's redirect proxy (`redirectProxyUrl`, production
   only) forwards training-host sign-ins back to the training host
@@ -165,7 +167,7 @@ brief 29B; 11–16, data and model parallelism, training over slow links,
 scaling laws, running a real job and after pretraining: brief 29C). How
 the numbers are made:
 
-- **A reference trainer** in `scripts/training/` (NumPy float64): Part 1's
+- **A reference trainer** in `scripts/training/` (NumPy float64): the Decoder's
   model with a hand-written backward pass for every operation. Its
   gradients match PyTorch autograd and central finite differences, its
   optimisers (SGD, momentum, Adam, Adam + L2, AdamW, global-norm clipping)
@@ -174,8 +176,8 @@ the numbers are made:
 - **The browser's trainer** in `src/lib/training/` is the same algorithm in
   TypeScript, matched to the reference's fixtures step for step (the first
   200 steps to 1e-9, the whole 2,000-step default run to 1e-7). It starts
-  from Part 1's initialiser (`src/lib/transformer/init.ts`), so the model it
-  trains is literally Part 1's, and it runs in a Web Worker
+  from the Decoder's initialiser (`src/lib/transformer/init.ts`), so the model it
+  trains is literally the Decoder's, and it runs in a Web Worker
   (`src/workers/train.worker.ts`).
 - **Every number on a Training page** is read from
   `src/data/training/results.json` (rendered as [results.md](results.md)),
@@ -200,7 +202,7 @@ the numbers are made:
   checkpoints. With one fitted constant it predicts the throughput of nine
   more published Megatron-LM runs and three Llama 3 405B stages to within
   the band stated in [results.md §11a](results.md). `slowlinks.py` /
-  `slowlinks.ts` train Part 1's model with four simulated workers synced
+  `slowlinks.ts` train the Decoder's model with four simulated workers synced
   four ways (dense AdamW, top-k with error feedback, DeMo, DiLoCo);
   `isoflop.py` runs a toy IsoFLOP sweep; `jobs.py` the monitoring and
   checkpoint-resume experiments. Chapter 13 is a toy next to the
@@ -220,7 +222,7 @@ the numbers are made:
   relies on and checks each is explained by a Training chapter (CI,
   `--strict`: all 36 are).
 
-### Part 2's animations
+### Training's animations
 
 The sixteen Training chapters' heroes, each frame a state of the TS model
 (frame-tested against `scripts/training/`), recorded with `pnpm animations`
@@ -392,8 +394,8 @@ pnpm test:e2e              # Playwright (boots `pnpm dev` itself)
 pnpm verify:maths          # cross-check TS ops vs. PyTorch fixtures
 pnpm lighthouse            # Lighthouse CI on a `pnpm build` (needs Chrome)
 pnpm smoke <url>           # post-deploy check of /api/health, every page, a comment list
-python scripts/training/make_fixtures.py --check   # Part 2's PyTorch checks + fixtures (needs torch)
-python3 scripts/cit_concept_audit.py               # Part 2 explains the CiT site's concepts
+python scripts/training/make_fixtures.py --check   # Training's PyTorch checks + fixtures (needs torch)
+python3 scripts/cit_concept_audit.py               # Training explains the CiT site's concepts
 ```
 
 E2E runs against a real `pnpm dev` server with the seeded test database;
@@ -426,7 +428,7 @@ sampler's top-k and top-p masks, checked by `anim-frames-b.test.ts` and
 `anim-frames-b.spec.ts`. The other fixtures come out byte-identical when it
 is re-run.
 
-### Part 2 (Training)
+### Training
 
 ```bash
 python -m venv .venv-fixtures
@@ -441,7 +443,7 @@ experiments (about two hours on an old i7; `--groups base,ch6a,…` runs a
 subset, and CI runs one job per group in parallel) and writes
 `tests/unit/fixtures/training/*.json`, `src/data/training/results.json`,
 `results.md`, `public/training/default-run-weights.json` and
-`public/training/attention-snapshots.json`. It does not touch Part 1's
+`public/training/attention-snapshots.json`. It does not touch the Decoder's
 fixtures. `python scripts/training/notebooks_build.py` regenerates the
 notebooks and `.venv-fixtures/bin/python scripts/training/notebook_smoke.py`
 smoke-tests them. `scripts/training/prepare_corpus.py` rebuilds the corpus from the
@@ -450,8 +452,8 @@ Gutenberg file (it checks the source's SHA-256).
 ## Project layout
 
 ```
-content/decoder/          MDX sections (Part 1, /learn)
-content/training/         MDX chapters (Part 2, /training)
+content/decoder/          MDX sections (Decoder, /learn)
+content/training/         MDX chapters (Training, /training)
 src/app/                  App Router routes (learn, playground, admin, api/*)
 src/components/viz/       D3 charts (one file per concept)
 src/components/interactive/  Widgets used inside MDX + on /playground
@@ -464,7 +466,7 @@ src/lib/analytics.ts      Event ingestion + admin aggregates
 tests/unit/               Vitest, including PyTorch-fixture comparisons
 tests/e2e/                Playwright + axe-core
 scripts/                  seed-db, verify-maths, capture-screenshots, reference.py
-scripts/training/         Part 2's NumPy reference trainer, PyTorch checks, experiments, fixtures, results.md
+scripts/training/         Training's NumPy reference trainer, PyTorch checks, experiments, fixtures, results.md
 notebooks/                Colab notebooks: chapters 7-10's experiments at GPU scale
 ```
 

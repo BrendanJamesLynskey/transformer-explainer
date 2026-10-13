@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Chapter 1's live run: Part 1's model trained in a Web Worker on the
+ * Chapter 1's live run: the Decoder's model trained in a Web Worker on the
  * corpus, with its loss curve, its validation loss and a sample every few
  * hundred steps. With the default settings it is the run results.md §4
  * records (the recorded validation losses are drawn as rings, and the
@@ -192,7 +192,7 @@ export default function LiveTrainer({
           Live · runs in your browser
         </p>
         <p className="mt-1 font-semibold text-neutral-900 dark:text-neutral-100">
-          Train Part 1&rsquo;s model
+          Train the Decoder&rsquo;s model
         </p>
         <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
           {DEFAULT_TRAIN.batch} windows of {DEFAULT_TRAIN.model.seq_len}{" "}
@@ -283,7 +283,7 @@ export default function LiveTrainer({
         {error
           ? `The trainer failed: ${error}`
           : state === "idle"
-            ? "Press Train. The weights start as Part 1's (seed 42); the loss starts near ln 64 = 4.16. Expect a long plateau before the model learns which characters follow which: a run shorter than about 1,000 steps ends on it."
+            ? "Press Train. The weights start as the Decoder's (seed 42); the loss starts near ln 64 = 4.16. Expect a long plateau before the model learns which characters follow which: a run shorter than about 1,000 steps ends on it."
             : `Step ${logs.length.toLocaleString("en-GB")} of ${steps.toLocaleString("en-GB")}${last ? ` · batch loss ${sig(last.loss, 3)} · lr ${sig(last.lr, 2)}` : ""}${lastEval ? ` · validation ${lastEval.val.toFixed(3)}` : ""}${rate ? ` · ${Math.round(rate)} steps/s` : ""}${state === "done" ? " · done" : state === "paused" ? " · paused" : ""}`}
       </p>
 

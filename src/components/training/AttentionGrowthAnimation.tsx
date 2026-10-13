@@ -288,7 +288,7 @@ export default function AttentionGrowthAnimation({
     <AnimationPanel
       testId={testId}
       title="Attention collapses at a high learning rate"
-      summary="Part 1's model trained with AdamW at peak learning rate 0.1 (ten times the default). At each saved step the site runs its own forward pass on the saved weights: the heat map is one head's attention on the window (darker = more weight; hatched = masked future). The curve is the largest attention score on the validation windows over the run, mean of three seeds, with and without QK-norm; the dot is this window's largest score at the saved step."
+      summary="The Decoder's model trained with AdamW at peak learning rate 0.1 (ten times the default). At each saved step the site runs its own forward pass on the saved weights: the heat map is one head's attention on the window (darker = more weight; hatched = masked future). The curve is the largest attention score on the validation windows over the run, mean of three seeds, with and without QK-norm; the dot is this window's largest score at the saved step."
       stepper={st}
       stepLabel="snapshot"
       caption={attentionGrowthCaption(s)}

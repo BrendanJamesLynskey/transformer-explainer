@@ -1,4 +1,4 @@
-A language model learns from text, turned into numbers. Part 1's model reads characters; most real models read _tokens_, frequent fragments learnt from the text itself by byte-pair encoding (BPE). Below, BPE learns its first merges on this part's training text, the whole of _Alice's Adventures in Wonderland_, in your browser.
+A language model learns from text, turned into numbers. The Decoder's model reads characters; most real models read _tokens_, frequent fragments learnt from the text itself by byte-pair encoding (BPE). Below, BPE learns its first merges on this part's training text, the whole of _Alice's Adventures in Wonderland_, in your browser.
 
 <BpeAnimation>
   <Eq
@@ -9,7 +9,7 @@ A language model learns from text, turned into numbers. Part 1's model reads cha
 
 <Layer kind="concept">
 
-**The corpus.** Part 2 trains on Lewis Carroll's _Alice's Adventures in Wonderland_ (1865, [Project Gutenberg eBook #11](https://www.gutenberg.org/ebooks/11), public domain), reduced to Part 1's 64-character alphabet: lower case, straight quotes, no italics marks. That leaves <R k="corpus.chars" sep /> characters. The last 10% (<R k="corpus.valChars" sep /> characters, the end of the book) is held out as _validation_ text; the model trains on the first <R k="corpus.trainChars" sep />. A held-out split matters because a model can lower its training loss by memorising; only text it has never seen shows whether it learnt something that carries over.
+**The corpus.** These chapters train on Lewis Carroll's _Alice's Adventures in Wonderland_ (1865, [Project Gutenberg eBook #11](https://www.gutenberg.org/ebooks/11), public domain), reduced to the Decoder's 64-character alphabet: lower case, straight quotes, no italics marks. That leaves <R k="corpus.chars" sep /> characters. The last 10% (<R k="corpus.valChars" sep /> characters, the end of the book) is held out as _validation_ text; the model trains on the first <R k="corpus.trainChars" sep />. A held-out split matters because a model can lower its training loss by memorising; only text it has never seen shows whether it learnt something that carries over.
 
 <span id="t-context-length" />
 **Windows and teacher forcing.** A training example is a window of $S + 1 = 9$
@@ -18,10 +18,10 @@ it can see at once (real models: thousands). The first 8 are the input; the
 target at each position is the character after it. So one window is 8
 predictions at once, and the model always predicts from the *true* text so far,
 never from its own earlier guesses (*teacher forcing*). The causal mask from
-[Part 1's attention chapter](/learn/03-attention) is what makes this honest:
-position $i$ cannot look at the character it is predicting. Each step draws 16
-windows (sequences) at random places in the training text, so the *batch* is 16
-sequences of 8 tokens: 128 tokens, and 128 predictions, per step.
+[the Decoder's attention chapter](/learn/03-attention) is what makes this
+honest: position $i$ cannot look at the character it is predicting. Each step
+draws 16 windows (sequences) at random places in the training text, so the
+*batch* is 16 sequences of 8 tokens: 128 tokens, and 128 predictions, per step.
 
 **Packing documents.** Real corpora are many documents of different lengths. Rather than pad short ones, trainers concatenate them into one long stream with a separator token and cut fixed-length windows, so no compute is wasted on padding. A window can then straddle two documents, and some runs mask attention across the boundary so a document never attends to the one before it; Llama 3's report describes doing this, and finds it matters most for very long sequences ([Grattafiori et al. 2024, §3.2](https://arxiv.org/abs/2407.21783)). With a single book, there is no boundary here.
 
@@ -38,9 +38,9 @@ algorithm over bytes rather than characters, so any text can be encoded, with a
 vocabulary of 50,257 ([Radford et al.
 2019](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)).
 The first merges are the language's commonest fragments: " t", "he", " a", " s",
-"in", and by the sixth, " the" (a space and the whole word). Part 2 keeps
-training on characters, so that the model is exactly Part 1's; the tokeniser is
-here to show how real models see text.
+"in", and by the sixth, " the" (a space and the whole word). These chapters keep
+training on characters, so that the model is exactly the Decoder's; the
+tokeniser is here to show how real models see text.
 
 <span id="t-dataset" />
 **Data at scale.** Small experiments often use small, simple corpora such as

@@ -16,6 +16,8 @@ import {
   isValidSlug,
   readSectionMdx,
 } from "@/lib/mdx/sections";
+import { getSiteContext } from "@/lib/site/context";
+import { siteHref } from "@/lib/site/hosts";
 
 import "katex/dist/katex.min.css";
 
@@ -60,7 +62,14 @@ export default async function SectionPage({
       summary={meta.summary}
       mdx={mdx}
       prev={link(prev)}
-      next={link(next)}
+      // the last chapter goes on to the next Foundations site, Training
+      next={
+        link(next) ?? {
+          href: siteHref("/training", getSiteContext()),
+          title: "Next: Training",
+          crossSite: true,
+        }
+      }
       sectionKey={params.slug}
     />
   );

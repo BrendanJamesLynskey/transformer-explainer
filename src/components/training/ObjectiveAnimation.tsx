@@ -5,7 +5,7 @@
  * by position: the 64 logits, their softmax, the right answer and its
  * probability, −log p, and the gradient (p − y)/8 over the vocabulary.
  * States from `objectiveStates` (the trainer's own loss code), on the
- * default run's weights or Part 1's initial ones.
+ * default run's weights or the Decoder's initial ones.
  */
 import { useMemo, useState, type ReactNode } from "react";
 
@@ -284,7 +284,7 @@ export default function ObjectiveAnimation({
     <AnimationPanel
       testId={testId}
       title="Cross-entropy, one position at a time"
-      summary={`The window "alice was": 8 inputs, 8 targets, all scored in one forward pass (teacher forcing). ${kind === "trained" ? "Weights after the default run." : "Part 1's initial weights: every probability is close to 1/64."}`}
+      summary={`The window "alice was": 8 inputs, 8 targets, all scored in one forward pass (teacher forcing). ${kind === "trained" ? "Weights after the default run." : "The Decoder's initial weights: every probability is close to 1/64."}`}
       stepper={st}
       stepLabel="state"
       caption={objectiveCaption(s)}

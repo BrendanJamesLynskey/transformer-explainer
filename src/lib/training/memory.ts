@@ -72,9 +72,9 @@ export const LLAMA_7B: Arch = {
   attnBias: false,
 };
 
-/** Part 1's model, at the default run's batch of 16 windows. */
+/** The Decoder's model, at the default run's batch of 16 windows. */
 export const PART1_MEM: Arch = {
-  name: "Part 1's model",
+  name: "The Decoder's model",
   L: 2,
   h: 16,
   a: 2,

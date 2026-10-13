@@ -1,4 +1,4 @@
-Backpropagation is the chain rule, applied one operation at a time from the loss back to the first layer. Each operation turns "how the loss changes with my output" into "how the loss changes with my inputs and my weights", using only its own local derivative and what it saved during the forward pass. Below, the gradient for the window "alice was" travels back through Part 1's model, stop by stop.
+Backpropagation is the chain rule, applied one operation at a time from the loss back to the first layer. Each operation turns "how the loss changes with my output" into "how the loss changes with my inputs and my weights", using only its own local derivative and what it saved during the forward pass. Below, the gradient for the window "alice was" travels back through the Decoder's model, stop by stop.
 
 <BackpropAnimation>
   <Eq
@@ -27,13 +27,13 @@ operation is crossed; the embedding table $E$ gets its gradient twice, once at
 the start (it is also the output head, [tied](/learn/01-overview)) and once at
 the very end.
 
-**The residual highway.** At each `x + Sublayer(LN(x))` the gradient is simply _copied_ into both paths: straight down the residual stream, and into the sublayer. So the gradient reaching block 0 is the gradient at the top plus whatever each sublayer adds on the way. This is why deep residual networks train at all: there is always a path from the loss to every layer along which the gradient is not multiplied by anything ([Part 1, chapter 5](/learn/05-layernorm-residuals)). Watch the size of each row: it does not shrink as the gradient passes from block 1 to block 0.
+**The residual highway.** At each `x + Sublayer(LN(x))` the gradient is simply _copied_ into both paths: straight down the residual stream, and into the sublayer. So the gradient reaching block 0 is the gradient at the top plus whatever each sublayer adds on the way. This is why deep residual networks train at all: there is always a path from the loss to every layer along which the gradient is not multiplied by anything ([Decoder, chapter 5](/learn/05-layernorm-residuals)). Watch the size of each row: it does not shrink as the gradient passes from block 1 to block 0.
 
 **Through a linear layer** $Y = XW$: the weight's gradient is $X^{\top}\delta_Y$, the input the layer saw times the gradient of what it produced, and the gradient that continues back is $\delta_Y W^{\top}$. Every matrix in the model (the attention projections, the FFN, the head) works this way; it is also why the backward pass costs about twice the forward pass: two matrix products per linear layer instead of one.
 
-**Through GELU** the gradient is multiplied, element by element, by the slope of GELU at the value the neuron saw ([Part 1, chapter 4](/learn/04-ffn)): neurons that were far below zero pass almost nothing back.
+**Through GELU** the gradient is multiplied, element by element, by the slope of GELU at the value the neuron saw ([Decoder, chapter 4](/learn/04-ffn)): neurons that were far below zero pass almost nothing back.
 
-**Through attention** ([Part 1, chapter 3](/learn/03-attention)) the softmax is the interesting step. Its backward pass is $dS = P \odot (dP - \textstyle\sum_k dP_k P_k)$ row by row: a score's gradient is its weight times how much better than average its value vector would have been. Masked (future) positions have weight 0, so they receive no gradient: the causal mask holds on the way back too. The picture at that stop is head 0's $dS$, one row per query.
+**Through attention** ([Decoder, chapter 3](/learn/03-attention)) the softmax is the interesting step. Its backward pass is $dS = P \odot (dP - \textstyle\sum_k dP_k P_k)$ row by row: a score's gradient is its weight times how much better than average its value vector would have been. Masked (future) positions have weight 0, so they receive no gradient: the causal mask holds on the way back too. The picture at that stop is head 0's $dS$, one row per query.
 
 **Through LayerNorm** the gradient is projected: LayerNorm's output does not change if its input is shifted or scaled, so its backward pass removes those directions (the mean of the gradient, and its component along the normalised input).
 

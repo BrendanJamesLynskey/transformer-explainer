@@ -1,11 +1,14 @@
 /**
- * /training — Part 2's index: how the decoder of Part 1 is trained.
+ * /training — the Training site's chapter index: how the Decoder site's
+ * model is trained.
  *
  * Server Component. Lists the Training chapters (TRAINING_SECTIONS) with the
- * reader's progress, like /learn; chapters not shipped yet say so.
+ * reader's progress, like /learn, under a link back to the Decoder site;
+ * chapters not shipped yet say so.
  */
 import Link from "next/link";
 
+import { SiblingSite } from "@/components/ui/SiblingSite";
 import results from "@/data/training/results.json";
 import { getSession } from "@/lib/auth";
 import { runOrFallback } from "@/lib/db-fallback";
@@ -25,7 +28,7 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Training",
   description:
-    "Part 2: how the decoder is trained, from the loss and backprop to optimisers, with Part 1's model training in your browser.",
+    "How a decoder is trained, from the loss and backprop to optimisers and many GPUs, with the Decoder site's model training in your browser.",
   alternates: { canonical: trainingCanonical("/training") },
 };
 
@@ -55,17 +58,19 @@ export default async function TrainingIndex(): Promise<JSX.Element> {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
-      <p className="font-mono text-xs uppercase tracking-widest text-accent dark:text-indigo-300">
-        /training · Part 2
+      <SiblingSite from="training" />
+      <p className="mt-8 font-mono text-xs uppercase tracking-widest text-accent dark:text-indigo-300">
+        /training
       </p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">
         Training the decoder
       </h1>
       <p className="mt-4 text-neutral-600 dark:text-neutral-300">
-        Part 1 ran a decoder with random weights. Part 2 trains it: the same
-        model, from the same initial weights, on a public-domain book, in your
-        browser. Chapter 1 takes it from a validation loss of {first.toFixed(2)}{" "}
-        (random guessing over 64 characters) to {last.toFixed(2)} in{" "}
+        The Decoder site runs a small decoder with random weights. This site
+        trains it: the same model, from the same initial weights, on a
+        public-domain book, in your browser. Chapter 1 takes it from a
+        validation loss of {first.toFixed(2)} (random guessing over 64
+        characters) to {last.toFixed(2)} in{" "}
         {run.config.steps.toLocaleString("en-GB")} steps. Every number on these
         pages comes from a recorded, seeded run (
         <a
@@ -79,12 +84,12 @@ export default async function TrainingIndex(): Promise<JSX.Element> {
       </p>
       <p className="mt-3 text-neutral-600 dark:text-neutral-300">
         New to the model itself? Start with{" "}
-        <Link
+        <a
           href={siteHref("/learn", ctx)}
           className="focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300"
         >
-          Part 1, Inference
-        </Link>
+          the Decoder site
+        </a>
         . Prefer slides? Every chapter has a deck in the{" "}
         <a
           href={TRAINING_DECK_HUB}
