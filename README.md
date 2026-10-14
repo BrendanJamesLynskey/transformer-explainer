@@ -155,7 +155,8 @@ unit-tested in `tests/unit/site-hosts.test.ts`):
 - every Training page's canonical URL, and the training host's
   `/sitemap.xml`, are on the training host;
 - the header names the site it is on ("Foundations › Training" or
-  "Foundations › Decoder", on its brand and on the site menu's button, brief 30) with that site's own nav, and each chapter index links the other site
+  "Foundations › Decoder" on the site menu's button, brief 30; its brand shows the site's own name,
+  e.g. "Transformer Training Explained", brief 33) with that site's own nav, and each chapter index links the other site
   on its host ("Next: Training →", "← The decoder");
 - sign-in works on both: the GitHub OAuth app keeps its one callback on the
   decoder host, and Auth.js's redirect proxy (`redirectProxyUrl`, production

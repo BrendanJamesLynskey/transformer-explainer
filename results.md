@@ -1,4 +1,4 @@
-# Training results (Part 2)
+# Training results (the Training site)
 
 Every number on the `/training` pages comes from this file's source,
 `src/data/training/results.json`, written by
@@ -21,7 +21,7 @@ Recorded with Python 3.12.3, NumPy 2.4.4, PyTorch 2.11.0+cpu (CPU), x86_64.
 
 ## 2. Model
 
-Part 1's model: seq_len 8, d_model 16, 2 heads, d_ff 32, 2 blocks, vocabulary 64, seed 42; 5,376 parameters. A uniform guess scores ln 64 = 4.1589.
+The Decoder site's model: seq_len 8, d_model 16, 2 heads, d_ff 32, 2 blocks, vocabulary 64, seed 42; 5,376 parameters. A uniform guess scores ln 64 = 4.1589.
 
 ## 3. Correctness checks
 
@@ -304,7 +304,7 @@ calculator; sequence 4,096, micro-batch 1. Bytes:
 | mixed precision Adam, full recomputation | 13.5 GB | 13.5 GB | 53.9 GB | 27.0 GB | 1.1 GB | 0.8 GB | 110.7 GB |
 | FP32 Adam, no recomputation | 27.0 GB | 27.0 GB | 53.9 GB | 0.0 GB | 104.2 GB | 0.8 GB | 186.3 GB |
 
-Part 1's model keeps 2320, 2320 values per sequence per block
+The Decoder site's model keeps 2320, 2320 values per sequence per block
 for its backward pass (counted in the NumPy forward pass); Korthikanti et al.'s formula for the same shape
 gives 2496.
 
@@ -454,7 +454,7 @@ Largest difference: 0.0e+00.
 
 ## 13. Training over slow links (chapter 13)
 
-Part 1's model, 4 simulated workers with 4 windows each per step (the default
+The Decoder site's model, 4 simulated workers with 4 windows each per step (the default
 run's 16), 2,000 steps, warmup 50 + cosine to 0.1 of the peak, each worker's gradient clipped
 to 1.0, weight decay 0.01 on matrices; three seeds. Compressors keep 1 in 16: top-k per tensor
 (momentum 0.9), DeMo per DCT chunk of up to 64 (beta 0.999, sign update);
@@ -492,7 +492,7 @@ Every learning rate tried (mean ± sd over seeds):
 
 ## 14. A toy IsoFLOP sweep (chapter 14)
 
-Part 1's model at widths 6, 8, 12, 16, 24, 32, 48, 64 (2 heads, FFN twice the width, 2 blocks),
+The Decoder site's model at widths 6, 8, 12, 16, 24, 32, 48, 64 (2 heads, FFN twice the width, 2 blocks),
 each trained for exactly the tokens a budget C = 6 N D allows (16 windows of 8 per step,
 AdamW peak lr 0.01, warmup then cosine to 10% over the run); three seeds. N counts every parameter.
 A parabola in log10 N through each budget's lowest mean and its two neighbours gives N_opt;

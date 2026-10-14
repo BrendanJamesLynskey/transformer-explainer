@@ -119,7 +119,7 @@ test.describe("Training pages", () => {
     await page.goto("/training/03-objective");
     const header = page.locator("header");
     await expect(header.locator("[data-site-brand]")).toHaveText(
-      /^Foundations\W+Training$/,
+      "Transformer Training Explained",
     );
     await expect(header.locator("a[data-site-chapters]")).toHaveAttribute(
       "href",
@@ -134,7 +134,7 @@ test.describe("Training pages", () => {
     await page.getByRole("link", { name: "← The decoder" }).click();
     await expect(page).toHaveURL(/\/learn$/);
     await expect(header.locator("[data-site-brand]")).toHaveText(
-      /^Foundations\W+Decoder$/,
+      "Transformer Decoder Explained",
     );
     await expect(header.locator("a[data-site-chapters]")).toHaveAttribute(
       "href",
