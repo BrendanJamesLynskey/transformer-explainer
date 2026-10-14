@@ -205,3 +205,23 @@ test.describe("the decoder host", () => {
     expect(xml).not.toContain("/training");
   });
 });
+
+test.describe("the author credit", () => {
+  test.beforeEach(async ({ page }) => stubEvents(page));
+
+  for (const [name, host, lands] of [
+    ["decoder", DECODER, DECODER],
+    ["training", TRAINING, TRAINING_DECODER],
+  ] as const) {
+    test(`the ${name} host's /about ends with it`, async ({ page }) => {
+      await page.goto(`${host}/about`);
+      await expect(page).toHaveURL(`${lands}/about`);
+      const credit = page.locator("main > :last-child");
+      await expect(credit).toHaveAttribute("data-author-credit", "true");
+      await expect(credit).toHaveText("Written and built by Brendan Lynskey");
+      await expect(
+        credit.getByRole("link", { name: "Brendan Lynskey" }),
+      ).toHaveAttribute("href", "https://github.com/BrendanJamesLynskey");
+    });
+  }
+});

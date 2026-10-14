@@ -12,6 +12,12 @@ export const metadata = {
     "How a decoder-only transformer runs, and how it is trained: why this project exists, the references it draws on, and the licence.",
 };
 
+/** The author, credited in one quiet line at the foot of the page (brief 35). */
+const AUTHOR = {
+  name: "Brendan Lynskey",
+  url: "https://github.com/BrendanJamesLynskey",
+} as const;
+
 export default function AboutPage(): JSX.Element {
   const ctx = getSiteContext();
   return (
@@ -272,6 +278,19 @@ export default function AboutPage(): JSX.Element {
           className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
         >
           Training
+        </a>
+      </p>
+
+      <p
+        className="text-sm text-neutral-600 dark:text-neutral-400"
+        data-author-credit
+      >
+        Written and built by{" "}
+        <a
+          href={AUTHOR.url}
+          className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
+        >
+          {AUTHOR.name}
         </a>
       </p>
     </main>
