@@ -218,7 +218,7 @@ test.describe("the author credit", () => {
       await expect(page).toHaveURL(`${lands}/about`);
       const credit = page.locator("main > :last-child");
       await expect(credit).toHaveAttribute("data-author-credit", "true");
-      await expect(credit).toHaveText("Written and built by Brendan Lynskey");
+      await expect(credit).toHaveText("Built by Brendan Lynskey");
       await expect(
         credit.getByRole("link", { name: "Brendan Lynskey" }),
       ).toHaveAttribute("href", "https://github.com/BrendanJamesLynskey");

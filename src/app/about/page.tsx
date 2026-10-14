@@ -285,7 +285,7 @@ export default function AboutPage(): JSX.Element {
         className="text-sm text-neutral-600 dark:text-neutral-400"
         data-author-credit
       >
-        Written and built by{" "}
+        Built by{" "}
         <a
           href={AUTHOR.url}
           className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
