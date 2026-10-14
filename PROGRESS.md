@@ -1007,3 +1007,13 @@ attention-growth,rounding,memory}-steps.ts`), frame-tested against
       `scripts/training/results_md.py`) say Decoder site / Training site where
       they describe the current structure; dated history here is kept, with
       notes. No fixture, migration or data change.
+
+## Brief 35 — author credit (2026-10-14)
+
+- [x] `/about` ends with one quiet line, "Written and built by Brendan
+      Lynskey", the name linking to https://github.com/BrendanJamesLynskey
+      (the licence line's classes; the same wording on all 15 companion
+      sites). The training host's `/about` 308s to the decoder host's, so
+      both hosts show it. e2e (`hosts.spec.ts`) checks it is `<main>`'s
+      last element on both hosts; `/about` joins the axe scan (light and
+      dark); the smoke check looks for it on both hosts.

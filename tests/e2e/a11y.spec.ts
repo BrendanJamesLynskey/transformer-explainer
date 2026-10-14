@@ -22,6 +22,7 @@ const PAGES = [
   "/learn/06-stacking",
   "/learn/07-sampling",
   "/playground",
+  "/about",
   "/signin",
   "/training",
   "/training/01-training-loop",

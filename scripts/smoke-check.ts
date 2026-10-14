@@ -234,6 +234,34 @@ async function checkHeader(
   }
 }
 
+/** The author credit: the last line of /about (brief 35), which both hosts show. */
+const CREDIT = [
+  'data-author-credit="true"',
+  "Written and built by",
+  'href="https://github.com/BrendanJamesLynskey" class="',
+  ">Brendan Lynskey</a>",
+];
+
+/** `url` (followed through redirects when `follow`) shows the author credit. */
+async function checkCredit(url: string, follow = false): Promise<Result> {
+  const path = `${url} (author credit)`;
+  try {
+    const res = await fetch(url, { redirect: follow ? "follow" : "manual" });
+    const html = await res.text();
+    const missing = CREDIT.filter((m) => !html.includes(m));
+    const ok = res.status === 200 && missing.length === 0;
+    return {
+      path,
+      ok,
+      detail: ok
+        ? `${res.status} at ${res.url}`
+        : `${res.status} missing [${missing.join(", ")}]`,
+    };
+  } catch (err) {
+    return { path, ok: false, detail: (err as Error).message };
+  }
+}
+
 type CommentsBody = {
   ok?: boolean;
   data?: { hidden?: boolean; bodyHtml?: string }[];
@@ -321,6 +349,7 @@ async function main(): Promise<void> {
   results.push(
     await checkHeader(`${base}/learn`, "decoder", "Foundations › Decoder"),
   );
+  results.push(await checkCredit(`${base}/about`));
   const chapter = `/training/${TRAINING_SECTIONS[12]!.slug}`;
   if (training) {
     // Training on its own host; the old address redirects there
@@ -343,6 +372,11 @@ async function main(): Promise<void> {
     results.push(
       await checkRedirect(`${training}/learn`, 308, `${base}/learn`),
     );
+    // the one About page, reached from the training host too
+    results.push(
+      await checkRedirect(`${training}/about`, 308, `${base}/about`),
+    );
+    results.push(await checkCredit(`${training}/about`, true));
     for (const path of ["/training", chapter])
       results.push(
         await checkRedirect(`${base}${path}`, 308, `${training}${path}`),
