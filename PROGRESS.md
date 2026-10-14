@@ -1017,3 +1017,8 @@ attention-growth,rounding,memory}-steps.ts`), frame-tested against
       both hosts show it. e2e (`hosts.spec.ts`) checks it is `<main>`'s
       last element on both hosts; `/about` joins the axe scan (light and
       dark); the smoke check looks for it on both hosts.
+
+## Brief 36 — credit wording (2026-10-14)
+
+- [x] The `/about` credit now reads "Built by Brendan Lynskey" (the link,
+      classes and position are unchanged; e2e and smoke checks updated).

@@ -236,8 +236,7 @@ async function checkHeader(
 
 /** The author credit: the last line of /about (brief 35), which both hosts show. */
 const CREDIT = [
-  'data-author-credit="true"',
-  "Written and built by",
+  'data-author-credit="true">Built by',
   'href="https://github.com/BrendanJamesLynskey" class="',
   ">Brendan Lynskey</a>",
 ];
