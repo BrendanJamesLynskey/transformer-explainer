@@ -306,7 +306,12 @@ test.describe("companion site", () => {
           "Measuring agents",
           "https://agent-evals-explained.vercel.app",
         ],
-        ["security", "Security", "Threats and defences", ""],
+        [
+          "security",
+          "Security",
+          "Threats and defences",
+          "https://agent-security-explained.vercel.app",
+        ],
       ] as const;
       expect(
         await panel
