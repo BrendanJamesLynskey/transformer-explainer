@@ -7,10 +7,11 @@
  *
  * One deployment serves two sites of the Foundations track, each at its own
  * address (`src/lib/site/hosts.ts`): Decoder (`/learn`, the playground) and
- * Training (`/training`). The header names the site the page belongs to, as
- * its place in the companion sites ("Foundations › Decoder" or
- * "Foundations › Training", from the site switch's `SitePlace`, so it never
- * drifts from the menu), and its nav lists only that site's pages: Learn
+ * Training (`/training`). The header's brand names the site the page belongs
+ * to ("Transformer Decoder Explained" or "Transformer Training Explained",
+ * from the site switch's `nameOf`, so it never drifts from the menu), the
+ * switch's button says where it sits ("Foundations › Decoder"), and its nav
+ * lists only that site's pages: Learn
  * (its chapters), Playground on Decoder, About. The other site is one entry
  * in the site menu, and the chapter indexes link it ("Next: Training →",
  * "← The decoder").
@@ -22,7 +23,7 @@ import { runOrFallback } from "@/lib/db-fallback";
 import { getSiteContext } from "@/lib/site/context";
 import { siteHref } from "@/lib/site/hosts";
 
-import { placeOf, SitePlace, SiteSwitch } from "./SiteSwitch";
+import { nameOf, placeOf, SiteSwitch } from "./SiteSwitch";
 
 async function signOutAction() {
   "use server";
@@ -47,9 +48,9 @@ export async function SiteHeader(): Promise<JSX.Element> {
           title={placeOf(ctx.site).title}
           data-site-name={ctx.site}
           data-site-brand
-          className="focus-ring whitespace-nowrap rounded text-sm tracking-tight"
+          className="focus-ring whitespace-nowrap rounded text-sm font-medium tracking-tight"
         >
-          <SitePlace current={ctx.site} />
+          {nameOf(ctx.site)}
         </Link>
         <nav
           aria-label="Site"

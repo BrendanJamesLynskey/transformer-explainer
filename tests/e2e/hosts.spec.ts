@@ -36,7 +36,7 @@ test.describe("the training host", () => {
     await expect(page).toHaveURL(`${TRAINING}/training`);
     const header = page.locator("header");
     await expect(header.locator("[data-site-name]")).toHaveText(
-      /^Foundations\W+Training$/,
+      "Transformer Training Explained",
     );
     await expect(header.locator("[data-site-name]")).toHaveAttribute(
       "href",
@@ -105,7 +105,7 @@ test.describe("the training host", () => {
     await page.goto(`${TRAINING}/learn/03-attention`);
     await expect(page).toHaveURL(`${TRAINING_DECODER}/learn/03-attention`);
     await expect(page.locator("header [data-site-name]")).toHaveText(
-      /^Foundations\W+Decoder$/,
+      "Transformer Decoder Explained",
     );
     const res = await page.request.get(`${TRAINING}/about?x=1`, {
       maxRedirects: 0,
@@ -153,7 +153,7 @@ test.describe("the decoder host", () => {
     await page.goto(`${DECODER}/learn`);
     const header = page.locator("header");
     await expect(header.locator("[data-site-name]")).toHaveText(
-      /^Foundations\W+Decoder$/,
+      "Transformer Decoder Explained",
     );
     await expect(
       header.locator("[data-site-switch='menu'] summary"),

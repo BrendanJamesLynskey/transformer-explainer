@@ -7,10 +7,13 @@ The product spec. Read `CLAUDE.md` first for conventions and workflow.
 ## 1. One-line description
 
 A graphical, interactive web explainer of how a decoder-only transformer runs,
-and how it is trained. Part 1 (Inference, `/learn`): users type tokens and watch
+and how it is trained, as two sites of the companion sites' Foundations track,
+each on its own host (brief 30). Decoder (`/learn`, at
+`transformer-decoder-explained.vercel.app`): users type tokens and watch
 every operation — embeddings, masked self-attention, FFN, layernorm, residuals,
 multi-block stacking, sampling — execute and visualise step-by-step in the
-browser. Part 2 (Training, `/training`, §15): the same model is trained, in the
+browser. Training (`/training`, at `transformer-training-explained.vercel.app`,
+§15): the same model is trained, in the
 browser, with every step of the loop (loss, backprop, optimiser) shown.
 
 ---
@@ -83,7 +86,7 @@ basic punctuation, space). Documented as a deliberate simplification.
 /account                Signed-in user's experiments, progress, notes
 /admin                  Analytics dashboard (auth + admin-list gated)
 /about                  Credits, references, methodology
-/training               Part 2 (Training): index of chapters (§15)
+/training               Training site: index of chapters (§15)
 /training/[slug]        A Training chapter (MDX + animations)
 ```
 
@@ -100,7 +103,7 @@ basic punctuation, space). Documented as a deliberate simplification.
 
 ---
 
-Part 2's chapters are listed in §15.
+The Training site's chapters are listed in §15.
 
 ## 6. Feature catalogue
 
@@ -430,16 +433,18 @@ behaviour is given in brackets; flag in `PROGRESS.md` if you change.
 
 ---
 
-## 15. Part 2 — Training (brief 29, from 2026-10-12)
+## 15. The Training site (brief 29, from 2026-10-12; "Part 2" until brief 30)
 
-How Part 1's model is trained, in depth, at `/training` and
+How the Decoder site's model is trained, in depth, at `/training` and
 `/training/NN-slug` (`content/training/NN-*.mdx`, rendered by the same chapter
-page as `/learn/[slug]`). Part 1's URLs do not change. The header has two
-sections, **Inference** (`/learn`) and **Training** (`/training`).
+page as `/learn/[slug]`). The Decoder site's URLs do not change. Since brief
+30 the two are separate sites of the Foundations track, Decoder and Training,
+each on its own host (§15.6): each host's header names its own site, and the
+site switch lists both.
 
 ### 15.1 The trainer
 
-- `scripts/training/` (NumPy float64): Part 1's model with a hand-written
+- `scripts/training/` (NumPy float64): the Decoder site's model with a hand-written
   backward pass for every op; its gradients are checked against PyTorch
   autograd and central finite differences, its optimisers (SGD, momentum,
   Adam, Adam + L2, AdamW, global-norm clipping) against `torch.optim`, its
@@ -448,11 +453,12 @@ sections, **Inference** (`/learn`) and **Training** (`/training`).
   run's final weights; CI re-runs it with `--check`.
 - `src/lib/training/` (TypeScript): the same trainer, matched to the
   fixtures step for step, run in a Web Worker in the browser. It starts from
-  Part 1's initialiser (`init.ts`), so the model trained is Part 1's model.
+  the Decoder site's initialiser (`init.ts`), so the model trained is the
+  Decoder site's model.
 - Corpus: _Alice's Adventures in Wonderland_ (Project Gutenberg #11, public
   domain), reduced to the 64-character alphabet (`public/training/`).
 - BPE: a character-level BPE trainer (Python and TS, identical merges), for
-  chapter 2; the model itself keeps Part 1's character tokenizer.
+  chapter 2; the model itself keeps the Decoder site's character tokenizer.
 - No server-side training and no database change: comments, progress and
   analytics for Training chapters use keys `training-<slug>` in the existing
   text columns.
@@ -500,8 +506,8 @@ standard), and every number on it comes from `results.md`.
   synced by dense AdamW, top-k with error feedback (DGC), DeMo and DiLoCo,
   with bytes on the wire; a toy, linked to the Compute in Transit results
   site for real measurements.
-- `isoflop.py`: a toy IsoFLOP sweep (Chinchilla's Approach 2) on Part 1's
-  model family; `jobs.py`: the default run as a dashboard sees it and a
+- `isoflop.py`: a toy IsoFLOP sweep (Chinchilla's Approach 2) on the Decoder
+  site's model family; `jobs.py`: the default run as a dashboard sees it and a
   checkpoint-resume experiment; `anim_c.py`: the animations' states.
 - Groups `sys`, `ch13`, `ch14`, `ch15` of `make_fixtures.py` (CI matrix);
   notebooks 14 (IsoFLOP) and 15 (throughput, MFU, resume) for GPUs.
@@ -514,15 +520,17 @@ explains it; CI runs it with `--strict` (every concept explained).
 
 ### 15.6 Its own address (brief 29E)
 
-Part 2 is served at `transformer-training-explained.vercel.app`, a second
+The Training site is served at `transformer-training-explained.vercel.app`, a second
 domain on the same Vercel project, by host-based middleware
 (`src/middleware.ts`, `src/lib/site/hosts.ts`): `/` there goes to
-`/training`; Part 1 paths go to the decoder host; the decoder host's
+`/training`; the Decoder site's paths go to the decoder host; the decoder host's
 `/training*` 308-redirects to the training host (never on localhost, CI or
 preview hosts). Canonical URLs and the training host's sitemap point at the
 training host. The header names the site per route and host
-(`SiteSwitch current="training"` on Training pages, brand
-"transformer-training", no Playground link), and links the other part on its
+(`SiteSwitch current="training"` on Training pages; since brief 33 the brand
+shows the site's own name, "Transformer Training Explained" or "Transformer
+Decoder Explained", and the switch's button its place, "Foundations ›
+Training"; no Playground link on Training), and links the other site on its
 own host. Each Training chapter links its deck (`TRAINING_DECKS` in
 `src/lib/mdx/sections.ts`). Sign-in on the training host uses Auth.js's
 redirect proxy through the decoder host's registered GitHub callback; no

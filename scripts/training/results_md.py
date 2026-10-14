@@ -25,7 +25,7 @@ def render(r: dict) -> str:
     cfg = run["config"]
     L = []
     w = L.append
-    w("# Training results (Part 2)")
+    w("# Training results (the Training site)")
     w("")
     w("Every number on the `/training` pages comes from this file's source,")
     w("`src/data/training/results.json`, written by")
@@ -51,7 +51,7 @@ def render(r: dict) -> str:
     w("## 2. Model")
     w("")
     k = m["config"]
-    w(f"Part 1's model: seq_len {k['seq_len']}, d_model {k['d_model']}, {k['n_heads']} heads, "
+    w(f"The Decoder site's model: seq_len {k['seq_len']}, d_model {k['d_model']}, {k['n_heads']} heads, "
       f"d_ff {k['d_ff']}, {k['n_blocks']} blocks, vocabulary {k['vocab_size']}, seed {k['seed']}; "
       f"{m['params']:,} parameters. A uniform guess scores ln {k['vocab_size']} = {f(m['lnV'])}.")
     w("")
@@ -351,7 +351,7 @@ def render_b(r: dict, w) -> None:
               f"{gb(b['activations'])} | {gb(b['logits'])} | {gb(b['peak'])} |")
         p = x["part1"]
         w("")
-        w(f"Part 1's model keeps {', '.join(f(v, 0) for v in p['savedFloatsPerSeqPerBlock'])} values per sequence per block")
+        w(f"The Decoder site's model keeps {', '.join(f(v, 0) for v in p['savedFloatsPerSeqPerBlock'])} values per sequence per block")
         w(f"for its backward pass (counted in the NumPy forward pass); Korthikanti et al.'s formula for the same shape")
         w(f"gives {f(p['korthikantiValuesPerSeqPerBlock'], 0)}.")
         w("")
@@ -486,7 +486,7 @@ def render_c(r: dict, w) -> None:
         x = r["slowLinks"]
         w("## 13. Training over slow links (chapter 13)")
         w("")
-        w(f"Part 1's model, {x['workers']} simulated workers with {x['windowsPerWorker']} windows each per step (the default")
+        w(f"The Decoder site's model, {x['workers']} simulated workers with {x['windowsPerWorker']} windows each per step (the default")
         w(f"run's 16), {x['steps']:,} steps, warmup 50 + cosine to 0.1 of the peak, each worker's gradient clipped")
         w(f"to 1.0, weight decay 0.01 on matrices; three seeds. Compressors keep 1 in {x['keep']}: top-k per tensor")
         w(f"(momentum {x['muTopk']}), DeMo per DCT chunk of up to {x['chunk']} (beta {x['betaDemo']}, sign update);")
@@ -514,7 +514,7 @@ def render_c(r: dict, w) -> None:
         x = r["isoflop"]
         w("## 14. A toy IsoFLOP sweep (chapter 14)")
         w("")
-        w(f"Part 1's model at widths {', '.join(str(v) for v in x['widths'])} (2 heads, FFN twice the width, 2 blocks),")
+        w(f"The Decoder site's model at widths {', '.join(str(v) for v in x['widths'])} (2 heads, FFN twice the width, 2 blocks),")
         w(f"each trained for exactly the tokens a budget C = 6 N D allows ({x['batch']} windows of {x['seqLen']} per step,")
         w(f"AdamW peak lr {x['lr']}, warmup then cosine to 10% over the run); three seeds. N counts every parameter.")
         w("A parabola in log10 N through each budget's lowest mean and its two neighbours gives N_opt;")

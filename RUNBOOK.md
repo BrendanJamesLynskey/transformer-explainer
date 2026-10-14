@@ -353,7 +353,7 @@ can't happen again. Follow them for **every** production deploy.
    # skip the check:   … --comments-section none
    ```
 
-   Given the production decoder URL, it also checks Part 2's own address,
+   Given the production decoder URL, it also checks the Training site's own address,
    `https://transformer-training-explained.vercel.app` (brief 29E: a second
    domain on this same Vercel project, added once with
    `vercel domains add transformer-training-explained.vercel.app transformer-explainer`

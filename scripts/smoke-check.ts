@@ -168,25 +168,36 @@ function placeAt(html: string, from: number): string {
   return m ? `${m[1]} › ${m[2]}` : "?";
 }
 
+/** Each Foundations site's own name, as its header's brand shows it (the title up to the colon). */
+const SITE_NAMES: Record<string, string> = {
+  decoder: "Transformer Decoder Explained",
+  training: "Transformer Training Explained",
+};
+
 /**
- * The site the header names, the place its brand shows and the place the
- * menu button shows ("Foundations › Training"), in a page's HTML.
+ * The site the header names, the text of its brand (the site's own name),
+ * the place the menu button shows ("Foundations › Training") and how many
+ * times the header shows a place, in a page's HTML.
  */
 function headerNames(html: string): {
   site: string;
   brand: string;
   label: string;
+  places: number;
 } {
-  const site = /data-site-name="([a-z]+)"/.exec(html)?.[1] ?? "?";
-  const at = html.search(/data-site-name="/);
-  const brand = at < 0 ? "?" : placeAt(html, at);
+  const m = /data-site-name="([a-z]+)"[^>]*>([^<]*)<\/a>/.exec(html);
+  const site = m?.[1] ?? "?";
+  const brand = m?.[2] ?? "?";
   const label = placeAt(html, html.indexOf("<summary"));
-  return { site, brand, label };
+  const header = /<header[\s\S]*?<\/header>/.exec(html)?.[0] ?? "";
+  const places = header.split("data-site-place=").length - 1;
+  return { site, brand, label, places };
 }
 
 /**
- * A page's header names `site`, its brand and the menu button both read
- * `label` ("Foundations › Training"), the header never says "Part 1/2", and
+ * A page's header names `site`: its brand shows the site's own name, the
+ * menu button reads `label` ("Foundations › Training") and is the only place
+ * shown, the header never says "Part 1/2", and
  * (when given) its canonical URL is `canonical`.
  */
 async function checkHeader(
@@ -207,14 +218,15 @@ async function checkHeader(
       res.status === 200 &&
       names.site === site &&
       names.label === label &&
-      names.brand === label &&
+      names.brand === SITE_NAMES[site] &&
+      names.places === 1 &&
       !/Part [12]/.test(header) &&
       (canonical === undefined || canon === canonical);
     return {
       path,
       ok,
       detail:
-        `${res.status} site=${names.site} brand="${names.brand}" menu="${names.label}"` +
+        `${res.status} site=${names.site} brand="${names.brand}" menu="${names.label}" places=${names.places}` +
         (canonical === undefined ? "" : ` canonical=${canon}`),
     };
   } catch (err) {

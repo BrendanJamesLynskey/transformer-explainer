@@ -821,6 +821,11 @@ to the family's visual standard.
 Training becomes Part 2 of this site (`29_decoder_site_training_brief.md`).
 29A builds the trainer and the first five chapters; 29B–29E follow.
 
+> Note (brief 33, 2026-10-14): the 29A–29E entries below are kept as written.
+> Since brief 30, "Part 1" and "Part 2" are the **Decoder** and **Training**
+> sites of the companion sites' Foundations track, each on its own host
+> (`transformer-decoder-explained.vercel.app`, `transformer-training-explained.vercel.app`).
+
 - [x] Reference trainer `scripts/training/` (NumPy float64): Part 1's model
       with a hand-written backward pass for every op. Gradients = PyTorch
       autograd (≤ 1.2e-16 scaled) and central differences (552 entries,
@@ -965,6 +970,11 @@ attention-growth,rounding,memory}-steps.ts`), frame-tested against
 - [ ] Owner: add the domain to the Vercel project and deploy
       (`_handoff/simulation_followups/merge_deploy_29E.sh`).
 
+> Note (brief 33): the header has since changed. Brief 30 replaced the Part
+> labels with the site switch's place ("Foundations › Training"); brief 33
+> made the brand the site's own name ("Transformer Training Explained"),
+> with the place on the switch's button only.
+
 ## Brief 32 — chapter numbers and text styling (2026-10-13)
 
 - [x] Numbers print at the precision the chapter asks for. next-mdx-remote 6
@@ -985,3 +995,15 @@ attention-growth,rounding,memory}-steps.ts`), frame-tested against
       Training chapters with the site's options and fails on any `\d\.\d{7,}`
       in the text or any `<R d={n}>` not printing n decimals (it fails 16
       tests with `blockJS: true`).
+
+## Brief 33 — header brand and Decoder/Training wording (2026-10-14)
+
+- [x] The header's brand shows the site's own name ("Transformer Decoder
+      Explained" or "Transformer Training Explained", `nameOf` in
+      `SiteSwitch.tsx`); the switch's button keeps "Foundations › Decoder"
+      / "Foundations › Training", so the place is said once. e2e and smoke
+      checks updated (brand text; one place in the header).
+- [x] `SPEC.md`, `RUNBOOK.md` and `results.md` (with its renderer
+      `scripts/training/results_md.py`) say Decoder site / Training site where
+      they describe the current structure; dated history here is kept, with
+      notes. No fixture, migration or data change.
