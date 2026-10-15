@@ -17,7 +17,7 @@ LLaMA 7B's weights take <R k="memory.llama.gb.weights" d={1} /> GB at two bytes 
 
 **Still too much for one device.** Even with full recomputation, the 16 bytes per parameter remain. The next step is to stop every device holding everything: ZeRO and FSDP shard the optimiser states, gradients and weights across the data-parallel workers (chapter 11), and tensor and pipeline parallelism split the model itself (chapter 12).
 
-**Run it yourself on a GPU.** [Notebook 10 (open in Colab)](https://colab.research.google.com/github/BrendanJamesLynskey/transformer-explainer/blob/main/notebooks/10_activation_checkpointing.ipynb) measures peak memory (`torch.cuda.max_memory_allocated`) and step time with and without checkpointing a 12-layer model at three sequence lengths (about 10 minutes on any GPU). GPU run pending: the calculator above is not yet checked against it.
+**Run it yourself on a GPU.** [Notebook 10 (open in Colab)](https://colab.research.google.com/github/BrendanJamesLynskey/transformer-explainer/blob/main/notebooks/10_activation_checkpointing.ipynb) measures peak memory (`torch.cuda.max_memory_allocated`) and step time with and without checkpointing a 12-layer model at three sequence lengths (about 10 minutes on any GPU). The notebook is one of the planned GPU replications listed under [Runs to come](/about#runs-to-come); the calculator above comes from the in-browser model.
 
 </Layer>
 

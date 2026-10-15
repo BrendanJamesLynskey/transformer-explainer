@@ -27,7 +27,8 @@ a sampling rule. There are four standard ones:
 - **Top-p (nucleus)** — keep the smallest set of tokens whose cumulative
   probability exceeds `p`. Adapts the cutoff to the local distribution.
 
-Most production decoders use top-p with τ ≈ 0.7. Try it below — type a
+Defaults vary by vendor and task; many APIs expose temperature, top-p
+and top-k together. Try it below — type a
 prompt, pick a mode, hit "sample" repeatedly to generate one character
 at a time.
 
@@ -44,9 +45,10 @@ $$
 p(v) = \frac{\exp(\ell_v / \tau)}{\sum_{u} \exp(\ell_u / \tau)}
 $$
 
-Top-k zeroes the bottom $V - k$ entries before softmax. Top-p sorts
-tokens by probability, keeps the smallest prefix whose cumulative mass
-exceeds $p$, and zeroes the rest.
+Top-k sets the bottom $V - k$ logits to $-\infty$ before softmax, so
+their probabilities become exactly zero (zeroing a logit would still leave
+it probability mass). Top-p sorts tokens by probability, keeps the smallest
+prefix whose cumulative mass exceeds $p$, and sets the rest to $-\infty$.
 
 After masking, the sampler draws $u \sim \mathcal{U}[0, 1)$ and walks the
 cumulative distribution: it returns the smallest $i$ such that

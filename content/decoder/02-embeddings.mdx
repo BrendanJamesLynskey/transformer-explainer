@@ -19,8 +19,13 @@ The decoder doesn't know about characters or words — it knows about
    the things the model learns. Each token gets the same vector every time
    it appears — that vector _is_ what the model knows about that token.
 
-There's still a problem: attention treats positions symmetrically by
-default, so "ab" and "ba" would look the same. To fix that we add a
+There's still a problem: a single attention layer is blind to order. It
+treats the positions it can see as an unordered set, so the last position
+of "ab" and of "ba" would come out the same. The causal mask leaks some
+order (position 0 sees only itself), and a stack of two or more layers can
+recover order from that, but explicit positions are far more reliable (see
+[NoPE in Architectures ch 2](https://llm-architectures-explained.vercel.app/learn/02-positional-encoding)).
+To fix that we add a
 **positional encoding** to each row — a deterministic pattern that tells
 the model "this is position 0 / 1 / …". The original Transformer used a
 fixed sinusoidal pattern; we do the same here.

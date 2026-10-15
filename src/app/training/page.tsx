@@ -26,7 +26,7 @@ import { siteHref, trainingCanonical } from "@/lib/site/hosts";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Training",
+  title: { absolute: "Transformer Training Explained" },
   description:
     "How a decoder is trained, from the loss and backprop to optimisers and many GPUs, with the Decoder site's model training in your browser.",
   alternates: { canonical: trainingCanonical("/training") },
