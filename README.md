@@ -536,6 +536,19 @@ Coverage thresholds:
 Read `CLAUDE.md` and `SPEC.md` for the conventions and full
 implementation plan respectively.
 
+## Sharing
+
+Every page carries Open Graph and Twitter tags, titled and addressed as that page, each site at its own address. The
+link-preview cards (1,200 × 630 PNG) are drawn at build time by [`src/app/_og/card.tsx`](src/app/_og/card.tsx), the same
+file on every companion site, from [`src/lib/share.ts`](src/lib/share.ts) (`SHARE` for Decoder, `TRAINING_SHARE` for
+Training): one card for each site and one per chapter. [`src/app/training/layout.tsx`](src/app/training/layout.tsx)
+resolves the Training pages' tags against the training host. The favicons are the Foundations track's circle with each
+site's letter: D ([`src/app/icon.svg`](src/app/icon.svg)) and T ([`src/app/training/icon.svg`](src/app/training/icon.svg)).
+[`tests/e2e/sharing.spec.ts`](tests/e2e/sharing.spec.ts) checks the tags, the cards, the icons and both landing pages'
+start button, "How this is checked" strip and hero figure; the per-host sitemaps and robots.txt are checked in
+`tests/e2e/hosts.spec.ts`. The cards are set in Noto Sans and Noto Sans Mono (subsets, SIL Open Font License 1.1:
+[`src/app/_og/OFL.txt`](src/app/_og/OFL.txt)).
+
 ## Licence
 
 MIT — see [`LICENSE`](LICENSE). Use it as a learning resource, fork it,

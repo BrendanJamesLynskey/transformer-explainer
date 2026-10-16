@@ -23,12 +23,13 @@ import { SaveExperiment } from "@/components/interactive/SaveExperiment";
 import { StackingWidget } from "@/components/interactive/StackingWidget";
 import { getSession } from "@/lib/auth";
 import { runOrFallback } from "@/lib/db-fallback";
+import { withShare } from "@/lib/share";
 
-export const metadata = {
+export const metadata = withShare("/playground", {
   title: "Playground",
   description:
     "Type tokens, watch every operation execute, and sample the next token end-to-end.",
-};
+});
 
 export default async function PlaygroundPage(): Promise<JSX.Element> {
   const session = await runOrFallback("playground:auth", getSession, null);

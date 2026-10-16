@@ -17,6 +17,7 @@ import {
 } from "@/lib/mdx/sections";
 import { getSiteContext } from "@/lib/site/context";
 import { siteHref, trainingCanonical } from "@/lib/site/hosts";
+import { TRAINING_SHARE, withShare } from "@/lib/share";
 
 import "katex/dist/katex.min.css";
 
@@ -35,12 +36,17 @@ export async function generateMetadata({
 }) {
   if (!isTrainingSlug(params.slug)) return {};
   const meta = getTrainingMeta(params.slug);
-  return {
-    title: { absolute: `${meta.title} · Transformer Training Explained` },
-    description: meta.summary,
-    // Part 2's address is the training host, wherever the page is served
-    alternates: { canonical: trainingCanonical(`/training/${params.slug}`) },
-  };
+  return withShare(
+    `/training/${params.slug}`,
+    {
+      title: { absolute: `${meta.title} · Transformer Training Explained` },
+      description: meta.summary,
+      // Part 2's address is the training host, wherever the page is served
+      alternates: { canonical: trainingCanonical(`/training/${params.slug}`) },
+    },
+    TRAINING_SHARE,
+    true,
+  );
 }
 
 export default async function TrainingChapterPage({

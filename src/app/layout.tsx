@@ -11,10 +11,11 @@ import type { ReactNode } from "react";
 
 import { SiteHeader } from "@/components/ui/SiteHeader";
 import { env } from "@/lib/env";
+import { withShare } from "@/lib/share";
 
 import "./globals.css";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withShare("/", {
   metadataBase: new URL(env.NEXT_PUBLIC_SITE_URL),
   title: {
     // The decoder host's name; the training pages set absolute titles with
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
   },
   description:
     "How a decoder-only transformer runs, and how it is trained: a graphical, interactive explainer. Watch every operation execute, then train the same model in your browser.",
-};
+});
 
 export default function RootLayout({
   children,

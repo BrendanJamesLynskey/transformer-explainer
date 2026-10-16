@@ -1,7 +1,10 @@
+import type { Route } from "next";
 import Link from "next/link";
 
+import { CheckedStrip, StartButton } from "@/components/ui/Landing";
 import { AttentionPreviewSvg } from "@/components/viz/AttentionPreviewSvg";
 import { attentionPreview } from "@/lib/attention-preview";
+import { SECTIONS } from "@/lib/mdx/sections";
 import { getSiteContext } from "@/lib/site/context";
 import { siteHref } from "@/lib/site/hosts";
 
@@ -55,46 +58,38 @@ export default function HomePage(): JSX.Element {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12 sm:py-20">
-      <section className="grid items-center gap-10 lg:grid-cols-[1fr_auto]">
+      <p className="font-mono text-xs uppercase tracking-widest text-accent dark:text-indigo-300">
+        Transformer Decoder Explained
+      </p>
+      <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
+        How a decoder-only transformer runs, and how it is trained.
+      </h1>
+      <div className="mt-6 grid items-start gap-8 md:grid-cols-[1fr_auto]">
         <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-accent dark:text-indigo-300">
-            Transformer Decoder Explainer
+          <p className="max-w-2xl text-lg text-neutral-600 dark:text-neutral-300">
+            An interactive guide that follows your own text through every
+            operation of a GPT-style decoder, computed live in your browser.
           </p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-            How a decoder-only transformer runs, and how it is trained.
-          </h1>
-          <p className="mt-6 max-w-2xl text-lg text-neutral-600 dark:text-neutral-300">
-            This site, Decoder, follows your own text through every operation of
-            a GPT-style decoder: embeddings, masked self-attention, the
-            feed-forward network, LayerNorm and residuals, stacked blocks, and
-            next-token sampling. Its sibling site, Training, trains that same
-            model: the loss, backpropagation and the optimiser, step by step, in
-            your browser. Every number comes from a small, readable TypeScript
-            implementation, checked against PyTorch.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href="/learn"
-              className="focus-ring rounded bg-accent px-4 py-2 text-sm font-medium text-accent-fg hover:opacity-90"
-            >
-              Start the Decoder chapters →
-            </Link>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <StartButton href={`/learn/${SECTIONS[0]!.slug}` as Route} />
             <a
               href={siteHref("/training", ctx)}
-              className="focus-ring rounded border border-neutral-300 px-4 py-2 text-sm font-medium hover:border-accent dark:border-neutral-700"
+              className="focus-ring inline-flex min-h-11 items-center rounded border border-neutral-300 px-4 py-2 text-sm font-medium hover:border-accent dark:border-neutral-700"
             >
               Next: Training →
             </a>
             <Link
               href="/playground"
-              className="focus-ring rounded border border-neutral-300 px-4 py-2 text-sm font-medium hover:border-accent dark:border-neutral-700"
+              className="focus-ring inline-flex min-h-11 items-center rounded border border-neutral-300 px-4 py-2 text-sm font-medium hover:border-accent dark:border-neutral-700"
             >
               Open the playground
             </Link>
           </div>
         </div>
-
-        <figure className="mx-auto w-full max-w-[280px] rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
+        <figure
+          data-hero-figure
+          className="mx-auto w-full max-w-[280px] rounded-lg border border-neutral-200 p-4 dark:border-neutral-800"
+        >
           <AttentionPreviewSvg preview={preview} />
           <figcaption className="mt-3 text-xs text-neutral-600 dark:text-neutral-400">
             Real attention weights for &ldquo;{PREVIEW_TEXT}&rdquo; (head 0,
@@ -110,11 +105,30 @@ export default function HomePage(): JSX.Element {
             </Link>
           </figcaption>
         </figure>
+      </div>
+      <CheckedStrip href="/about#checked">
+        The TypeScript transformer in your browser is checked against PyTorch,
+        operation by operation, to within 1e-5, and the animations&apos; frames
+        against a float64 PyTorch run of the same seeded weights.
+      </CheckedStrip>
+      <section aria-labelledby="learn-heading" className="mt-12">
+        <h2 id="learn-heading" className="text-xl font-semibold tracking-tight">
+          What you&apos;ll learn
+        </h2>
+        <p className="mt-4 max-w-2xl text-neutral-600 dark:text-neutral-300">
+          This site, Decoder, follows your own text through every operation of a
+          GPT-style decoder: embeddings, masked self-attention, the feed-forward
+          network, LayerNorm and residuals, stacked blocks, and next-token
+          sampling. Its sibling site, Training, trains that same model: the
+          loss, backpropagation and the optimiser, step by step, in your
+          browser. Every number comes from a small, readable TypeScript
+          implementation, checked against PyTorch.
+        </p>
       </section>
 
       <nav
         aria-label="Ways in"
-        className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
         {ENTRY_POINTS.map((e) => {
           const content = (
