@@ -12,15 +12,16 @@ import { runOrFallback } from "@/lib/db-fallback";
 import { SiblingSite } from "@/components/ui/SiblingSite";
 import { SECTIONS, readSectionMdx } from "@/lib/mdx/sections";
 import { listForUser } from "@/lib/progress";
+import { withShare } from "@/lib/share";
 
 // Reads the current session + the user's progress on every request.
 export const dynamic = "force-dynamic";
 
-export const metadata = {
+export const metadata = withShare("/learn", {
   title: "Learn",
   description:
     "Step-by-step walk-through of the Transformer decoder, one operation at a time.",
-};
+});
 
 export default async function LearnIndex(): Promise<JSX.Element> {
   // Pre-flight: which sections actually have an MDX file shipped today.

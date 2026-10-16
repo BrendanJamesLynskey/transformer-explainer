@@ -13,6 +13,7 @@ import { EventTracker } from "@/components/interactive/EventTracker";
 import { ForkButton } from "@/components/interactive/ForkButton";
 import { auth } from "@/lib/auth";
 import { getBySlug, incrementViews } from "@/lib/experiments";
+import { withShare } from "@/lib/share";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,12 @@ export async function generateMetadata({
   params: { slug: string };
 }) {
   const exp = await getBySlug(params.slug);
-  return exp ? { title: exp.name, description: exp.inputText } : {};
+  return exp
+    ? withShare(`/experiments/${params.slug}`, {
+        title: exp.name,
+        description: exp.inputText,
+      })
+    : {};
 }
 
 export default async function ExperimentPage({

@@ -6,8 +6,11 @@
  * reader's progress, like /learn, under a link back to the Decoder site;
  * chapters not shipped yet say so.
  */
+import type { Route } from "next";
 import Link from "next/link";
 
+import { LossCurve } from "@/components/training/LossCurve";
+import { CheckedStrip, StartButton } from "@/components/ui/Landing";
 import { SiblingSite } from "@/components/ui/SiblingSite";
 import results from "@/data/training/results.json";
 import { getSession } from "@/lib/auth";
@@ -21,16 +24,21 @@ import {
 import { listForUser } from "@/lib/progress";
 import { getSiteContext } from "@/lib/site/context";
 import { siteHref, trainingCanonical } from "@/lib/site/hosts";
+import { TRAINING_SHARE, withShare } from "@/lib/share";
 
 // Reads the current session + the user's progress on every request.
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: { absolute: "Transformer Training Explained" },
-  description:
-    "How a decoder is trained, from the loss and backprop to optimisers and many GPUs, with the Decoder site's model training in your browser.",
-  alternates: { canonical: trainingCanonical("/training") },
-};
+export const metadata = withShare(
+  "/training",
+  {
+    title: { absolute: "Transformer Training Explained" },
+    description:
+      "How a decoder is trained, from the loss and backprop to optimisers and many GPUs, with the Decoder site's model training in your browser.",
+    alternates: { canonical: trainingCanonical("/training") },
+  },
+  TRAINING_SHARE,
+);
 
 export default async function TrainingIndex(): Promise<JSX.Element> {
   const status = await Promise.all(
@@ -57,48 +65,84 @@ export default async function TrainingIndex(): Promise<JSX.Element> {
   const last = run.evals[run.evals.length - 1]!.val;
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
+    <main className="mx-auto max-w-5xl px-6 py-12">
       <SiblingSite from="training" />
       <p className="mt-8 font-mono text-xs uppercase tracking-widest text-accent dark:text-indigo-300">
-        /training
+        Transformer Training Explained
       </p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
         Training the decoder
       </h1>
-      <p className="mt-4 text-neutral-600 dark:text-neutral-300">
-        The Decoder site runs a small decoder with random weights. This site
-        trains it: the same model, from the same initial weights, on a
-        public-domain book, in your browser. Chapter 1 takes it from a
-        validation loss of {first.toFixed(2)} (random guessing over 64
-        characters) to {last.toFixed(2)} in{" "}
-        {run.config.steps.toLocaleString("en-GB")} steps. Every number on these
-        pages comes from a recorded, seeded run (
-        <a
-          href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md"
-          className="focus-ring rounded underline decoration-accent/40 underline-offset-4 hover:decoration-accent"
+      <div className="mt-6 grid items-start gap-8 md:grid-cols-[1fr_minmax(0,20rem)]">
+        <div>
+          <p className="max-w-2xl text-lg text-neutral-600 dark:text-neutral-300">
+            An interactive guide to how the Decoder site&rsquo;s model is
+            trained, from the loss and backprop to many GPUs, with the model
+            training in your browser.
+          </p>
+          <div className="mt-6">
+            <StartButton
+              href={`/training/${TRAINING_SECTIONS[0]!.slug}` as Route}
+            />
+          </div>
+        </div>
+        <figure
+          data-hero-figure
+          className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800"
         >
-          results.md
-        </a>
-        ), and the in-browser trainer is checked step by step against a
-        reference whose gradients match PyTorch&rsquo;s.
-      </p>
-      <p className="mt-3 text-neutral-600 dark:text-neutral-300">
-        New to the model itself? Start with{" "}
-        <a
-          href={siteHref("/learn", ctx)}
-          className="focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300"
-        >
-          the Decoder site
-        </a>
-        . Prefer slides? Every chapter has a deck in the{" "}
-        <a
-          href={TRAINING_DECK_HUB}
-          className="focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300"
-        >
-          Transformer Training deck series
-        </a>
-        .
-      </p>
+          <LossCurve />
+          <figcaption className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
+            Chapter 1&rsquo;s run: validation loss from {first.toFixed(2)}{" "}
+            (random guessing over 64 characters) to {last.toFixed(2)} in{" "}
+            {run.config.steps.toLocaleString("en-GB")} steps, from the recorded,
+            seeded run.
+          </figcaption>
+        </figure>
+      </div>
+      <CheckedStrip href={siteHref("/about#checked", ctx) as Route}>
+        A NumPy reference of the trainer matches PyTorch autograd (to 1e-12) and{" "}
+        <code>torch.optim</code>, and the trainer in your browser matches that
+        reference step for step.
+      </CheckedStrip>
+      <section aria-labelledby="learn-heading" className="mt-12">
+        <h2 id="learn-heading" className="text-xl font-semibold tracking-tight">
+          What you&rsquo;ll learn
+        </h2>
+        <p className="mt-4 max-w-2xl text-neutral-600 dark:text-neutral-300">
+          The Decoder site runs a small decoder with random weights. This site
+          trains it: the same model, from the same initial weights, on a
+          public-domain book, in your browser. Chapter 1 takes it from a
+          validation loss of {first.toFixed(2)} (random guessing over 64
+          characters) to {last.toFixed(2)} in{" "}
+          {run.config.steps.toLocaleString("en-GB")} steps. Every number on
+          these pages comes from a recorded, seeded run (
+          <a
+            href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md"
+            className="focus-ring rounded underline decoration-accent/40 underline-offset-4 hover:decoration-accent"
+          >
+            results.md
+          </a>
+          ), and the in-browser trainer is checked step by step against a
+          reference whose gradients match PyTorch&rsquo;s.
+        </p>
+        <p className="mt-3 max-w-2xl text-neutral-600 dark:text-neutral-300">
+          New to the model itself? Start with{" "}
+          <a
+            href={siteHref("/learn", ctx)}
+            className="focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300"
+          >
+            the Decoder site
+          </a>
+          . Prefer slides? Every chapter has a deck in the{" "}
+          <a
+            href={TRAINING_DECK_HUB}
+            className="focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300"
+          >
+            Transformer Training deck series
+          </a>
+          .
+        </p>
+      </section>
 
       <ol className="mt-10 divide-y divide-neutral-200 dark:divide-neutral-800">
         {status.map((s, i) => {

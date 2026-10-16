@@ -5,12 +5,13 @@ import Link from "next/link";
 
 import { getSiteContext } from "@/lib/site/context";
 import { siteHref } from "@/lib/site/hosts";
+import { withShare } from "@/lib/share";
 
-export const metadata = {
+export const metadata = withShare("/about", {
   title: "About",
   description:
     "How a decoder-only transformer runs, and how it is trained: why this project exists, the references it draws on, and the licence.",
-};
+});
 
 /** The author, credited in one quiet line at the foot of the page (brief 35). */
 const AUTHOR = {
@@ -93,12 +94,15 @@ export default function AboutPage(): JSX.Element {
           value the model computed — the visualisations are not a separate
           model.
         </p>
-        <p>
-          Training&rsquo;s trainer has a hand-written backward pass for every
-          operation. A NumPy reference of it matches PyTorch autograd and finite
-          differences, its optimisers match <code>torch.optim</code>, and the
-          TypeScript trainer matches the reference step for step (the checks and
-          their tolerances are in{" "}
+        <p id="checked" className="scroll-mt-20">
+          Decoder&rsquo;s TypeScript transformer is checked against PyTorch
+          fixtures, operation by operation, to within 1e-5, and the
+          animations&rsquo; frames against a float64 PyTorch run of the same
+          seeded weights. Training&rsquo;s trainer has a hand-written backward
+          pass for every operation. A NumPy reference of it matches PyTorch
+          autograd and finite differences, its optimisers match{" "}
+          <code>torch.optim</code>, and the TypeScript trainer matches the
+          reference step for step (the checks and their tolerances are in{" "}
           <a
             href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md"
             className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"

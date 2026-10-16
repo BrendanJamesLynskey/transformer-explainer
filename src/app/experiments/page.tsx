@@ -7,13 +7,14 @@
 import Link from "next/link";
 
 import { listPublic } from "@/lib/experiments";
+import { withShare } from "@/lib/share";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
+export const metadata = withShare("/experiments", {
   title: "Experiments",
   description: "Public experiments saved by other learners.",
-};
+});
 
 export default async function ExperimentsIndex(): Promise<JSX.Element> {
   const items = await listPublic(50);
