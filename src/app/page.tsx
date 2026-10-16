@@ -70,21 +70,23 @@ export default function HomePage(): JSX.Element {
             An interactive guide that follows your own text through every
             operation of a GPT-style decoder, computed live in your browser.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-6">
             <StartButton href={`/learn/${SECTIONS[0]!.slug}` as Route} />
+          </div>
+          <p className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-neutral-600 dark:text-neutral-400">
             <a
               href={siteHref("/training", ctx)}
-              className="focus-ring inline-flex min-h-11 items-center rounded border border-neutral-300 px-4 py-2 text-sm font-medium hover:border-accent dark:border-neutral-700"
+              className="focus-ring rounded font-medium underline decoration-neutral-400 underline-offset-4 hover:decoration-current"
             >
               Next: Training →
             </a>
             <Link
               href="/playground"
-              className="focus-ring inline-flex min-h-11 items-center rounded border border-neutral-300 px-4 py-2 text-sm font-medium hover:border-accent dark:border-neutral-700"
+              className="focus-ring rounded font-medium underline decoration-neutral-400 underline-offset-4 hover:decoration-current"
             >
               Open the playground
             </Link>
-          </div>
+          </p>
         </div>
         <figure
           data-hero-figure
