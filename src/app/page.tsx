@@ -2,14 +2,19 @@ import type { Route } from "next";
 import Link from "next/link";
 
 import { CheckedStrip, StartButton } from "@/components/ui/Landing";
-import { AttentionPreviewSvg } from "@/components/viz/AttentionPreviewSvg";
+import { TrainedHeadsSvg } from "@/components/viz/TrainedHeadsSvg";
+import heads from "@/data/decoder/trained-heads.json";
 import { attentionPreview } from "@/lib/attention-preview";
 import { SECTIONS } from "@/lib/mdx/sections";
 import { getSiteContext } from "@/lib/site/context";
 import { siteHref } from "@/lib/site/hosts";
 
-/** The sentence the preview runs through the model. */
-const PREVIEW_TEXT = "the cat sat";
+/** The text the hero runs through the model: 8 characters, the trained context. */
+const PREVIEW_TEXT = "the cat ";
+
+const pct = (v: number) => `${Math.round(v * 100)}%`;
+const at = (b: number, h: number) =>
+  heads.trained.find((s) => s.block === b && s.head === h)!;
 
 const ENTRY_POINTS = [
   {
@@ -54,7 +59,9 @@ const ENTRY_POINTS = [
  */
 export default function HomePage(): JSX.Element {
   const ctx = getSiteContext();
-  const preview = attentionPreview({ text: PREVIEW_TEXT });
+  const trained = attentionPreview({ text: PREVIEW_TEXT });
+  const random = attentionPreview({ text: PREVIEW_TEXT, kind: "random" });
+  const local = (b: number, h: number) => pct(at(b, h).self + at(b, h).prev);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12 sm:py-20">
@@ -90,15 +97,24 @@ export default function HomePage(): JSX.Element {
         </div>
         <figure
           data-hero-figure
-          className="mx-auto w-full max-w-[280px] rounded-lg border border-neutral-200 p-4 dark:border-neutral-800"
+          className="mx-auto w-full max-w-[340px] rounded-lg border border-neutral-200 p-4 dark:border-neutral-800"
         >
-          <AttentionPreviewSvg preview={preview} />
+          <TrainedHeadsSvg
+            trained={trained}
+            random={random}
+            stats={heads.trained}
+            randomStats={heads.random}
+          />
           <figcaption className="mt-3 text-xs text-neutral-600 dark:text-neutral-400">
-            Real attention weights for &ldquo;{PREVIEW_TEXT}&rdquo; (head 0,
-            seed 42). Each row is a letter looking back at itself and earlier
-            letters; grey cells are masked. The model&rsquo;s weights are
-            random, not trained, so each row spreads its attention almost
-            evenly: the last row gives each of its 11 letters about 1/11.{" "}
+            The trained model&rsquo;s four attention heads on &ldquo;the
+            cat&nbsp;&rdquo;: Training&rsquo;s default run, 2,000 steps on
+            <em> Alice&rsquo;s Adventures in Wonderland</em>. Across{" "}
+            {heads.trained[0]!.windows.toLocaleString("en-GB")} windows of the
+            book, block 1&rsquo;s heads put {local(0, 0)} and {local(0, 1)} of
+            each row on the current letter and the one before it; block
+            2&rsquo;s head 1 sends {pct(at(1, 1).spaceStart)} of a space&rsquo;s
+            attention to the window&rsquo;s first two letters. Before training
+            (bottom) every row is nearly even.{" "}
             <Link
               href="/learn/03-attention"
               className="focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300"
@@ -111,7 +127,8 @@ export default function HomePage(): JSX.Element {
       <CheckedStrip href="/about#checked">
         The TypeScript transformer in your browser is checked against PyTorch,
         operation by operation, to within 1e-5, and the animations&apos; frames
-        against a float64 PyTorch run of the same seeded weights.
+        against a float64 PyTorch run of the same weights, trained and at random
+        init.
       </CheckedStrip>
       <section aria-labelledby="learn-heading" className="mt-12">
         <h2 id="learn-heading" className="text-xl font-semibold tracking-tight">

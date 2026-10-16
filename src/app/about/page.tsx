@@ -98,10 +98,11 @@ export default function AboutPage(): JSX.Element {
           Decoder&rsquo;s TypeScript transformer is checked against PyTorch
           fixtures, operation by operation, to within 1e-5, and the
           animations&rsquo; frames against a float64 PyTorch run of the same
-          seeded weights. Training&rsquo;s trainer has a hand-written backward
-          pass for every operation. A NumPy reference of it matches PyTorch
-          autograd and finite differences, its optimisers match{" "}
-          <code>torch.optim</code>, and the TypeScript trainer matches the
+          weights: by default Training&rsquo;s trained weights, with the seeded
+          random initialiser one click away. Training&rsquo;s trainer has a
+          hand-written backward pass for every operation. A NumPy reference of
+          it matches PyTorch autograd and finite differences, its optimisers
+          match <code>torch.optim</code>, and the TypeScript trainer matches the
           reference step for step (the checks and their tolerances are in{" "}
           <a
             href="https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md"

@@ -108,3 +108,45 @@ describe("tracedForward", () => {
     expect(tr.logits).toEqual(forwardTyped(ids, config, w).logits);
   });
 });
+
+describe("client trace = API trace, on the trained weights (brief 41)", () => {
+  const TRAINED: Partial<ComputeParams>[] = [
+    { weights: "trained" },
+    { text: "said the", weights: "trained" },
+    { text: "alice was beginning", seqLen: 12, weights: "trained" },
+  ];
+  for (const [name, route, compute, keys] of CASES) {
+    for (const input of TRAINED) {
+      it(`${name} ${JSON.stringify(input)}`, async () => {
+        const p: ComputeParams = { ...DEFAULT_PARAMS, ...input };
+        const body = Object.fromEntries(
+          [...keys, "weights"].map((k) => [k, p[k as keyof ComputeParams]]),
+        );
+        const api = await call(route, body);
+        expect(api).toEqual(asJson(compute(p)));
+        expect(api).not.toEqual(asJson(compute({ ...p, weights: "random" })));
+      });
+    }
+  }
+  it("each route answers 400 when the shapes don't fit the trained model", async () => {
+    for (const [, route, , keys] of CASES) {
+      const res = await route(
+        new Request("http://localhost/api/compute", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            text: "hi",
+            dModel: 24,
+            nHeads: 3,
+            weights: "trained",
+            ...(keys.includes("nBlocks") ? { nBlocks: 3 } : {}),
+          }),
+        }),
+      );
+      expect(res.status).toBe(400);
+      const json = (await res.json()) as { ok: boolean; error: string };
+      expect(json.ok).toBe(false);
+      expect(json.error).toMatch(/trained/);
+    }
+  });
+});

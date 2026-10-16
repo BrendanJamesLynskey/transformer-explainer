@@ -18,7 +18,7 @@
  * the same order as `layernorm`, so the `affine` step equals the block's
  * LN output exactly (`tests/unit/anim-steps-b.test.ts`).
  */
-import { configFor, type ComputeParams } from "@/lib/compute/traces";
+import { traceWeights, type ComputeParams } from "@/lib/compute/traces";
 import { multiHeadAttention } from "@/lib/transformer/attention";
 import { block } from "@/lib/transformer/block";
 import {
@@ -26,7 +26,6 @@ import {
   tokenEmbedding,
 } from "@/lib/transformer/embeddings";
 import { ffn } from "@/lib/transformer/ffn";
-import { initModelWeights } from "@/lib/transformer/init";
 import { LAYERNORM_EPS } from "@/lib/transformer/layernorm";
 import { addMat } from "@/lib/transformer/tensor";
 import { ALPHABET, encode } from "@/lib/transformer/tokenizer";
@@ -62,7 +61,9 @@ export function residualTrace(
   gamma = 1,
   beta = 0,
 ): ResidualTrace {
-  const w = initModelWeights(configFor(p, { n_blocks: 1 }));
+  // trained or seeded weights for block 0; γ and β always come from the
+  // arguments (the sliders), whichever weights run
+  const w = traceWeights(p, { n_blocks: 1 }, ["dModel", "nHeads", "dFf"]);
   const D = p.dModel;
   const ln = () => ({
     gamma: new Array<number>(D).fill(gamma),
@@ -256,7 +257,7 @@ export function lnCaption(s: LnState, tokens: readonly string[]): string {
       // the mean of a centred vector is 0 up to rounding (≈ 1e−17): say 0
       if (Math.abs(ms.mean) < 1e-9) ms.mean = 0;
       return ident
-        ? `${ln}: γ ⊙ x̂ + β with the model's γ = 1, β = 0 changes nothing at initialisation; training learns them. Mean ${sig(ms.mean)}, spread ${sig(ms.std)}.`
+        ? `${ln}: γ ⊙ x̂ + β with γ = 1, β = 0 (their starting values) changes nothing; training learns one γ and one β per element. Mean ${sig(ms.mean)}, spread ${sig(ms.std)}.`
         : `${ln}: γ ⊙ x̂ + β with γ = ${sig(s.gamma)}, β = ${sig(s.beta)}: the spread becomes ${sig(ms.std)} and the mean ${sig(ms.mean)}.`;
     }
     case "sublayer":

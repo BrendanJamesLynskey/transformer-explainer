@@ -20,6 +20,7 @@ import {
 } from "@/lib/transformer/embeddings";
 import { ffn } from "@/lib/transformer/ffn";
 import { initModelWeights } from "@/lib/transformer/init";
+import { trainedWeights, type WeightKind } from "@/lib/transformer/trained";
 import { layernormRows } from "@/lib/transformer/layernorm";
 import {
   forwardTyped,
@@ -44,6 +45,12 @@ export type ComputeParams = {
   nHeads: number;
   dFf: number;
   nBlocks: number;
+  /**
+   * Which weights to run: the seeded initialiser (the default, and what
+   * every existing fixture records) or Training's trained weights, which
+   * need the trained model's shapes (`trainedFits`).
+   */
+  weights?: WeightKind;
 };
 
 /** The defaults the routes use (SPEC §4). */
@@ -78,6 +85,40 @@ export function configFor(
   };
 }
 
+/** The shape fields each trace reads from the weights. */
+type Need = "dModel" | "nHeads" | "dFf" | "nBlocks";
+
+/**
+ * Do `p`'s shapes fit the trained weights for a trace that reads `need`?
+ * The routes answer 400 when they don't; the widgets only offer the
+ * trained weights at the trained shapes.
+ */
+export function trainedFits(
+  p: ComputeParams,
+  need: ReadonlyArray<Need> = ["dModel", "nHeads", "dFf", "nBlocks"],
+): boolean {
+  return need.every((k) => p[k] === DEFAULT_PARAMS[k]);
+}
+
+/**
+ * The weights for a trace: the seeded initialiser for the trace's own
+ * (possibly reduced) config, or the trained weights, of which a partial
+ * trace simply reads the first block. Throws if the shapes don't fit.
+ */
+export function traceWeights(
+  p: ComputeParams,
+  over: Partial<ModelConfig>,
+  need: ReadonlyArray<Need>,
+): ModelWeights {
+  if (p.weights !== "trained") return initModelWeights(configFor(p, over));
+  if (!trainedFits(p, need)) {
+    throw new Error(
+      "traces: the trained weights need d_model 16, 2 heads, d_ff 32 and 2 blocks",
+    );
+  }
+  return trainedWeights();
+}
+
 /** Token ids and their characters, as every route returns them. */
 function tokensOf(text: string, seqLen: number) {
   const tokenIds = encode(text, seqLen);
@@ -97,9 +138,7 @@ function embedInput(tokenIds: number[], w: ModelWeights, p: ComputeParams) {
 
 /** `POST /api/compute/embed`: ids → token embeddings + positions. */
 export function computeEmbed(p: ComputeParams) {
-  const w = initModelWeights(
-    configFor(p, { n_heads: 1, d_ff: 1, n_blocks: 0 }),
-  );
+  const w = traceWeights(p, { n_heads: 1, d_ff: 1, n_blocks: 0 }, ["dModel"]);
   const t = tokensOf(p.text, p.seqLen);
   const { tokEmb, posEmb, x0 } = embedInput(t.tokenIds, w, p);
   return { ...t, tokEmb, posEmb, xAfterEmb: x0 };
@@ -107,7 +146,7 @@ export function computeEmbed(p: ComputeParams) {
 
 /** `POST /api/compute/attention`: LN₁ then block 0's attention, traced. */
 export function computeAttention(p: ComputeParams) {
-  const w = initModelWeights(configFor(p, { d_ff: 1, n_blocks: 1 }));
+  const w = traceWeights(p, { d_ff: 1, n_blocks: 1 }, ["dModel", "nHeads"]);
   const t = tokensOf(p.text, p.seqLen);
   const { x0 } = embedInput(t.tokenIds, w, p);
   const block0 = w.blocks[0]!;
@@ -131,7 +170,7 @@ export function computeAttention(p: ComputeParams) {
 
 /** `POST /api/compute/ffn`: block 0 up to and including its FFN. */
 export function computeFfn(p: ComputeParams) {
-  const w = initModelWeights(configFor(p, { n_blocks: 1 }));
+  const w = traceWeights(p, { n_blocks: 1 }, ["dModel", "nHeads", "dFf"]);
   const block0 = w.blocks[0]!;
   const t = tokensOf(p.text, p.seqLen);
   const { x0 } = embedInput(t.tokenIds, w, p);
@@ -155,7 +194,7 @@ export function computeFfn(p: ComputeParams) {
 
 /** `POST /api/compute/block`: one full pre-norm block, traced. */
 export function computeBlock(p: ComputeParams) {
-  const w = initModelWeights(configFor(p, { n_blocks: 1 }));
+  const w = traceWeights(p, { n_blocks: 1 }, ["dModel", "nHeads", "dFf"]);
   const t = tokensOf(p.text, p.seqLen);
   const { x0 } = embedInput(t.tokenIds, w, p);
   const trace = emptyBlockTrace();
@@ -197,7 +236,7 @@ export function tracedForward(
 /** `POST /api/compute/forward`: the whole model, every block traced. */
 export function computeForward(p: ComputeParams) {
   const config = configFor(p);
-  const w = initModelWeights(config);
+  const w = traceWeights(p, {}, ["dModel", "nHeads", "dFf", "nBlocks"]);
   const t = tokensOf(p.text, p.seqLen);
   const trace = tracedForward(t.tokenIds, config, w);
   return {

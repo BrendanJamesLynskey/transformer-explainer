@@ -28,6 +28,10 @@ import { DEFAULT_PARAMS, computeEmbed, configFor } from "@/lib/compute/traces";
 import { initModelWeights } from "@/lib/transformer/init";
 import { PART_COLOUR, heat } from "@/lib/viz/palette";
 
+import { WeightsToggle, useWeightKind } from "./WeightsToggle";
+
+import { trainedWeights } from "@/lib/transformer/trained";
+
 const HL: Record<EmbedKind, string> = {
   ids: "tok",
   lookup: "emb",
@@ -46,21 +50,27 @@ export default function EmbeddingAnimation({
   const [text, setText] = useState(DEFAULT_PARAMS.text);
   const [pos, setPos] = useState(2);
   const [hover, setHover] = useState<string | null>(null);
-  const p = useMemo(() => ({ ...DEFAULT_PARAMS, text }), [text]);
+  const [weights, setWeights] = useWeightKind();
+  const p = useMemo(
+    () => ({ ...DEFAULT_PARAMS, text, weights }),
+    [text, weights],
+  );
   const tr = useMemo(() => computeEmbed(p), [p]);
   // The table the lookup reads (the embedding table is the first draw of
   // the seeded initialiser, the same for every config with this seed).
   const table = useMemo(
     () =>
-      initModelWeights(
-        configFor(DEFAULT_PARAMS, { n_heads: 1, d_ff: 1, n_blocks: 0 }),
-      ).tok_emb,
-    [],
+      weights === "trained"
+        ? trainedWeights().tok_emb
+        : initModelWeights(
+            configFor(DEFAULT_PARAMS, { n_heads: 1, d_ff: 1, n_blocks: 0 }),
+          ).tok_emb,
+    [weights],
   );
   const states = useMemo(() => embedStates(tr, pos), [tr, pos]);
   const st = useStepper(states.length, {
     stepMs: 650,
-    resetKey: `${text}|${pos}`,
+    resetKey: `${text}|${pos}|${weights}`,
   });
   const box = useContainerWidth();
   const phone = box.width > 0 && box.width < PHONE_BELOW;
@@ -370,6 +380,11 @@ export default function EmbeddingAnimation({
               ))}
             </select>
           </label>
+          <WeightsToggle
+            value={weights}
+            onChange={setWeights}
+            label="Embedding animation weights"
+          />
         </>
       }
     />

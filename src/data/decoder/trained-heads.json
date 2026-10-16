@@ -1,0 +1,96 @@
+{
+  "note": "What each attention head does on the corpus, trained and at random init (scripts/reference.py head_stats; checked by tests/unit/attention-stats.test.ts).",
+  "stride": 37,
+  "trained": [
+    {
+      "block": 0,
+      "head": 0,
+      "windows": 3839,
+      "rows": 26873,
+      "self": 0.615246782671471,
+      "prev": 0.16799069367329952,
+      "entropy": 0.5265575060151955,
+      "spaceRows": 4209,
+      "spaceStart": 0.0001343770379958421
+    },
+    {
+      "block": 0,
+      "head": 1,
+      "windows": 3839,
+      "rows": 26873,
+      "self": 0.6576521027837627,
+      "prev": 0.24013353633990742,
+      "entropy": 0.5083396802896089,
+      "spaceRows": 4209,
+      "spaceStart": 0.217836080332278
+    },
+    {
+      "block": 1,
+      "head": 0,
+      "windows": 3839,
+      "rows": 26873,
+      "self": 0.3613318652321409,
+      "prev": 0.2506293128930049,
+      "entropy": 0.8749320785763557,
+      "spaceRows": 4209,
+      "spaceStart": 0.2947452691245266
+    },
+    {
+      "block": 1,
+      "head": 1,
+      "windows": 3839,
+      "rows": 26873,
+      "self": 0.24454276376809064,
+      "prev": 0.37354276930896096,
+      "entropy": 0.5101546117412239,
+      "spaceRows": 4209,
+      "spaceStart": 0.8085029753660137
+    }
+  ],
+  "random": [
+    {
+      "block": 0,
+      "head": 0,
+      "windows": 3839,
+      "rows": 26873,
+      "self": 0.24630416642737832,
+      "prev": 0.2456388777730491,
+      "entropy": 0.9999962592580597,
+      "spaceRows": 4209,
+      "spaceStart": 0.4054313043493906
+    },
+    {
+      "block": 0,
+      "head": 1,
+      "windows": 3839,
+      "rows": 26873,
+      "self": 0.24550702964652588,
+      "prev": 0.24531382965618506,
+      "entropy": 0.9999957354240937,
+      "spaceRows": 4209,
+      "spaceStart": 0.40605417213278805
+    },
+    {
+      "block": 1,
+      "head": 0,
+      "windows": 3839,
+      "rows": 26873,
+      "self": 0.2455805612171486,
+      "prev": 0.24549052597335347,
+      "entropy": 0.9999968495274214,
+      "spaceRows": 4209,
+      "spaceStart": 0.4058835958536754
+    },
+    {
+      "block": 1,
+      "head": 1,
+      "windows": 3839,
+      "rows": 26873,
+      "self": 0.24585562726276775,
+      "prev": 0.245292027674555,
+      "entropy": 0.9999962554756094,
+      "spaceRows": 4209,
+      "spaceStart": 0.4061918294679033
+    }
+  ]
+}

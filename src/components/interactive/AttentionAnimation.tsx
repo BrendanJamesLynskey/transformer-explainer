@@ -29,6 +29,8 @@ import { maxAbs, showChar, sig } from "@/lib/anim/format";
 import { DEFAULT_PARAMS, computeAttention } from "@/lib/compute/traces";
 import { PART_COLOUR, heat } from "@/lib/viz/palette";
 
+import { WeightsToggle, useWeightKind } from "./WeightsToggle";
+
 /** Which column of the table a phase has reached (0 = dots only). */
 function stage(s: AttnState): number {
   switch (s.phase) {
@@ -56,10 +58,11 @@ export default function AttentionAnimation({
   const [head, setHead] = useState<number | "all">(0);
   const [row, setRow] = useState(3);
   const [hover, setHover] = useState<string | null>(null);
+  const [weights, setWeights] = useWeightKind();
   const hatch = `hatch-${useId().replace(/:/g, "")}`;
   const tr = useMemo(
-    () => computeAttention({ ...DEFAULT_PARAMS, text }),
-    [text],
+    () => computeAttention({ ...DEFAULT_PARAMS, text, weights }),
+    [text, weights],
   );
   const states = useMemo(
     () => attentionStates(tr, { head, row }),
@@ -67,7 +70,7 @@ export default function AttentionAnimation({
   );
   const st = useStepper(states.length, {
     stepMs: 600,
-    resetKey: `${text}|${head}|${row}`,
+    resetKey: `${text}|${head}|${row}|${weights}`,
   });
   const box = useContainerWidth();
   const phone = box.width > 0 && box.width < PHONE_BELOW;
@@ -431,7 +434,12 @@ export default function AttentionAnimation({
               className="focus-ring h-11 rounded border border-neutral-300 bg-white px-2 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-950"
             />
           </label>
-          <div className="grid min-w-0 grid-cols-2 gap-2">
+          <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3">
+            <WeightsToggle
+              value={weights}
+              onChange={setWeights}
+              label="Attention animation weights"
+            />
             <label className="flex min-w-0 flex-col gap-1 text-sm">
               <span className="font-medium text-neutral-700 dark:text-neutral-300">
                 Head

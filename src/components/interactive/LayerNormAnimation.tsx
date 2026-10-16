@@ -34,6 +34,8 @@ import {
 import { DEFAULT_PARAMS } from "@/lib/compute/traces";
 import { OKABE_ITO, PART_COLOUR } from "@/lib/viz/palette";
 
+import { WeightsToggle, useWeightKind } from "./WeightsToggle";
+
 const GAMMAS = [1, 0.5, 2] as const;
 const BETAS = [0, 0.5, -0.5] as const;
 
@@ -58,15 +60,16 @@ export default function LayerNormAnimation({
   const [gamma, setGamma] = useState<number>(1);
   const [beta, setBeta] = useState<number>(0);
   const [hover, setHover] = useState<string | null>(null);
+  const [weights, setWeights] = useWeightKind();
   const tr = useMemo(
-    () => residualTrace({ ...DEFAULT_PARAMS, text }, gamma, beta),
-    [text, gamma, beta],
+    () => residualTrace({ ...DEFAULT_PARAMS, text, weights }, gamma, beta),
+    [text, gamma, beta, weights],
   );
   const states = useMemo(() => lnStates(tr, pos), [tr, pos]);
   const st = useStepper(states.length, {
     stepMs: 1000,
     smooth: true,
-    resetKey: `${text}|${pos}|${gamma}|${beta}`,
+    resetKey: `${text}|${pos}|${gamma}|${beta}|${weights}`,
   });
   const box = useContainerWidth();
   const phone = box.width > 0 && box.width < PHONE_BELOW;
@@ -473,7 +476,7 @@ export default function LayerNormAnimation({
             >
               {GAMMAS.map((v) => (
                 <option key={v} value={v}>
-                  {v === 1 ? "1 (the model's)" : v}
+                  {v === 1 ? "1 (as initialised)" : v}
                 </option>
               ))}
             </select>
@@ -488,11 +491,16 @@ export default function LayerNormAnimation({
             >
               {BETAS.map((v) => (
                 <option key={v} value={v}>
-                  {v === 0 ? "0 (the model's)" : v}
+                  {v === 0 ? "0 (as initialised)" : v}
                 </option>
               ))}
             </select>
           </label>
+          <WeightsToggle
+            value={weights}
+            onChange={setWeights}
+            label="LayerNorm animation weights"
+          />
         </>
       }
     />

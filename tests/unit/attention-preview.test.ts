@@ -22,9 +22,15 @@ describe("attentionPreview", () => {
     });
   });
 
-  it("is deterministic for a seed and changes with the seed and head", () => {
+  it("is deterministic, and changes with the weights, the seed and the head", () => {
     expect(attentionPreview({ text })).toEqual(p);
-    expect(attentionPreview({ text, seed: 7 }).weights).not.toEqual(p.weights);
+    const r = attentionPreview({ text, kind: "random" });
+    expect(r.weights).not.toEqual(p.weights);
+    // the seed only seeds random init
+    expect(attentionPreview({ text, seed: 7 })).toEqual(p);
+    expect(
+      attentionPreview({ text, kind: "random", seed: 7 }).weights,
+    ).not.toEqual(r.weights);
     expect(attentionPreview({ text, head: 1 }).weights).not.toEqual(p.weights);
   });
 

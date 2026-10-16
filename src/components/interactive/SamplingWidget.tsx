@@ -9,7 +9,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { BarChart } from "@/components/viz/BarChart";
+import type { WeightKind } from "@/lib/transformer/trained";
+
 import { usePreset } from "./usePreset";
+import { WeightsToggle, useWeightKind } from "./WeightsToggle";
 
 type ForwardResponse = {
   ok: true;
@@ -31,13 +34,14 @@ type Mode = "greedy" | "temperature" | "top-k" | "top-p";
 const SEQ_LEN = 8;
 const VOCAB = 64;
 
-async function fetchForward(text: string, seed: number) {
+async function fetchForward(text: string, seed: number, weights: WeightKind) {
   const res = await fetch("/api/compute/forward", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       text,
       seed,
+      weights,
       seqLen: SEQ_LEN,
       dModel: 16,
       dFf: 32,
@@ -76,6 +80,7 @@ function lastUsedPosition(tokenIds: number[]): number {
 export function SamplingWidget(): JSX.Element {
   const [text, setText] = useState("the");
   const [seed, setSeed] = useState(42);
+  const [weights, setWeights] = useWeightKind();
   const [mode, setMode] = useState<Mode>("temperature");
   const [temperature, setTemperature] = useState(0.7);
   const [k, setK] = useState(8);
@@ -88,7 +93,7 @@ export function SamplingWidget(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
-    fetchForward(text, seed)
+    fetchForward(text, seed, weights)
       .then((r) => {
         if (cancelled) return;
         if (r.ok) setData(r.data);
@@ -100,7 +105,7 @@ export function SamplingWidget(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [text, seed]);
+  }, [text, seed, weights]);
 
   const lastIdx = data ? lastUsedPosition(data.tokenIds) : 0;
   const lastLogits = useMemo(() => {
@@ -137,7 +142,7 @@ export function SamplingWidget(): JSX.Element {
 
   return (
     <div className="my-8 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <label className="flex flex-col gap-1 text-sm sm:col-span-2">
           <span className="font-medium text-neutral-700 dark:text-neutral-300">
             Prompt:
@@ -153,16 +158,22 @@ export function SamplingWidget(): JSX.Element {
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-neutral-700 dark:text-neutral-300">
-            Seed:
+            {weights === "trained" ? "Seed (random init only):" : "Seed:"}
           </span>
           <input
             type="number"
             value={seed}
             onChange={(e) => setSeed(Number(e.target.value || 0))}
             aria-label="Sampling widget seed"
+            disabled={weights === "trained"}
             className="focus-ring rounded border border-neutral-300 bg-white px-2 py-1 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-950"
           />
         </label>
+        <WeightsToggle
+          value={weights}
+          onChange={setWeights}
+          label="Sampling widget weights"
+        />
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">

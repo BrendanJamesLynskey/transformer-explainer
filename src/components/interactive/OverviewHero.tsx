@@ -25,9 +25,11 @@ import {
   type OverviewState,
 } from "@/lib/anim/overview-steps";
 import { DEFAULT_PARAMS, configFor } from "@/lib/compute/traces";
-import { initModelWeights } from "@/lib/transformer/init";
+import { weightsFor } from "@/lib/transformer/trained";
 import { ALPHABET } from "@/lib/transformer/tokenizer";
 import { PART_COLOUR, type Part } from "@/lib/viz/palette";
+
+import { WeightsToggle, useWeightKind } from "./WeightsToggle";
 
 type Stage = { kind: OverviewKind; block: number; label: string; part: Part };
 
@@ -65,18 +67,19 @@ export default function OverviewHero({
   const [text, setText] = useState("hello");
   const [seed, setSeed] = useState(DEFAULT_PARAMS.seed);
   const [hover, setHover] = useState<string | null>(null);
+  const [weights, setWeights] = useWeightKind();
   const config = useMemo(() => configFor({ ...DEFAULT_PARAMS, seed }), [seed]);
   const states = useMemo(
     () =>
-      overviewStates(text, config, initModelWeights(config), {
+      overviewStates(text, config, weightsFor(config, weights), {
         rounds: ROUNDS,
       }),
-    [text, config],
+    [text, config, weights],
   );
   const st = useStepper(states.length, {
     stepMs: 1100,
     smooth: true,
-    resetKey: `${text}|${seed}`,
+    resetKey: `${text}|${seed}|${weights}`,
   });
   const box = useContainerWidth();
   const phone = box.width > 0 && box.width < PHONE_BELOW;
@@ -328,7 +331,9 @@ export default function OverviewHero({
           </label>
           <label className="flex min-w-0 flex-col gap-1 text-sm">
             <span className="font-medium text-neutral-700 dark:text-neutral-300">
-              Seed (weights and sampling)
+              {weights === "trained"
+                ? "Seed (sampling)"
+                : "Seed (weights and sampling)"}
             </span>
             <input
               type="number"
@@ -338,6 +343,11 @@ export default function OverviewHero({
               className="focus-ring h-11 rounded border border-neutral-300 bg-white px-2 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-950"
             />
           </label>
+          <WeightsToggle
+            value={weights}
+            onChange={setWeights}
+            label="Hero weights"
+          />
         </>
       }
     />

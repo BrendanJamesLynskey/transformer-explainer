@@ -1,7 +1,7 @@
 /**
  * POST /api/compute/attention
  *
- * Body: { text, seed?, seqLen?, dModel?, nHeads? }
+ * Body: { text, seed?, seqLen?, dModel?, nHeads?, weights? }
  *
  * Runs the same attention path the decoder uses on a single block's
  * worth of weights, with the standard pre-norm LayerNorm in front, and
@@ -11,7 +11,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { DEFAULT_PARAMS, computeAttention } from "@/lib/compute/traces";
+import {
+  DEFAULT_PARAMS,
+  computeAttention,
+  trainedFits,
+} from "@/lib/compute/traces";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -22,6 +26,8 @@ const requestSchema = z.object({
   seqLen: z.coerce.number().int().min(1).max(env.MAX_SEQ_LEN).default(8),
   dModel: z.coerce.number().int().min(2).max(env.MAX_D_MODEL).default(16),
   nHeads: z.coerce.number().int().min(1).max(8).default(2),
+  // "trained" runs Training's trained weights (they need the trained shapes)
+  weights: z.enum(["random", "trained"]).default("random"),
 });
 
 export async function POST(req: Request): Promise<Response> {
@@ -53,5 +59,15 @@ export async function POST(req: Request): Promise<Response> {
     );
   }
 
+  if (params.weights === "trained" && !trainedFits(params)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          'weights "trained" needs the trained model\'s shapes: dModel 16, nHeads 2, dFf 32, nBlocks 2',
+      },
+      { status: 400 },
+    );
+  }
   return NextResponse.json({ ok: true, data: computeAttention(params) });
 }

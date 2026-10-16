@@ -23,6 +23,8 @@ import { maxAbs, showChar, sig } from "@/lib/anim/format";
 import { DEFAULT_PARAMS, computeFfn } from "@/lib/compute/traces";
 import { MUTED, PART_COLOUR } from "@/lib/viz/palette";
 
+import { WeightsToggle, useWeightKind } from "./WeightsToggle";
+
 export default function FFNAnimation({
   testId = "ffn-animation",
   children,
@@ -33,12 +35,16 @@ export default function FFNAnimation({
   const [text, setText] = useState(DEFAULT_PARAMS.text);
   const [pos, setPos] = useState(5);
   const [hover, setHover] = useState<string | null>(null);
-  const tr = useMemo(() => computeFfn({ ...DEFAULT_PARAMS, text }), [text]);
+  const [weights, setWeights] = useWeightKind();
+  const tr = useMemo(
+    () => computeFfn({ ...DEFAULT_PARAMS, text, weights }),
+    [text, weights],
+  );
   const states = useMemo(() => ffnStates(tr, pos), [tr, pos]);
   const st = useStepper(states.length, {
     stepMs: 450,
     smooth: true,
-    resetKey: `${text}|${pos}`,
+    resetKey: `${text}|${pos}|${weights}`,
   });
   const box = useContainerWidth();
   const phone = box.width > 0 && box.width < PHONE_BELOW;
@@ -310,6 +316,11 @@ export default function FFNAnimation({
               ))}
             </select>
           </label>
+          <WeightsToggle
+            value={weights}
+            onChange={setWeights}
+            label="FFN animation weights"
+          />
         </>
       }
     />

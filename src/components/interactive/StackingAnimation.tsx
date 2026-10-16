@@ -27,9 +27,11 @@ import {
 } from "@/lib/anim/stack-steps";
 import type { TopToken } from "@/lib/anim/overview-steps";
 import { DEFAULT_PARAMS, configFor } from "@/lib/compute/traces";
-import { initModelWeights } from "@/lib/transformer/init";
+import { TRAINED_CONFIG, weightsFor } from "@/lib/transformer/trained";
 import { ALPHABET, encode } from "@/lib/transformer/tokenizer";
 import { PART_COLOUR } from "@/lib/viz/palette";
+
+import { WeightsToggle, useWeightKind } from "./WeightsToggle";
 
 const BLOCKS = [1, 2, 3, 4] as const;
 
@@ -51,13 +53,16 @@ export default function StackingAnimation({
   const [pos, setPos] = useState(5);
   const [nBlocks, setNBlocks] = useState(4);
   const [hover, setHover] = useState<string | null>(null);
+  const [weights, setWeights] = useWeightKind();
+  // the trained model has two blocks; other depths run random init
+  const depth = weights === "trained" ? TRAINED_CONFIG.n_blocks : nBlocks;
   const config = useMemo(
-    () => configFor({ ...DEFAULT_PARAMS, nBlocks }),
-    [nBlocks],
+    () => configFor({ ...DEFAULT_PARAMS, nBlocks: depth }),
+    [depth],
   );
   const states = useMemo(
-    () => stackStates(text, config, initModelWeights(config), pos),
-    [text, config, pos],
+    () => stackStates(text, config, weightsFor(config, weights), pos),
+    [text, config, pos, weights],
   );
   const tokens = useMemo(
     () => encode(text, config.seq_len).map((id) => ALPHABET[id] ?? "?"),
@@ -66,7 +71,7 @@ export default function StackingAnimation({
   const st = useStepper(states.length, {
     stepMs: 1100,
     smooth: true,
-    resetKey: `${text}|${pos}|${nBlocks}`,
+    resetKey: `${text}|${pos}|${depth}|${weights}`,
   });
   const box = useContainerWidth();
   const phone = box.width > 0 && box.width < PHONE_BELOW;
@@ -342,12 +347,15 @@ export default function StackingAnimation({
             </select>
           </label>
           <label className="flex min-w-0 flex-col gap-1 text-sm">
-            <span className={labelText}>Blocks</span>
+            <span className={labelText}>
+              {weights === "trained" ? "Blocks (trained: 2)" : "Blocks"}
+            </span>
             <select
-              value={nBlocks}
+              value={depth}
+              disabled={weights === "trained"}
               onChange={(e) => setNBlocks(Number(e.target.value))}
               aria-label="Number of blocks"
-              className={select}
+              className={`${select} disabled:opacity-60`}
             >
               {BLOCKS.map((v) => (
                 <option key={v} value={v}>
@@ -356,6 +364,11 @@ export default function StackingAnimation({
               ))}
             </select>
           </label>
+          <WeightsToggle
+            value={weights}
+            onChange={setWeights}
+            label="Stacking animation weights"
+          />
         </>
       }
     />

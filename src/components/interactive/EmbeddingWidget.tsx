@@ -11,7 +11,10 @@
 import { useEffect, useState } from "react";
 
 import { EmbeddingHeatmap } from "@/components/viz/EmbeddingHeatmap";
+import type { WeightKind } from "@/lib/transformer/trained";
+
 import { usePreset } from "./usePreset";
+import { WeightsToggle, useWeightKind } from "./WeightsToggle";
 
 type EmbedResponse = {
   ok: true;
@@ -31,11 +34,17 @@ const SEED_DEFAULT = 42;
 const SEQ_LEN = 8;
 const D_MODEL = 16;
 
-async function fetchEmbed(text: string, seed: number) {
+async function fetchEmbed(text: string, seed: number, weights: WeightKind) {
   const res = await fetch("/api/compute/embed", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ text, seed, seqLen: SEQ_LEN, dModel: D_MODEL }),
+    body: JSON.stringify({
+      text,
+      seed,
+      weights,
+      seqLen: SEQ_LEN,
+      dModel: D_MODEL,
+    }),
   });
   return (await res.json()) as EmbedResponse | ErrorResponse;
 }
@@ -43,6 +52,7 @@ async function fetchEmbed(text: string, seed: number) {
 export function EmbeddingWidget(): JSX.Element {
   const [text, setText] = useState("hello!");
   const [seed, setSeed] = useState(SEED_DEFAULT);
+  const [weights, setWeights] = useWeightKind();
   const [data, setData] = useState<EmbedResponse["data"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -53,7 +63,7 @@ export function EmbeddingWidget(): JSX.Element {
     let cancelled = false;
     setPending(true);
     setError(null);
-    fetchEmbed(text, seed)
+    fetchEmbed(text, seed, weights)
       .then((r) => {
         if (cancelled) return;
         if (r.ok) setData(r.data);
@@ -68,11 +78,11 @@ export function EmbeddingWidget(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [text, seed]);
+  }, [text, seed, weights]);
 
   return (
     <div className="my-8 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <label className="flex flex-col gap-1 text-sm sm:col-span-2">
           <span className="font-medium text-neutral-700 dark:text-neutral-300">
             Type up to {SEQ_LEN} characters:
@@ -88,16 +98,22 @@ export function EmbeddingWidget(): JSX.Element {
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-neutral-700 dark:text-neutral-300">
-            Seed:
+            {weights === "trained" ? "Seed (random init only):" : "Seed:"}
           </span>
           <input
             type="number"
             value={seed}
             onChange={(e) => setSeed(Number(e.target.value || 0))}
             aria-label="Embedding widget seed"
+            disabled={weights === "trained"}
             className="focus-ring rounded border border-neutral-300 bg-white px-2 py-1 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-950"
           />
         </label>
+        <WeightsToggle
+          value={weights}
+          onChange={setWeights}
+          label="Embedding widget weights"
+        />
       </div>
 
       {error && (

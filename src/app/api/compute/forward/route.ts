@@ -1,7 +1,7 @@
 /**
  * POST /api/compute/forward
  *
- * Body: { text, seed?, seqLen?, dModel?, dFf?, nHeads?, nBlocks? }
+ * Body: { text, seed?, seqLen?, dModel?, dFf?, nHeads?, nBlocks?, weights? }
  *
  * Runs the full N-block forward pass and returns the complete trace —
  * per-block attention/FFN intermediates, the final residual stream, and
@@ -11,7 +11,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { DEFAULT_PARAMS, computeForward } from "@/lib/compute/traces";
+import {
+  DEFAULT_PARAMS,
+  computeForward,
+  trainedFits,
+} from "@/lib/compute/traces";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -24,6 +28,8 @@ const requestSchema = z.object({
   dFf: z.coerce.number().int().min(2).max(256).default(32),
   nHeads: z.coerce.number().int().min(1).max(8).default(2),
   nBlocks: z.coerce.number().int().min(1).max(env.MAX_BLOCKS).default(2),
+  // "trained" runs Training's trained weights (they need the trained shapes)
+  weights: z.enum(["random", "trained"]).default("random"),
 });
 
 export async function POST(req: Request): Promise<Response> {
@@ -54,5 +60,15 @@ export async function POST(req: Request): Promise<Response> {
     );
   }
 
+  if (params.weights === "trained" && !trainedFits(params)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          'weights "trained" needs the trained model\'s shapes: dModel 16, nHeads 2, dFf 32, nBlocks 2',
+      },
+      { status: 400 },
+    );
+  }
   return NextResponse.json({ ok: true, data: computeForward(params) });
 }

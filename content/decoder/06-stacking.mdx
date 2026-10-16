@@ -7,7 +7,7 @@ A decoder is the same block stacked N times, and the residual stream is what run
   />
 </StackingAnimation>
 
-With the random weights used here, each block's update is only about 1% of the stream, so the lens hardly moves from layer to layer. In trained models the read-out typically sharpens towards the final prediction as the layers go by; the idea and the name come from ["interpreting GPT: the logit lens"](https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens). This model ties its output head to the embedding table and ends with a single LayerNorm, so the lens is exactly the model's own read-out, applied early.
+With the trained weights (the default), the lens moves: at the "!" of "hello!", the stream read out straight after the embedding guesses one letter, and after each block it settles on a space, the model's answer. Switch to random init and each block's update is only about 1% of the stream, so the lens hardly moves from layer to layer. In large trained models the read-out typically sharpens towards the final prediction as the layers go by; the idea and the name come from ["interpreting GPT: the logit lens"](https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens). This model ties its output head to the embedding table and ends with a single LayerNorm, so the lens is exactly the model's own read-out, applied early.
 
 <Layer kind="concept">
 
@@ -25,8 +25,9 @@ What changes layer to layer? Two things, mostly:
 2. **The attention pattern**. Empirically, early blocks tend to attend
    locally (a few tokens back), middle blocks pick up syntactic
    relationships, and late blocks integrate longer-range semantic
-   structure. With our random toy weights you won't see those clean
-   layers, but you _will_ see distinct patterns block to block.
+   structure. Our two-block toy, trained on one book in 8-letter windows,
+   is far too small for those layers, but its blocks already differ:
+   block 1's heads stay local, block 2's reach further back.
 
 Below, the same input runs through 1, 2, 3, or 4 blocks. Each grid is
 the head-0 attention pattern for that block. Compare them.

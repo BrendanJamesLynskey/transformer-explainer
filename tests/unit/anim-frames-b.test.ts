@@ -68,7 +68,7 @@ describe("LayerNorm and residuals animation", () => {
       /^LN₁: the mean of the 16 numbers is μ = −?\d\.\d+(e−\d+)?\.$/,
     );
     expect(lnCaption(want[5]!, TOKENS)).toMatch(
-      /^LN₁: γ ⊙ x̂ \+ β with the model's γ = 1, β = 0 changes nothing at initialisation; training learns them\. Mean .+, spread 1\.$/,
+      /^LN₁: γ ⊙ x̂ \+ β with γ = 1, β = 0 \(their starting values\) changes nothing; training learns one γ and one β per element\. Mean .+, spread 1\.$/,
     );
     expect(lnCaption(want[15]!, TOKENS)).toMatch(
       /^Residual add: the stream carries on as h \+ Δ \(‖y‖ = 2\.\d+\); the normalised copy is not kept\.$/,
