@@ -18,12 +18,12 @@ export function Glyph({ size }: { size: number }): JSX.Element {
 }
 
 /**
- * Decoder's card graphic: the landing hero's attention weights for "the cat sat" (head 0, seed 42),
- * one cell per (letter, earlier letter), brightness = weight, masked cells outlined. Computed at
- * build time by the same maths library the chapters use.
+ * Decoder's card graphic: the landing hero's trained attention weights for "the cat " (block 1,
+ * head 1), one cell per (letter, earlier letter), brightness = weight, masked cells outlined.
+ * Computed at build time by the same maths library the chapters use.
  */
 export function Motif(): JSX.Element {
-  const { weights } = attentionPreview({ text: "the cat sat" });
+  const { weights } = attentionPreview({ text: "the cat ", head: 1 });
   const n = weights.length;
   const s = 400 / n;
   return (

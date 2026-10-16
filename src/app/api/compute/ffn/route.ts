@@ -1,7 +1,7 @@
 /**
  * POST /api/compute/ffn
  *
- * Body: { text, seed?, seqLen?, dModel?, dFf? }
+ * Body: { text, seed?, seqLen?, dModel?, dFf?, weights? }
  *
  * Runs token + positional embeddings → LN1 → attention residual stream →
  * LN2 → FFN, returning the per-stage matrices the widget visualises:
@@ -13,7 +13,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { DEFAULT_PARAMS, computeFfn } from "@/lib/compute/traces";
+import { DEFAULT_PARAMS, computeFfn, trainedFits } from "@/lib/compute/traces";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -25,6 +25,8 @@ const requestSchema = z.object({
   dModel: z.coerce.number().int().min(2).max(env.MAX_D_MODEL).default(16),
   dFf: z.coerce.number().int().min(2).max(256).default(32),
   nHeads: z.coerce.number().int().min(1).max(8).default(2),
+  // "trained" runs Training's trained weights (they need the trained shapes)
+  weights: z.enum(["random", "trained"]).default("random"),
 });
 
 export async function POST(req: Request): Promise<Response> {
@@ -55,5 +57,15 @@ export async function POST(req: Request): Promise<Response> {
     );
   }
 
+  if (params.weights === "trained" && !trainedFits(params)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          'weights "trained" needs the trained model\'s shapes: dModel 16, nHeads 2, dFf 32, nBlocks 2',
+      },
+      { status: 400 },
+    );
+  }
   return NextResponse.json({ ok: true, data: computeFfn(params) });
 }

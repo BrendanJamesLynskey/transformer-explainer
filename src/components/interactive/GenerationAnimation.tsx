@@ -32,11 +32,13 @@ import {
   type GenMode,
 } from "@/lib/anim/gen-steps";
 import { DEFAULT_PARAMS, configFor } from "@/lib/compute/traces";
-import { initModelWeights } from "@/lib/transformer/init";
+import { weightsFor } from "@/lib/transformer/trained";
 import { ALPHABET } from "@/lib/transformer/tokenizer";
 import { LEVEL_COLOUR, MUTED, PART_COLOUR, heat } from "@/lib/viz/palette";
 
 import { usePreset } from "./usePreset";
+
+import { WeightsToggle, useWeightKind } from "./WeightsToggle";
 
 const KS = [1, 3, 5, 10, 20] as const;
 const PS = [0.5, 0.75, 0.9, 0.95] as const;
@@ -64,11 +66,12 @@ export default function GenerationAnimation({
   const [k, setK] = useState(5);
   const [p, setP] = useState(0.9);
   const [hover, setHover] = useState<string | null>(null);
+  const [kind, setKind] = useWeightKind();
   // the playground's presets set the prompt and seed
   usePreset(setText, setSeed);
   const hatch = `gen-hatch-${useId().replace(/:/g, "")}`;
   const config = useMemo(() => configFor({ ...DEFAULT_PARAMS, seed }), [seed]);
-  const weights = useMemo(() => initModelWeights(config), [config]);
+  const weights = useMemo(() => weightsFor(config, kind), [config, kind]);
   const states = useMemo(
     () =>
       genStates(text, config, weights, {
@@ -84,7 +87,7 @@ export default function GenerationAnimation({
   const st = useStepper(states.length, {
     stepMs: 1000,
     smooth: true,
-    resetKey: `${text}|${seed}|${mode}`,
+    resetKey: `${text}|${seed}|${mode}|${kind}`,
   });
   const box = useContainerWidth();
   const phone = box.width > 0 && box.width < PHONE_BELOW;
@@ -552,7 +555,11 @@ export default function GenerationAnimation({
             </label>
           )}
           <label className="flex min-w-0 flex-col gap-1 text-sm">
-            <span className={labelText}>Seed (weights and the draw)</span>
+            <span className={labelText}>
+              {kind === "trained"
+                ? "Seed (the draw)"
+                : "Seed (weights and the draw)"}
+            </span>
             <input
               type="number"
               value={seed}
@@ -561,6 +568,11 @@ export default function GenerationAnimation({
               className={select}
             />
           </label>
+          <WeightsToggle
+            value={kind}
+            onChange={setKind}
+            label="Generation weights"
+          />
         </>
       }
     />

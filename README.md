@@ -111,9 +111,16 @@ defences that keep agents safe.
 
 Each frame is a state computed in your browser by the same TypeScript model
 the API runs (`src/lib/compute/traces.ts` → `src/lib/anim/*-steps.ts`), on
-your input. `scripts/reference.py` rebuilds every state independently with
-PyTorch (float64, on the site's seeded weights) and the frame tests require
-both to agree. Recorded with `pnpm animations` (WebM versions alongside, in
+your input. By default the widgets run Training's trained weights (the
+default run's final checkpoint, `public/training/default-run-weights.json`);
+every widget has a "Weights" control to switch to the seeded random
+initialiser they started from. `scripts/reference.py` rebuilds every state
+independently with PyTorch (float64, on both sets of weights:
+`tests/unit/fixtures/animations.json`, `animations_b.json` and, since brief
+41, `animations_trained.json`) and the frame tests require both to agree.
+The landing page's hero draws the trained model's four heads; what each head
+does across the corpus (`src/data/decoder/trained-heads.json`) is measured by
+`scripts/reference.py` and checked against the TypeScript model. Recorded with `pnpm animations` (WebM versions alongside, in
 [`docs/media/`](docs/media/)):
 
 |                                                                          |                                                                   |

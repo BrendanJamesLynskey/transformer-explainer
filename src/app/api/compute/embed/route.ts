@@ -1,7 +1,8 @@
 /**
  * POST /api/compute/embed
  *
- * Body: { text: string; seed?: number; seqLen?: number; dModel?: number }
+ * Body: { text: string; seed?: number; seqLen?: number; dModel?: number;
+ *        weights?: "random" | "trained" }
  *
  * Tokenises the input, looks up token embeddings from a deterministic
  * seed-based init, builds the sinusoidal positional encoding, and returns
@@ -10,7 +11,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { DEFAULT_PARAMS, computeEmbed } from "@/lib/compute/traces";
+import {
+  DEFAULT_PARAMS,
+  computeEmbed,
+  trainedFits,
+} from "@/lib/compute/traces";
 import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -21,6 +26,8 @@ const requestSchema = z.object({
   seed: z.coerce.number().int().default(42),
   seqLen: z.coerce.number().int().min(1).max(env.MAX_SEQ_LEN).default(8),
   dModel: z.coerce.number().int().min(2).max(env.MAX_D_MODEL).default(16),
+  // "trained" runs Training's trained weights (they need the trained shapes)
+  weights: z.enum(["random", "trained"]).default("random"),
 });
 
 export async function POST(req: Request): Promise<Response> {
@@ -43,5 +50,15 @@ export async function POST(req: Request): Promise<Response> {
   }
   const params = { ...DEFAULT_PARAMS, ...parsed.data };
 
+  if (params.weights === "trained" && !trainedFits(params)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          'weights "trained" needs the trained model\'s shapes: dModel 16, nHeads 2, dFf 32, nBlocks 2',
+      },
+      { status: 400 },
+    );
+  }
   return NextResponse.json({ ok: true, data: computeEmbed(params) });
 }

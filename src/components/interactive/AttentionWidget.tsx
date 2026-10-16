@@ -14,7 +14,10 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AttentionMatrix } from "@/components/viz/AttentionMatrix";
 import { EmbeddingHeatmap } from "@/components/viz/EmbeddingHeatmap";
+import type { WeightKind } from "@/lib/transformer/trained";
+
 import { usePreset } from "./usePreset";
+import { WeightsToggle, useWeightKind } from "./WeightsToggle";
 
 type AttnResponse = {
   ok: true;
@@ -40,13 +43,14 @@ const SEQ_LEN = 8;
 const D_MODEL = 16;
 const N_HEADS = 2;
 
-async function fetchAttention(text: string, seed: number) {
+async function fetchAttention(text: string, seed: number, weights: WeightKind) {
   const res = await fetch("/api/compute/attention", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       text,
       seed,
+      weights,
       seqLen: SEQ_LEN,
       dModel: D_MODEL,
       nHeads: N_HEADS,
@@ -66,6 +70,7 @@ function visibleToken(t: string): string {
 export function AttentionWidget(): JSX.Element {
   const [text, setText] = useState("the cat");
   const [seed, setSeed] = useState(SEED_DEFAULT);
+  const [weights, setWeights] = useWeightKind();
   const [head, setHead] = useState(0);
   const [hoverRow, setHoverRow] = useState<number | null>(null);
   const [data, setData] = useState<AttnResponse["data"] | null>(null);
@@ -78,7 +83,7 @@ export function AttentionWidget(): JSX.Element {
     let cancelled = false;
     setPending(true);
     setError(null);
-    fetchAttention(text, seed)
+    fetchAttention(text, seed, weights)
       .then((r) => {
         if (cancelled) return;
         if (r.ok) setData(r.data);
@@ -93,7 +98,7 @@ export function AttentionWidget(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [text, seed]);
+  }, [text, seed, weights]);
 
   const dHead = D_MODEL / N_HEADS;
   const headData = useMemo(() => {
@@ -109,7 +114,7 @@ export function AttentionWidget(): JSX.Element {
 
   return (
     <div className="my-8 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <label className="flex flex-col gap-1 text-sm sm:col-span-2">
           <span className="font-medium text-neutral-700 dark:text-neutral-300">
             Type up to {SEQ_LEN} characters:
@@ -125,16 +130,22 @@ export function AttentionWidget(): JSX.Element {
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-neutral-700 dark:text-neutral-300">
-            Seed:
+            {weights === "trained" ? "Seed (random init only):" : "Seed:"}
           </span>
           <input
             type="number"
             value={seed}
             onChange={(e) => setSeed(Number(e.target.value || 0))}
             aria-label="Attention widget seed"
+            disabled={weights === "trained"}
             className="focus-ring rounded border border-neutral-300 bg-white px-2 py-1 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-950"
           />
         </label>
+        <WeightsToggle
+          value={weights}
+          onChange={setWeights}
+          label="Attention widget weights"
+        />
       </div>
 
       <div className="mt-4 flex items-center gap-2 text-sm">

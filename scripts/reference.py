@@ -626,10 +626,14 @@ def write_animation_fixture(out_dir: Path) -> None:
 # Animation states for brief 27B (chapters 05-07 and the playground's loop).
 # A second file, animations_b.json, so animations.json (27A) is untouched.
 # ---------------------------------------------------------------------------
-def ln_states(text: str, config: dict, pos: int, gamma: float, beta: float) -> list[dict]:
-    """Port of src/lib/anim/ln-steps.ts (residualTrace + lnStates), block 0."""
+def ln_states(text: str, config: dict, pos: int, gamma: float, beta: float,
+              w: dict | None = None) -> list[dict]:
+    """Port of src/lib/anim/ln-steps.ts (residualTrace + lnStates), block 0.
+    `w` = None draws the site's seeded weights (brief 27B); brief 41 passes
+    the trained ones."""
     S, D, H = config["seq_len"], config["d_model"], config["n_heads"]
-    w = init_weights_site(dict(config, n_blocks=1))
+    if w is None:
+        w = init_weights_site(dict(config, n_blocks=1))
     g = torch.full((D,), float(gamma), dtype=torch.float64)
     b = torch.full((D,), float(beta), dtype=torch.float64)
     ids = encode(text, S)
@@ -682,10 +686,11 @@ def top_tokens(logits: list[float], k: int = 5) -> list[dict]:
     return [{"id": i, "logit": logits[i], "prob": probs[i]} for i in order]
 
 
-def stack_states(text: str, config: dict, pos: int) -> list[dict]:
-    """Port of src/lib/anim/stack-steps.ts:stackStates."""
+def stack_states(text: str, config: dict, pos: int, w: dict | None = None) -> list[dict]:
+    """Port of src/lib/anim/stack-steps.ts:stackStates (`w` as in ln_states)."""
     S, N = config["seq_len"], config["n_blocks"]
-    w = init_weights_site(config)
+    if w is None:
+        w = init_weights_site(config)
     tr = site_trace(encode(text, S), config, w)
     p = max(0, min(S - 1, pos))
 
@@ -751,10 +756,11 @@ def ts_softmax_masked(x: list[float]) -> list[float]:
     return [v / s for v in e]
 
 
-def gen_states(text: str, config: dict, opts: dict) -> list[dict]:
-    """Port of src/lib/anim/gen-steps.ts:genStates."""
+def gen_states(text: str, config: dict, opts: dict, w: dict | None = None) -> list[dict]:
+    """Port of src/lib/anim/gen-steps.ts:genStates (`w` as in ln_states)."""
     S = config["seq_len"]
-    w = init_weights_site(config)
+    if w is None:
+        w = init_weights_site(config)
     rng = mulberry32(config["seed"])
     t = text[: S - 1] if text else " "
     context = encode(t, len(t))
@@ -841,6 +847,153 @@ def write_animation_fixture_b(out_dir: Path) -> None:
         json.dump(fx, fh, allow_nan=False, separators=(",", ":"))
         fh.write("\n")
     print(f"wrote {path}")
+
+
+# ---------------------------------------------------------------------------
+# Brief 41: the same animations on Training's trained weights.
+#
+# The Decoder's widgets now run, by default, the weights Training's default
+# run ends with (public/training/default-run-weights.json, written by
+# scripts/training/make_fixtures.py). This section loads them in float64 and
+# rebuilds every animation's states with the reference ops above, into a new
+# file, animations_trained.json; tests/unit/anim-frames-trained.test.ts
+# requires the TypeScript states to match. It also measures what each
+# trained head does on the corpus (src/data/decoder/trained-heads.json, the
+# numbers the landing page and chapters quote). No existing fixture changes.
+# ---------------------------------------------------------------------------
+ROOT = Path(__file__).resolve().parent.parent
+TRAINED_PATH = ROOT / "public" / "training" / "default-run-weights.json"
+CORPUS_PATH = ROOT / "public" / "training" / "corpus.txt"
+HEADS_PATH = ROOT / "src" / "data" / "decoder" / "trained-heads.json"
+PREVIEW_TEXT = "the cat "  # the landing hero's input (8 characters, the trained context)
+STATS_STRIDE = 37  # every 37th 8-character window of the corpus
+
+
+def trained_weights_site() -> tuple[dict, dict[str, torch.Tensor]]:
+    """Training's trained weights as float64 tensors, with their config."""
+    raw = json.loads(TRAINED_PATH.read_text(encoding="utf-8"))
+    w = {k: torch.tensor(v, dtype=torch.float64) for k, v in raw["params"].items()}
+    return raw["config"], w
+
+
+def preview_heads(text: str, config: dict, w: dict) -> list[dict]:
+    """Every head's softmax weights for `text` (port of lib/attention-preview.ts)."""
+    cfg = dict(config, seq_len=len(text))
+    tr = site_trace(encode(text, len(text)), cfg, w)
+    return [{"block": b, "head": h, "weights": bt["attn"]["weights"][h].tolist()}
+            for b, bt in enumerate(tr["blocks"]) for h in range(config["n_heads"])]
+
+
+def head_stats(config: dict, w: dict, text: str, stride: int) -> list[dict]:
+    """What each head does on the corpus (port of lib/attention-stats.ts).
+
+    Over the 8-character windows starting at 0, stride, 2·stride, …, and
+    every query row i ≥ 1: the mean weight on the current character (self),
+    on the one before (prev), and the mean normalised entropy (1 = uniform
+    over the i + 1 visible keys). For query rows that are a space (i ≥ 2):
+    the mean weight on the window's first two characters (spaceStart).
+    """
+    S = config["seq_len"]
+    ids = encode(text, len(text))
+    starts = range(0, len(ids) - S + 1, stride)
+    H, N = config["n_heads"], config["n_blocks"]
+    acc = {(b, h): {"self": 0.0, "prev": 0.0, "ent": 0.0, "n": 0, "sp": 0.0, "nsp": 0}
+           for b in range(N) for h in range(H)}
+    space = ALPHABET.index(" ")
+    windows = 0
+    for s0 in starts:
+        win = ids[s0:s0 + S]
+        tr = site_trace(win, config, w)
+        windows += 1
+        for b, bt in enumerate(tr["blocks"]):
+            for h in range(H):
+                a = acc[(b, h)]
+                wt = bt["attn"]["weights"][h]
+                for i in range(1, S):
+                    row = [float(v) for v in wt[i][: i + 1]]
+                    a["self"] += row[i]
+                    a["prev"] += row[i - 1]
+                    e = 0.0  # a plain loop, not sum(): Python 3.12's sum() is compensated
+                    for v in row:
+                        if v > 0:
+                            e += v * math.log(v)
+                    a["ent"] += -e / math.log(i + 1)
+                    a["n"] += 1
+                    if i >= 2 and win[i] == space:
+                        a["sp"] += row[0] + row[1]
+                        a["nsp"] += 1
+    out = []
+    for (b, h), a in acc.items():
+        out.append({"block": b, "head": h, "windows": windows, "rows": a["n"],
+                    "self": a["self"] / a["n"], "prev": a["prev"] / a["n"],
+                    "entropy": a["ent"] / a["n"], "spaceRows": a["nsp"],
+                    "spaceStart": a["sp"] / a["nsp"] if a["nsp"] else 0.0})
+    return out
+
+
+def animation_fixture_trained() -> dict:
+    tcfg, w = trained_weights_site()
+    cfg = dict(ANIM_CONFIG)
+    assert all(cfg[k] == tcfg[k] for k in ("d_model", "n_heads", "d_ff", "n_blocks", "vocab_size"))
+    S = cfg["seq_len"]
+    tr = site_trace(encode(ANIM_TEXT, S), cfg, w)
+    gen = [
+        {"text": GEN_TEXT, "seed": 42,
+         "opts": {"mode": "top-k", "temperature": 0.1, "k": 5, "p": 0.9, "rounds": 3}},
+        {"text": "the", "seed": 7,
+         "opts": {"mode": "temperature", "temperature": 1.0, "k": 5, "p": 0.9, "rounds": 8}},
+    ]
+    for run in gen:
+        run["states"] = gen_states(run["text"], dict(cfg, seed=run["seed"]), run["opts"], w)
+    return {
+        "note": "Brief 41 animation states from scripts/reference.py (float64) on Training's "
+                "trained weights (public/training/default-run-weights.json).",
+        "config": cfg,
+        "weights_sample": {
+            "tok_emb_row0": vec(w["tok_emb"][0]),
+            "block_1.ffn.W2_last_row": vec(w["block_1.ffn.W2"][-1]),
+        },
+        "embed": {"text": ANIM_TEXT, "pos": 2, "states": embed_states(ANIM_TEXT, cfg, w, 2)},
+        "attention": [
+            {"text": ANIM_TEXT, "head": 0, "row": 3,
+             "states": attention_states(ANIM_TEXT, cfg, w, 0, 3)},
+            {"text": ANIM_TEXT, "head": "all", "row": 6,
+             "states": attention_states(ANIM_TEXT, cfg, w, "all", 6)},
+        ],
+        "ffn": {"text": ANIM_TEXT, "pos": 5, "states": ffn_states(ANIM_TEXT, cfg, w, 5)},
+        "overview": {"text": HERO_TEXT, "rounds": HERO_ROUNDS,
+                     "states": overview_states(HERO_TEXT, cfg, w, HERO_ROUNDS)},
+        "layernorm": [{"text": ANIM_TEXT, "pos": 5, "gamma": 1, "beta": 0,
+                       "states": ln_states(ANIM_TEXT, cfg, 5, 1.0, 0.0, w)}],
+        "stacking": [{"text": ANIM_TEXT, "pos": 5, "nBlocks": 2,
+                      "states": stack_states(ANIM_TEXT, cfg, 5, w)}],
+        "generation": gen,
+        "preview": {"text": PREVIEW_TEXT, "heads": preview_heads(PREVIEW_TEXT, cfg, w)},
+        "logits_hello": vec(tr["logits"][5]),
+    }
+
+
+def write_trained_fixtures(out_dir: Path) -> None:
+    path = out_dir / "animations_trained.json"
+    with path.open("w", encoding="utf-8") as fh:
+        json.dump(animation_fixture_trained(), fh, allow_nan=False, separators=(",", ":"))
+        fh.write("\n")
+    print(f"wrote {path}")
+    tcfg, w = trained_weights_site()
+    cfg = dict(ANIM_CONFIG)
+    corpus = CORPUS_PATH.read_text(encoding="utf-8")
+    heads = {
+        "note": "What each attention head does on the corpus, trained and at random init "
+                "(scripts/reference.py head_stats; checked by tests/unit/attention-stats.test.ts).",
+        "stride": STATS_STRIDE,
+        "trained": head_stats(cfg, w, corpus, STATS_STRIDE),
+        "random": head_stats(cfg, init_weights_site(cfg), corpus, STATS_STRIDE),
+    }
+    HEADS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with HEADS_PATH.open("w", encoding="utf-8") as fh:
+        json.dump(heads, fh, allow_nan=False, indent=1)
+        fh.write("\n")
+    print(f"wrote {HEADS_PATH}")
 
 
 def main() -> None:
@@ -973,6 +1126,8 @@ def main() -> None:
     write_animation_fixture(out_dir)
     # Brief 27B: chapters 05-07 and the generation loop, in their own file.
     write_animation_fixture_b(out_dir)
+    # Brief 41: the same animations on the trained weights, plus head stats.
+    write_trained_fixtures(out_dir)
 
     print("\nAll fixtures written.")
     print("Commit tests/unit/fixtures/ to git.")

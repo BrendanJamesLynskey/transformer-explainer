@@ -66,9 +66,12 @@ $$
 
 Each head can specialise in a different relationship — one might track
 which token came right before, another which token shares an opening
-parenthesis, and so on. With this toy model and random weights you'll
-see less interpretable patterns, but the _shape_ of the computation is
-identical.
+parenthesis, and so on. This toy model, trained on one book, learns
+simple habits: in block 1 both heads look mostly at the current letter
+and the one before it, and in block 2 one head sends each space back to
+the start of the window (the landing page shows all four heads). Switch
+any widget's weights to random init to see where training started: rows
+spread almost evenly.
 
 </Layer>
 

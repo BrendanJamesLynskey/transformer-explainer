@@ -8,7 +8,10 @@
 import { useEffect, useState } from "react";
 
 import { AttentionMatrix } from "@/components/viz/AttentionMatrix";
+import type { WeightKind } from "@/lib/transformer/trained";
+
 import { usePreset } from "./usePreset";
+import { WeightsToggle, useWeightKind } from "./WeightsToggle";
 
 type ForwardResponse = {
   ok: true;
@@ -21,13 +24,19 @@ type ErrorResponse = { ok: false; error: string };
 
 const SEQ_LEN = 8;
 
-async function fetchForward(text: string, seed: number, nBlocks: number) {
+async function fetchForward(
+  text: string,
+  seed: number,
+  nBlocks: number,
+  weights: WeightKind,
+) {
   const res = await fetch("/api/compute/forward", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       text,
       seed,
+      weights,
       seqLen: SEQ_LEN,
       dModel: 16,
       dFf: 32,
@@ -41,15 +50,18 @@ async function fetchForward(text: string, seed: number, nBlocks: number) {
 export function StackingWidget(): JSX.Element {
   const [text, setText] = useState("hello");
   const [seed, setSeed] = useState(42);
+  const [weights, setWeights] = useWeightKind();
   const [nBlocks, setNBlocks] = useState(2);
   const [data, setData] = useState<ForwardResponse["data"] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // the trained model has two blocks; other depths run random init
+  const depth = weights === "trained" ? 2 : nBlocks;
 
   usePreset(setText, setSeed);
 
   useEffect(() => {
     let cancelled = false;
-    fetchForward(text, seed, nBlocks)
+    fetchForward(text, seed, depth, weights)
       .then((r) => {
         if (cancelled) return;
         if (r.ok) setData(r.data);
@@ -61,11 +73,11 @@ export function StackingWidget(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [text, seed, nBlocks]);
+  }, [text, seed, depth, weights]);
 
   return (
     <div className="my-8 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <label className="flex flex-col gap-1 text-sm sm:col-span-2">
           <span className="font-medium text-neutral-700 dark:text-neutral-300">
             Input text:
@@ -81,16 +93,22 @@ export function StackingWidget(): JSX.Element {
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-neutral-700 dark:text-neutral-300">
-            Seed:
+            {weights === "trained" ? "Seed (random init only):" : "Seed:"}
           </span>
           <input
             type="number"
             value={seed}
             onChange={(e) => setSeed(Number(e.target.value || 0))}
             aria-label="Stacking widget seed"
+            disabled={weights === "trained"}
             className="focus-ring rounded border border-neutral-300 bg-white px-2 py-1 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-950"
           />
         </label>
+        <WeightsToggle
+          value={weights}
+          onChange={setWeights}
+          label="Stacking widget weights"
+        />
       </div>
 
       <div className="mt-4 flex items-center gap-2 text-sm">
@@ -106,10 +124,11 @@ export function StackingWidget(): JSX.Element {
             <button
               key={n}
               type="button"
-              aria-pressed={nBlocks === n}
+              aria-pressed={depth === n}
+              disabled={weights === "trained" && n !== 2}
               onClick={() => setNBlocks(n)}
-              className={`focus-ring px-3 py-1 first:rounded-l last:rounded-r ${
-                nBlocks === n
+              className={`focus-ring px-3 py-1 first:rounded-l last:rounded-r disabled:opacity-40 ${
+                depth === n
                   ? "bg-accent text-accent-fg"
                   : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
               }`}
@@ -137,10 +156,9 @@ export function StackingWidget(): JSX.Element {
                 Block {blockIdx} · head 0 weights
               </h4>
               <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                Notice how each block&apos;s attention pattern can specialise
-                differently — even with random weights, the rows differ from
-                block to block because each layer sees a different residual
-                stream.
+                {weights === "trained"
+                  ? "Trained: block 0's head 0 puts most of each row on the current letter and the one before it; block 1's head 0 spreads its weight further back."
+                  : "Random init: rows spread their weight almost evenly; they still differ from block to block because each layer sees a different residual stream."}
               </p>
               <div className="mt-2 overflow-x-auto">
                 <AttentionMatrix
