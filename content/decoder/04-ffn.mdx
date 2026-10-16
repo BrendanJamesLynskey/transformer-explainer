@@ -15,8 +15,11 @@ a small two-layer MLP, applied identically at every sequence position.
 
 You can think of attention as the _who-talks-to-whom_ sub-layer, and the
 FFN as the _what-each-position-thinks_ sub-layer. Most of the parameters
-in a Transformer live here — typically four times as many as in
-attention — and most of the model's "knowledge" sits in these matrices.
+in a Transformer live here — typically about twice as many as in attention
+(with `d_ff = 4 · d_model` the FFN holds 8·d² weights against attention's
+4·d²; a gated SwiGLU FFN at `8/3 · d_model` is also about 8·d²) — and most
+of the model's "knowledge" sits in these matrices. In this toy
+`d_ff = 2 · d_model`, so the two sub-layers are the same size.
 
 The network has three steps:
 

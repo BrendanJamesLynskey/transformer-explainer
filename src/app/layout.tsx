@@ -17,8 +17,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(env.NEXT_PUBLIC_SITE_URL),
   title: {
-    default: "Transformer Explainer",
-    template: "%s · Transformer Explainer",
+    // The decoder host's name; the training pages set absolute titles with
+    // "Transformer Training Explained" (brief 38).
+    default: "Transformer Decoder Explained",
+    template: "%s · Transformer Decoder Explained",
   },
   description:
     "How a decoder-only transformer runs, and how it is trained: a graphical, interactive explainer. Watch every operation execute, then train the same model in your browser.",

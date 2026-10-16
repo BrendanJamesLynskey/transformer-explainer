@@ -36,7 +36,7 @@ export async function generateMetadata({
   if (!isTrainingSlug(params.slug)) return {};
   const meta = getTrainingMeta(params.slug);
   return {
-    title: `${meta.title} · Training`,
+    title: { absolute: `${meta.title} · Transformer Training Explained` },
     description: meta.summary,
     // Part 2's address is the training host, wherever the page is served
     alternates: { canonical: trainingCanonical(`/training/${params.slug}`) },

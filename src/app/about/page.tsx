@@ -18,6 +18,55 @@ const AUTHOR = {
   url: "https://github.com/BrendanJamesLynskey",
 } as const;
 
+/**
+ * The planned GPU replications (brief 38): each Training chapter that links a
+ * notebook points here instead of carrying its own "pending" notice.
+ */
+const GPU_RUNS = [
+  {
+    chapter: "07-init-norm-mup",
+    title: "Chapter 7",
+    what: "a µP width sweep, widths 128 to 1,024 under both parameterisations",
+    notebook: "07_mup_width_sweep.ipynb",
+    time: "about an hour on an A100",
+  },
+  {
+    chapter: "08-stability",
+    title: "Chapter 8",
+    what: "baseline, QK-norm and z-loss on a 6-layer, width-512 model",
+    notebook: "08_attention_logit_growth.ipynb",
+    time: "about 45 minutes on an A100",
+  },
+  {
+    chapter: "09-mixed-precision",
+    title: "Chapter 9",
+    what: "FP32, BF16, FP16 with and without a GradScaler, and FP8 emulation on a 60M-parameter model",
+    notebook: "09_mixed_precision.ipynb",
+    time: "about 40 minutes on an A100",
+  },
+  {
+    chapter: "10-memory",
+    title: "Chapter 10",
+    what: "peak memory and step time with and without activation checkpointing",
+    notebook: "10_activation_checkpointing.ipynb",
+    time: "about 10 minutes on any GPU",
+  },
+  {
+    chapter: "14-scaling-laws",
+    title: "Chapter 14",
+    what: "an IsoFLOP sweep on GPTs of 1–40M parameters",
+    notebook: "14_isoflop_sweep.ipynb",
+    time: "about an hour on an A100",
+  },
+  {
+    chapter: "15-running-a-real-job",
+    title: "Chapter 15",
+    what: "throughput, MFU and an exact checkpoint resume",
+    notebook: "15_throughput_mfu.ipynb",
+    time: "about 10 minutes on any GPU",
+  },
+] as const;
+
 export default function AboutPage(): JSX.Element {
   const ctx = getSiteContext();
   return (
@@ -65,6 +114,39 @@ export default function AboutPage(): JSX.Element {
           real-world Next.js full-stack codebase that reads like a textbook,
           with shapes, formulas, and references in the JSDoc of every operation.
         </p>
+      </section>
+
+      <section id="runs-to-come" className="scroll-mt-20 space-y-3">
+        <h2 className="text-lg font-medium">Runs to come</h2>
+        <p className="text-sm">
+          Every number in the Training chapters comes from the model that runs
+          in your browser, or from its Python reference. Six chapters also link
+          a notebook that repeats the experiment at a larger scale on a GPU.
+          Those runs are planned; when one is done, its output goes into the
+          repository and its numbers into the chapter.
+        </p>
+        <ul className="space-y-1 text-sm">
+          {GPU_RUNS.map((run) => (
+            <li key={run.notebook}>
+              <a
+                href={siteHref(`/training/${run.chapter}`, ctx)}
+                className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
+              >
+                {run.title}
+              </a>
+              : {run.what} (
+              <a
+                href={`https://colab.research.google.com/github/BrendanJamesLynskey/transformer-explainer/blob/main/notebooks/${run.notebook}`}
+                className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                notebook
+              </a>
+              , {run.time}).
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="space-y-3">
