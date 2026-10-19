@@ -225,10 +225,14 @@ export function SelfCheck(props: SelfCheckProps): JSX.Element {
             {input !== "choice" && (
               <span className="text-neutral-600 dark:text-neutral-400">
                 {" "}
-                (counted right within{" "}
-                {abs > 0 && tol * Math.abs(value) < abs
-                  ? `± ${abs}`
-                  : `${Math.round(tol * 100)}%`}
+                (
+                {tol === 0 && abs === 0
+                  ? "exact"
+                  : `counted right within ${
+                      abs > 0 && tol * Math.abs(value) < abs
+                        ? `± ${abs}${unit ?? ""}`
+                        : `${Math.round(tol * 100)}%`
+                    }`}
                 )
               </span>
             )}
