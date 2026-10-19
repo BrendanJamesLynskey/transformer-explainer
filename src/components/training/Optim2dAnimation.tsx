@@ -1,8 +1,10 @@
 "use client";
 
 /**
- * Chapter 5: SGD, momentum, Adam and AdamW on a 2-D valley 50 times
- * steeper across than along. Each dot is one optimiser's (x, y) after t
+ * Chapter 5: SGD, momentum, Nesterov momentum, Adam and AdamW on a 2-D
+ * valley 50 times steeper across than along. Nesterov (brief 44) is drawn
+ * dashed as well as in its own colour, so it reads apart from momentum
+ * without colour. Each dot is one optimiser's (x, y) after t
  * steps, computed by the trainer's own optimizers.ts (`optim2dStates`);
  * Adam's two moment estimates are printed under the picture.
  */
@@ -29,8 +31,11 @@ const COLOURS = [
   OKABE_ITO.green,
   OKABE_ITO.blue,
   OKABE_ITO.purple,
+  OKABE_ITO.vermillion,
 ];
-const MARKERS = ["circle", "square", "triangle", "diamond"] as const;
+const MARKERS = ["circle", "square", "triangle", "diamond", "down"] as const;
+/** Nesterov's path is dashed (never colour alone). */
+const DASH: Record<string, string | undefined> = { nesterov: "6 4" };
 
 function Marker({
   kind,
@@ -54,6 +59,14 @@ function Marker({
         y={y - r}
         width={2 * r}
         height={2 * r}
+        fill={fill}
+        stroke="currentColor"
+      />
+    );
+  if (kind === "down")
+    return (
+      <path
+        d={`M${x},${y + r * 1.2}L${x + r * 1.1},${y - r * 0.8}L${x - r * 1.1},${y - r * 0.8}Z`}
         fill={fill}
         stroke="currentColor"
       />
@@ -102,7 +115,9 @@ export default function Optim2dAnimation({
   const k = (W - 2 * pad) / (xHi - xLo);
   const plotH = (yHi - yLo) * k;
   const legendY = plotH + 2 * pad + fs(12) + 6;
-  const H = legendY + (phone ? 2 : 1) * (fs(12) + 10) + 6;
+  const perRow = phone ? 2 : 3;
+  const legendRows = Math.ceil(OPTIM2D.length / perRow);
+  const H = legendY + (legendRows - 1) * (fs(12) + 10) + fs(12) + 10;
   const px = (x: number) => pad + (x - xLo) * k;
   const py = (y: number) => pad + (yHi - y) * k;
   const levels = [0.05, 0.3, 1.5, 6, 20, 60];
@@ -114,7 +129,7 @@ export default function Optim2dAnimation({
         viewBox={`0 0 ${W} ${H}`}
         className="mx-auto w-full text-neutral-800 dark:text-neutral-200"
         role="img"
-        aria-label="Contours of a long, narrow valley with its minimum at (2, 1) and the origin marked; four paths, one per optimiser, from (−2.5, −1.5) towards the minimum"
+        aria-label="Contours of a long, narrow valley with its minimum at (2, 1) and the origin marked; five paths, one per optimiser, from (−2.5, −1.5) towards the minimum; Nesterov's is dashed"
       >
         <defs>
           <clipPath id="valley-clip">
@@ -175,6 +190,7 @@ export default function Optim2dAnimation({
                 stroke={COLOURS[i]}
                 strokeWidth={2}
                 strokeOpacity={0.85}
+                strokeDasharray={DASH[o.kind]}
               />
             );
           })}
@@ -218,13 +234,23 @@ export default function Optim2dAnimation({
           origin
         </text>
         {OPTIM2D.map((o, i) => {
-          const perRow = phone ? 2 : 4;
           const col = i % perRow;
           const row = Math.floor(i / perRow);
           const lx = pad + col * ((W - 2 * pad) / perRow);
           const ly = legendY + row * (fs(12) + 10);
           return (
-            <g key={o.kind}>
+            <g key={o.kind} data-legend={o.kind}>
+              {DASH[o.kind] && (
+                <line
+                  x1={lx}
+                  x2={lx + 12}
+                  y1={ly + 4}
+                  y2={ly + 4}
+                  stroke={COLOURS[i]}
+                  strokeWidth={2}
+                  strokeDasharray="3 2"
+                />
+              )}
               <Marker
                 kind={MARKERS[i]!}
                 x={lx + 6}
@@ -245,8 +271,8 @@ export default function Optim2dAnimation({
   return (
     <AnimationPanel
       testId={testId}
-      title="Four optimisers in a narrow valley"
-      summary="f(x, y) = ½((x − 2)² + 50 (y − 1)²), from (−2.5, −1.5), 60 steps each. Plain SGD's step must stay small for the steep direction, so it crawls along the shallow one; momentum builds speed along it; Adam rescales each direction; AdamW's decay pulls it towards the origin."
+      title="Five optimisers in a narrow valley"
+      summary="f(x, y) = ½((x − 2)² + 50 (y − 1)²), from (−2.5, −1.5), 60 steps each. Plain SGD's step must stay small for the steep direction, so it crawls along the shallow one; momentum builds speed along it; Nesterov, at the same settings, takes the gradient where momentum is about to carry it and stops swinging sooner; Adam rescales each direction; AdamW's decay pulls it towards the origin."
       stepper={st}
       stepLabel="step"
       countFrom={0}

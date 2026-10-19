@@ -80,3 +80,67 @@ return probs.map((p, i) =>
 ```
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t03-q1"
+  n={1}
+  input="number"
+  k="derived.unigramPerplexity"
+  d={1}
+  tol={0.15}
+  q="A model that knows only how common each letter is: what perplexity does it score?"
+  href="#t-cross-entropy"
+  more="Cross-entropy and perplexity"
+>
+  <R k="derived.unigramPerplexity" d={1} />, against 64 for a uniform guess and{" "}
+  <R k="derived.valPerplexity" d={1} /> for the trained model: as unsure, on
+  average, as a fair choice among that many characters.
+</Check>
+
+<Check
+  id="t03-q2"
+  n={2}
+  choices={["Zero, always", "Minus one", "The loss itself"]}
+  answer={0}
+  q="Add up the gradient p − y over all 64 logits at one position. What do you get?"
+  href="#t-cross-entropy"
+  more="The gradient p − y"
+>
+  Zero: the probabilities sum to 1 and so does the one-hot target. The right
+  logit is pushed up by $1 - p_y$ and every other logit down by its own
+  probability, and the pushes cancel.
+</Check>
+
+<Check
+  id="t03-q3"
+  n={3}
+  choices={[
+    "Yes: training made it confident everywhere",
+    "No: almost any word can follow a space, so it stays unsure",
+    "Yes, it always predicts “w”",
+  ]}
+  answer={1}
+  q="Switch to the trained weights. After “alice ” (ending in a space), is the model confident about the next character?"
+  href="#t-next-token"
+  more="Initialised vs trained"
+>
+  No. Where the text is predictable, such as “e” after “alic”, the trained model
+  is confident; after a space many words can follow, so it spreads its
+  probability and pays a higher loss there. Cross-entropy rewards honest
+  uncertainty over confident mistakes.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- The loss is minus the log of the probability the model gave the character that actually came next, averaged over positions.
+- One forward pass scores every position at once, which is what makes transformers efficient to train.
+- At the logits the gradient is $p - y$: it vanishes when the model is right and is large when it is confidently wrong.
+- Perplexity $e^{L}$ compares models only when they use the same tokeniser.
+
+<Keep>$\partial L / \partial z = p - y$</Keep>
+
+</Remember>

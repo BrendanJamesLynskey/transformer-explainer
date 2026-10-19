@@ -17,6 +17,8 @@ For us, the model is small on purpose: a handful of attention heads, a
 couple of blocks, a 64-character alphabet. You can fit the whole thing on a
 screen and watch every multiplication.
 
+<span id="d-pipeline" />
+
 The pipeline you'll meet across the next six sections:
 
 1. **Token + positional embeddings** turn each character into a vector.
@@ -50,6 +52,8 @@ h &= x + \operatorname{Attn}\big(\operatorname{LN}_1(x)\big) && \text{residual a
 y &= h + \operatorname{FFN}\big(\operatorname{LN}_2(h)\big) && \text{residual around the FFN}
 \end{aligned}
 $$
+
+<span id="d-prenorm" />
 
 The pre-norm placement — LayerNorm _before_ each sub-layer — is the choice
 GPT-2 made. It trains more stably than the original post-norm in
@@ -87,3 +91,74 @@ Each helper (`tokenEmbedding`, `block`, `layernormRows`, `matmul`,
 in the order the function calls them and the whole model fits in a sitting.
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="d01-q1"
+  n={1}
+  input="number"
+  v="decoder.seqLen"
+  tol={0}
+  q="You give the model an 8-character prompt. How many next-character predictions does one forward pass make?"
+  href="/training/03-objective#t-next-token"
+  more="Training, chapter 3: one pass, eight predictions"
+>
+  One per position, <V v="decoder.seqLen" /> in all: row $i$ of the logits
+  predicts the character after position $i$, and the causal mask means it saw
+  only characters 1 to $i$. Training scores every row at once; generating a new
+  character uses only the last.
+</Check>
+
+<Check
+  id="d01-q2"
+  n={2}
+  choices={[
+    "After each residual addition, as in the original Transformer",
+    "Before each sub-layer, inside its residual branch",
+    "Only once, at the very end",
+  ]}
+  answer={1}
+  q="Where does this model put each LayerNorm?"
+  href="#d-prenorm"
+  more="Pre-norm"
+>
+  Before each sub-layer (pre-norm, GPT-2's choice): $h = x + \operatorname{Attn}
+  (\operatorname{LN}_1(x))$. The residual stream itself is only normalised once
+  more, by the final LayerNorm before the output head. Pre-norm trains more
+  stably than the original post-norm.
+</Check>
+
+<Check
+  id="d01-q3"
+  n={3}
+  input="number"
+  v="decoder.params"
+  sep
+  tol={0.25}
+  q="Roughly how many adjustable numbers (parameters) does the whole model have?"
+  href="/training/01-training-loop#t-parameters"
+  more="Training, chapter 1: parameters"
+>
+  <V v="decoder.params" sep />: the embedding table (also the output head), two
+  blocks of attention and feed-forward matrices with their biases, and the
+  LayerNorms' gains and shifts. Real language models have millions to hundreds
+  of billions.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- A decoder turns a sequence of tokens into one next-token distribution per position.
+- The pipeline: embed, then $N$ blocks of attention and feed-forward, each wrapped in a residual connection with a LayerNorm in front, then a final LayerNorm and the output head.
+- Attention mixes information across positions; the feed-forward network works on each position alone.
+- Every number on this site comes from code you can read, running on the server or in your browser.
+
+<Keep>
+  This model: <V v="decoder.vocab" /> characters, a context of{" "}
+  <V v="decoder.seqLen" />, <V v="decoder.nBlocks" /> blocks and{" "}
+  <V v="decoder.params" sep /> parameters.
+</Keep>
+
+</Remember>

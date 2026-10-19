@@ -51,15 +51,8 @@ export function lookup(path: string): unknown {
   return v;
 }
 
-export function R({
-  k,
-  d,
-  pct,
-  sep,
-  div,
-  sig,
-}: {
-  k: string;
+/** How a number is printed: `<R>`'s props, shared with `<Check>` (brief 44). */
+export type Format = {
   /** decimals */
   d?: number;
   /** print as a percentage */
@@ -70,22 +63,30 @@ export function R({
   div?: number;
   /** significant figures, scientific form for small or large values */
   sig?: number;
-}): JSX.Element {
-  const v = lookup(k);
-  let s: string;
-  if (typeof v === "number") {
-    const x = (pct ? v * 100 : v) / (div ?? 1);
-    s =
-      sig !== undefined
-        ? toSignificant(x, sig)
-        : sep
-          ? x.toLocaleString("en-GB", { maximumFractionDigits: d ?? 0 })
-          : d !== undefined
-            ? x.toFixed(d)
-            : String(x);
-    if (pct) s += "%";
-  } else {
-    s = String(v);
-  }
-  return <span data-result={k}>{s}</span>;
+};
+
+/** The number as printed (before any "%"), and its value in those units. */
+export function scaled(v: number, { pct, div }: Format): number {
+  return (pct ? v * 100 : v) / (div ?? 1);
+}
+
+/** `v` printed as `<R>` prints it. */
+export function formatValue(v: unknown, f: Format): string {
+  if (typeof v !== "number") return String(v);
+  const x = scaled(v, f);
+  const { d, sep, sig } = f;
+  let s =
+    sig !== undefined
+      ? toSignificant(x, sig)
+      : sep
+        ? x.toLocaleString("en-GB", { maximumFractionDigits: d ?? 0 })
+        : d !== undefined
+          ? x.toFixed(d)
+          : String(x);
+  if (f.pct) s += "%";
+  return s;
+}
+
+export function R({ k, ...f }: { k: string } & Format): JSX.Element {
+  return <span data-result={k}>{formatValue(lookup(k), f)}</span>;
 }

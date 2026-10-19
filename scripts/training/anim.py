@@ -8,7 +8,7 @@ Each builder mirrors its TypeScript twin field for field:
   bpe_states        ch 2  the first merges learnt on the corpus
   objective_states  ch 3  cross-entropy position by position, and p - y
   backprop_states   ch 4  the gradient at each stop on the way back
-  optim2d_states    ch 5  four optimisers on a 2-D valley
+  optim2d_states    ch 5  five optimisers on a 2-D valley (Nesterov added by brief 44)
 """
 
 from __future__ import annotations
@@ -166,7 +166,9 @@ def backprop_record(params) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Chapter 5: four optimisers on a 2-D valley
+# Chapter 5: five optimisers on a 2-D valley. Nesterov (brief 44, appended so
+# the first four keep their places) runs at momentum's learning rate and
+# momentum, so the two differ only in where the gradient is taken.
 # ---------------------------------------------------------------------------
 VALLEY = dict(a=1.0, b=50.0, x_star=2.0, y_star=1.0, start=[-2.5, -1.5], steps=60)
 OPTIM2D = [
@@ -174,6 +176,7 @@ OPTIM2D = [
     dict(kind="momentum", lr=0.02, momentum=0.8),
     dict(kind="adam", lr=0.1),
     dict(kind="adamw", lr=0.1, weight_decay=0.3),
+    dict(kind="nesterov", lr=0.02, momentum=0.8),
 ]
 
 
@@ -194,7 +197,7 @@ def optim2d_states() -> list[dict]:
     states = []
     for t in range(VALLEY["steps"] + 1):
         pts = [p["theta"][0].tolist() for p in params]
-        adam = opts[2]
+        adam = opts[[s["kind"] for s in OPTIM2D].index("adam")]
         states.append(dict(t=t, points=pts, losses=[valley_loss(p) for p in pts],
                            adamM=adam.m["theta"][0].tolist(), adamV=adam.v["theta"][0].tolist()))
         if t == VALLEY["steps"]:
@@ -203,6 +206,30 @@ def optim2d_states() -> list[dict]:
             g = {"theta": valley_grad(params[i]["theta"][0])}
             opts[i].step(params[i], g, s["lr"])
     return states
+
+
+def optim2d_summary(states: list[dict]) -> dict:
+    """What chapter 5's text and self-checks quote about the race, per
+    optimiser (in OPTIM2D's order): the final loss; the furthest it goes past
+    the minimum along the valley floor (x - x*, 0 if never) and across it
+    (|y - y*| after the start, as it swings); the first step whose loss is
+    below 1e-3 (None if never)."""
+    out = []
+    for i, spec in enumerate(OPTIM2D):
+        xs = [st["points"][i][0] for st in states]
+        ys = [st["points"][i][1] for st in states]
+        losses = [st["losses"][i] for st in states]
+        below = next((st["t"] for st in states if st["losses"][i] < 1e-3), None)
+        out.append({
+            "kind": spec["kind"],
+            "finalLoss": losses[-1],
+            "overshootX": max(0.0, max(x - VALLEY["x_star"] for x in xs)),
+            "overshootY": max(0.0, max(y - VALLEY["y_star"] for y in ys[1:])),
+            "stepBelow1e3": below,
+            "yErrorStep2": ys[2] - VALLEY["y_star"],
+        })
+    return {"steps": VALLEY["steps"], "optimisers": out,
+            "byKind": {o["kind"]: o for o in out}}
 
 
 def fixtures(ids, text) -> dict:

@@ -9,9 +9,15 @@ LLaMA 7B's weights take <R k="memory.llama.gb.weights" d={1} /> GB at two bytes 
 
 <Layer kind="concept">
 
+<span id="t-sixteen-bytes" />
+
 **Sixteen bytes per parameter.** With mixed-precision Adam (chapters 5 and 9), every parameter costs 2 bytes of BF16 weight, 2 of BF16 gradient, 4 + 4 for Adam's first and second moments and 4 for the FP32 master copy: 16 bytes, the accounting of ZeRO ([Rajbhandari et al. 2020](https://arxiv.org/abs/1910.02054), §3.1, $K = 12$ bytes of optimiser state). Plain FP32 Adam also costs 16 (4 + 4 + 8). For LLaMA 7B (<R k="memory.llama.mixed.none.params" sep /> parameters by this calculator; [Touvron et al. 2023](https://arxiv.org/abs/2302.13971), Table 2, lists 6.7B) that is <R k="memory.llama.gb.static" d={1} /> GB before a single activation.
 
+<span id="t-activations" />
+
 **Activations.** The backward pass needs, at every operation, what the forward pass computed there (chapter 4: "which activations must be saved, and why"). [Korthikanti et al. (2022)](https://arxiv.org/abs/2205.05198) count them for a GPT layer with 16-bit activations: $s\,b\,h\,(34 + 5as/h)$ bytes for sequence length $s$, micro-batch $b$, width $h$ and $a$ heads. The $5as/h$ term is attention's $s \times s$ score and weight matrices, one per head ([Decoder, chapter 3](/learn/03-attention)): it grows with the square of the sequence. For LLaMA 7B at sequence 4,096 and one sequence per step that is <R k="memory.llama.gb.activations" d={1} /> GB over 32 layers, about as much again as the weights and optimiser together, and it doubles with every doubling of the micro-batch. The Decoder's model keeps <R k="memory.part1.savedFloatsPerSeqPerBlock.0" sep /> values per sequence per block for its backward pass (counted in the reference trainer), against <R k="memory.part1.korthikantiValuesPerSeqPerBlock" sep /> by the formula for the same shape; the formula assumes a feed-forward layer four times the model's width (the Decoder's is twice) and dropout masks (the Decoder's has none), so the two counts differ in detail but agree in size. Either way, it is the activations, not the weights, that grow with the sequence and the batch.
+
+<span id="t-checkpointing" />
 
 **Activation checkpointing** ([Chen et al. 2016](https://arxiv.org/abs/1604.06174)) trades compute for that memory: keep only each layer's input (2 $sbh$ bytes) and, during the backward pass, recompute the layer's forward pass to get the rest back. It costs one extra forward pass per step: roughly a third more compute, since a backward pass costs roughly twice a forward one. Korthikanti et al.'s _selective_ recomputation keeps everything but the attention scores and weights (the $5as/h$ term), which are cheap to recompute and expensive to store: $34\,sbh$. Pick "full" or "selective" above and watch the activations shrink and a recomputed layer appear in each backward step. For LLaMA 7B the peak falls from <R k="memory.llama.gb.peak.none" d={1} /> GB with no recomputation to <R k="memory.llama.gb.peak.selective" d={1} /> GB (selective) and <R k="memory.llama.gb.peak.full" d={1} /> GB (full).
 
@@ -47,3 +53,71 @@ export function activationsPerLayer(c: Arch, recompute: Recompute): number {
 ```
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t10-q1"
+  n={1}
+  input="number"
+  v="training.bytesPerParamMixedAdam"
+  tol={0}
+  q="Mixed-precision Adam: how many bytes does each parameter cost before a single activation is stored?"
+  href="#t-sixteen-bytes"
+  more="Sixteen bytes per parameter"
+>
+  <V v="training.bytesPerParamMixedAdam" />: 2 for the BF16 weight, 2 for its
+  gradient, 4 + 4 for Adam's two moments and 4 for the FP32 master copy. For
+  LLaMA 7B that is <R k="memory.llama.gb.static" d={1} /> GB.
+</Check>
+
+<Check
+  id="t10-q2"
+  n={2}
+  input="number"
+  k="memory.llama.gb.activations"
+  d={1}
+  unit=" GB"
+  tol={0.25}
+  q="LLaMA 7B at a sequence of 4,096, one sequence per step, no recomputation: how many GB of activations?"
+  href="#t-activations"
+  more="Activations"
+>
+  <R k="memory.llama.gb.activations" d={1} /> GB over 32 layers, about as much
+  as the weights and optimiser together, and it doubles with the micro-batch.
+  Attention's $s \times s$ term grows with the square of the sequence.
+</Check>
+
+<Check
+  id="t10-q3"
+  n={3}
+  input="number"
+  k="memory.llama.gb.peak.full"
+  d={1}
+  unit=" GB"
+  tol={0.15}
+  q="With full activation checkpointing, what is LLaMA 7B’s peak memory on one device?"
+  href="#t-checkpointing"
+  more="Activation checkpointing"
+>
+  <R k="memory.llama.gb.peak.full" d={1} /> GB, down from{" "}
+  <R k="memory.llama.gb.peak.none" d={1} /> GB with no recomputation, for about
+  a third more compute. The 16 bytes per parameter remain, which is why ZeRO and
+  FSDP shard them (chapter 11).
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- The weights are the small part: gradients, optimiser states and the FP32 master copy bring mixed-precision Adam to 16 bytes per parameter.
+- Activations grow with sequence and batch, and attention's part with the square of the sequence.
+- Activation checkpointing recomputes the forward pass in the backward: about a third more compute for much less memory.
+- Past that, shard the states across workers (ZeRO, FSDP) or split the model itself (chapter 12).
+
+<Keep>
+  <V v="training.bytesPerParamMixedAdam" /> bytes per parameter for
+  mixed-precision Adam, before activations.
+</Keep>
+
+</Remember>

@@ -22,6 +22,8 @@ checkpoints of that phase into the released base model
 same paper uses short annealing runs to judge whether a small dataset is worth
 adding (§3.1.3). This is chapter 6's decay phase with the data changed too.
 
+<span id="t-sft" />
+
 **Supervised fine-tuning (SFT).** Train on examples of the behaviour wanted:
 prompts and good responses, often in a chat format. The loss is chapter 3's
 cross-entropy, but only on the response: the prompt is context, not something
@@ -42,6 +44,8 @@ on those comparisons, then fine-tunes the language model with reinforcement
 learning (PPO) to raise the reward while a KL penalty keeps it close to the
 SFT model: [FT 03, RLHF and PPO](https://brendanjameslynskey.github.io/FT_03_RLHF_and_PPO/).
 
+<span id="t-dpo" />
+
 **DPO and its cousins.** Direct Preference Optimization
 ([Rafailov et al. 2023](https://arxiv.org/abs/2305.18290)) skips the reward
 model: its loss (above) raises the log probability of the preferred response
@@ -59,6 +63,8 @@ trained long step-by-step reasoning this way with GRPO, a group-relative
 variant of PPO (also in FT 04). Feedback written by a model from a list of
 principles instead of by people is Constitutional AI and RLAIF:
 [FT 05](https://brendanjameslynskey.github.io/FT_05_Constitutional_AI_and_RLAIF/).
+
+<span id="t-reuse" />
 
 **What carries over from these chapters.** All of it. Every stage above is the
 training loop of chapter 1 with a different dataset and a different loss: the
@@ -127,3 +133,72 @@ export function tokenLogprobs(
 ```
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t16-q1"
+  n={1}
+  input="number"
+  k="sft.sftLoss"
+  d={2}
+  tol={0.1}
+  q="SFT scores only the response. In the animation’s example, what is the trained model’s mean loss per response character, in nats?"
+  href="#t-sft"
+  more="Supervised fine-tuning"
+>
+  <R k="sft.sftLoss" d={3} /> nats per character; scoring the prompt as well
+  would give <R k="sft.unmaskedLoss" d={3} />. The prompt still passes through
+  the model, but its positions are masked out of the loss.
+</Check>
+
+<Check
+  id="t16-q2"
+  n={2}
+  choices={[
+    "Yes, like RLHF with PPO",
+    "No: its loss compares the preferred and the rejected response directly, against a frozen copy of the starting model",
+    "Only for maths problems",
+  ]}
+  answer={1}
+  q="Does DPO train a separate reward model?"
+  href="#t-dpo"
+  more="DPO"
+>
+  No. DPO raises the log probability of the preferred response relative to the
+  rejected one, each measured against a frozen copy of the starting model; in
+  the animation the trained model gives “queen.”{" "}
+  <R k="sft.pref.chosenLogp" d={1} /> and the gibberish{" "}
+  <R k="sft.pref.rejectedLogp" d={1} />.
+</Check>
+
+<Check
+  id="t16-q3"
+  n={3}
+  choices={[
+    "None of it: fine-tuning is a different algorithm",
+    "All of it: the same loop with a different dataset and loss",
+    "Only the optimiser",
+  ]}
+  answer={1}
+  q="How much of chapters 1–15’s machinery does post-training reuse?"
+  href="#t-reuse"
+  more="What carries over"
+>
+  All of it: every stage is chapter 1's loop with a different dataset and loss,
+  with the same backward pass, optimisers, learning-rate care, stability tricks,
+  precision, memory and parallelism, at a fraction of pretraining's compute.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Assistants are pretrained models trained further on far less, far more carefully chosen data.
+- SFT is chapter 3's cross-entropy on the response only; the prompt is masked out of the loss.
+- RLHF trains a reward model and optimises against it; DPO optimises the preferences directly.
+- Every post-training stage reuses chapter 1's training loop.
+
+<Keep>The objective barely changes; what it is applied to does.</Keep>
+
+</Remember>

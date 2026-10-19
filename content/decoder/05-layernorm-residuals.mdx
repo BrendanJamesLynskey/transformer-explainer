@@ -14,6 +14,8 @@ and **LayerNorm**. They sound prosaic next to attention, but every
 deep-network choice in the last decade has either kept them or
 re-invented them.
 
+<span id="d-residual" />
+
 **Residual connections** add the input of a sub-layer back to its output:
 
 ```
@@ -26,6 +28,8 @@ about position `i`" vector. Each sub-layer _contributes_ to it instead of
 _replacing_ it. That's why a Transformer can be 96 layers deep without
 the gradient vanishing — gradients flow straight along the residual path
 and only sample each sub-layer's contribution.
+
+<span id="d-layernorm" />
 
 **LayerNorm** keeps the residual stream from blowing up or vanishing.
 For each position, it shifts the vector to have zero mean and rescales
@@ -58,6 +62,8 @@ $$
 \sigma^2 = \frac{1}{d}\sum_{i=1}^{d} (x_i - \mu)^2, \qquad
 \operatorname{LN}(x) = \gamma \odot \frac{x - \mu}{\sqrt{\sigma^2 + \varepsilon}} + \beta
 $$
+
+<span id="d-epsilon" />
 
 with $\varepsilon = 10^{-5}$ for numerical stability and $\sigma^2$ the
 population variance. $\gamma$ and $\beta$ are learned vectors of length
@@ -107,3 +113,71 @@ That's the whole decoder block: two normalisations, two sub-layers, two
 residual additions.
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="d05-q1"
+  n={1}
+  input="number"
+  v="decoder.ln1234Max"
+  d={3}
+  tol={0.05}
+  q="LayerNorm with γ = 1 and β = 0, applied to x = (1, 2, 3, 4): what is the largest output?"
+  href="#d-layernorm"
+  more="LayerNorm"
+>
+  About <V v="decoder.ln1234Max" d={3} />: the mean is 2.5 and the (population)
+  variance 1.25, so the last element becomes $(4 - 2.5)/\sqrt{1.25}$. The output
+  has mean 0 and variance 1 whatever the input's scale.
+</Check>
+
+<Check
+  id="d05-q2"
+  n={2}
+  choices={[
+    "10 times larger",
+    "Unchanged, up to the tiny ε",
+    "10 times smaller",
+  ]}
+  answer={1}
+  q="Multiply every element of x by 10 before LayerNorm (γ = 1, β = 0). The output is…"
+  href="#d-layernorm"
+  more="What LayerNorm removes"
+>
+  Unchanged: subtracting the mean and dividing by the standard deviation removes
+  the vector's offset and scale and keeps only its direction. Try it with the
+  widget's sliders.
+</Check>
+
+<Check
+  id="d05-q3"
+  n={3}
+  input="number"
+  v="decoder.lnConstantMaxAbs"
+  tol={0}
+  abs={0.01}
+  q="And x = (5, 5, 5, 5)? Give the largest output, in absolute value."
+  href="#d-epsilon"
+  more="Why ε is there"
+>
+  <V v="decoder.lnConstantMaxAbs" />, everywhere. $x - \mu$ is zero, and
+  $\varepsilon = 10^{-5}$ under the square root stops the $0/0$; the output is
+  just $\beta$.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- A residual connection adds a sub-layer's output to its input: the stream accumulates contributions instead of being replaced.
+- Gradients flow straight down the residual path, which is why very deep stacks can be trained.
+- LayerNorm shifts each position's vector to mean 0 and variance 1, then applies a learned $\gamma$ and $\beta$.
+- Pre-norm, a LayerNorm in front of each sub-layer, trains more stably than the original post-norm.
+
+<Keep>
+  $h = x + \operatorname{Attn}(\operatorname{LN}_1(x)), \quad y = h +
+  \operatorname{FFN}(\operatorname{LN}_2(h))$
+</Keep>
+
+</Remember>

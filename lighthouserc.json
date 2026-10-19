@@ -5,6 +5,7 @@
       "startServerReadyPattern": "Ready",
       "url": [
         "http://localhost:3000/",
+        "http://localhost:3000/foundations",
         "http://localhost:3000/learn",
         "http://localhost:3000/learn/01-overview",
         "http://localhost:3000/learn/02-embeddings",
@@ -16,6 +17,7 @@
         "http://localhost:3000/training",
         "http://localhost:3000/training/01-training-loop",
         "http://localhost:3000/training/04-backprop",
+        "http://localhost:3000/training/05-optimisers",
         "http://localhost:3000/training/06-learning-rate-and-schedules",
         "http://localhost:3000/training/08-stability",
         "http://localhost:3000/training/09-mixed-precision",

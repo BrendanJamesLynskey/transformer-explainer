@@ -217,6 +217,7 @@ describe("sitemap", () => {
       ["01-training-loop"],
     );
     expect(urls).toContain(`${DECODER_ORIGIN}/learn/01-overview`);
+    expect(urls).toContain(`${DECODER_ORIGIN}/foundations`);
     expect(urls.some((u) => u.includes("/training"))).toBe(false);
     expect(sitemapOrigin(null)).toBe(DECODER_ORIGIN);
   });

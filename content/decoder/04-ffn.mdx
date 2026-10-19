@@ -9,6 +9,8 @@ The feed-forward network works on one position at a time. Below, one position's 
 
 <Layer kind="concept">
 
+<span id="d-ffn" />
+
 After attention has mixed information across positions, the
 **feed-forward network** (FFN) processes each position _on its own_. It's
 a small two-layer MLP, applied identically at every sequence position.
@@ -51,11 +53,15 @@ $$
 \end{aligned}
 $$
 
+<span id="d-gelu" />
+
 We use the _tanh approximation_ of GELU (the variant GPT-2 uses):
 
 $$
 \operatorname{GELU}(x) \approx \tfrac{1}{2}\, x \left(1 + \tanh\!\left(\sqrt{2/\pi}\,\left(x + 0.044715\, x^{3}\right)\right)\right)
 $$
+
+<span id="d-position-wise" />
 
 The same $W_1, b_1, W_2, b_2$ are applied at every sequence position
 independently — that's why we say "position-wise". Mathematically this
@@ -85,3 +91,58 @@ The whole FFN is three named lines. The widget above hits
 attention page used.
 
 </Layer>
+
+<CheckYourself>
+
+<Check id="d04-q1" n={1} choices={["The feed-forward network", "Attention", "They are the same size"]} answer={2} q="In this toy, where the hidden layer is twice the model width, which sub-layer has more weights in its matrices?" href="#d-ffn" more="Where the parameters live">
+The same: the FFN's two matrices hold $2\,d\,d_{\text{ff}} =$ <V v="decoder.ffnWeights" sep /> weights and attention's four $d \times d$ projections <V v="decoder.attnWeights" sep />. With the usual $d_{\text{ff}} = 4d$ the FFN would hold twice attention's.
+</Check>
+
+<Check
+  id="d04-q2"
+  n={2}
+  input="number"
+  v="decoder.geluMinus1"
+  d={3}
+  abs={0.03}
+  q="What is GELU(−1)? (ReLU would give 0.)"
+  href="#d-gelu"
+  more="GELU"
+>
+  About <V v="decoder.geluMinus1" d={3} />: GELU lets small negative inputs
+  through, a little, and bends smoothly instead of switching at 0. The FFN's
+  non-linearity is what stops the whole stack collapsing into one linear map.
+</Check>
+
+<Check
+  id="d04-q3"
+  n={3}
+  choices={[
+    "Yes, through its hidden layer",
+    "No: the same weights act on each position on its own",
+    "Only in the second block",
+  ]}
+  answer={1}
+  q="Does the feed-forward network at position 3 read position 2’s vector?"
+  href="#d-position-wise"
+  more="Position-wise"
+>
+  No. The FFN is position-wise: the same $W_1, b_1, W_2, b_2$ act on every
+  position, each alone, like a 1-D convolution with a kernel of size 1. Mixing
+  across positions is attention's job.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- The feed-forward network is a two-layer MLP applied to each position on its own, with the same weights at every position.
+- Up-project to $d_{\text{ff}}$, apply GELU, project back to $d_{\text{model}}$; the result is added to the residual stream.
+- Without the non-linearity the whole model would collapse to a single linear layer.
+- With the usual $d_{\text{ff}} = 4\,d_{\text{model}}$, the FFN holds about twice as many weights as attention.
+
+<Keep>
+  $\operatorname{FFN}(x) = \operatorname{GELU}(xW_1 + b_1)\,W_2 + b_2$
+</Keep>
+
+</Remember>

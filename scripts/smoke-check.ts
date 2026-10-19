@@ -51,6 +51,7 @@ const DEFAULT_COMMENTS_SECTION = "07-sampling";
 /** Part 1 and the site's other pages: served by the decoder host. */
 const DECODER_PAGES = [
   "/",
+  "/foundations",
   "/learn",
   ...SECTIONS.map((s) => `/learn/${s.slug}`),
   "/playground",

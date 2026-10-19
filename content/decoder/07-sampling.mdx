@@ -15,6 +15,8 @@ The decoder gives you **logits** — one number per token in the
 vocabulary, for each position. The number at position `i`, vocab id `v`
 is "how plausible is it that the next token after position `i` is `v`?".
 
+<span id="d-rules" />
+
 But logits aren't a token. To turn logits into a _next token_, we need
 a sampling rule. There are four standard ones:
 
@@ -44,6 +46,8 @@ under temperature $\tau$ is
 $$
 p(v) = \frac{\exp(\ell_v / \tau)}{\sum_{u} \exp(\ell_u / \tau)}
 $$
+
+<span id="d-masking" />
 
 Top-k sets the bottom $V - k$ logits to $-\infty$ before softmax, so
 their probabilities become exactly zero (zeroing a logit would still leave
@@ -92,6 +96,73 @@ position's logits, your chosen mode and parameters, and gets back a
 single token id.
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="d07-q1"
+  n={1}
+  input="number"
+  v="decoder.top1AtT05"
+  pct
+  d={1}
+  tol={0.05}
+  q="Three tokens have logits 2, 1 and 0. Halve the temperature from 1 to 0.5: what probability does the top token get now?"
+  href="#d-rules"
+  more="Temperature"
+>
+  <V v="decoder.top1AtT05" pct d={1} />, up from{" "}
+  <V v="decoder.top1AtT1" pct d={1} /> at $\tau = 1$: dividing the logits by 0.5
+  doubles their gaps, so the softmax sharpens towards the top token. As $\tau
+  \to 0$ sampling becomes greedy.
+</Check>
+
+<Check
+  id="d07-q2"
+  n={2}
+  input="number"
+  v="decoder.topP09Kept"
+  tol={0}
+  q="Same logits at τ = 1, top-p with p = 0.9: how many of the three tokens survive?"
+  href="#d-masking"
+  more="Top-p"
+>
+  <V v="decoder.topP09Kept" />. The top token alone has{" "}
+  <V v="decoder.top1AtT1" pct d={1} />, short of 0.9; adding the second takes
+  the total past it, so the third is set to $-\infty$ and the two survivors are
+  renormalised.
+</Check>
+
+<Check
+  id="d07-q3"
+  n={3}
+  choices={[
+    "Yes: e⁰ = 1, so they keep some probability",
+    "No: a logit of 0 means probability 0",
+    "Only at high temperature",
+  ]}
+  answer={0}
+  q="Suppose top-k set the dropped logits to 0 instead of −∞. Could they still be drawn?"
+  href="#d-masking"
+  more="Why −∞"
+>
+  Yes: the softmax gives a logit of 0 the weight $e^0 = 1$, as much as any other
+  logit of 0. Only $-\infty$ becomes probability exactly 0, which is why the
+  masks use it.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Logits are scores, not a token: a sampling rule turns them into one.
+- Temperature divides the logits: $\tau < 1$ sharpens the distribution, $\tau > 1$ flattens it, $\tau \to 0$ is greedy.
+- Top-k keeps the $k$ largest logits; top-p keeps the smallest set whose probability reaches $p$; both set the rest to $-\infty$.
+- Generation is a loop: sample, append, run again, with a KV cache so earlier tokens are not recomputed.
+
+<Keep>$p(v) = e^{\ell_v/\tau} \big/ \sum_u e^{\ell_u/\tau}$</Keep>
+
+</Remember>
 
 ---
 

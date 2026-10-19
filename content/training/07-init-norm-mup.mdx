@@ -11,6 +11,8 @@ Before the first step, every weight is a random number, and how large those numb
 
 **The scale of the initial weights.** Each weight matrix multiplies a vector of $d$ numbers; if its entries have standard deviation $\sigma$, the output's size is about $\sigma\sqrt d$ times the input's. Choosing $\sigma \approx 1/\sqrt{d}$ (Xavier initialisation; He initialisation adds a factor $\sqrt 2$ for ReLU) keeps it the same, layer after layer. The Decoder's model uses $\sigma = 0.02$, GPT-2's choice ([Radford et al. 2019](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)), which for $d = 16$ is far smaller than $1/\sqrt{16} = 0.25$: every sublayer starts out adding almost nothing, the residual stream is just the embedding plus the positional encoding ([Decoder, chapter 5](/learn/05-layernorm-residuals)), and the two designs look alike (pick std 0.02 in the animation). GPT-2 also scales the residual layers' weights by $1/\sqrt N$ for $N$ residual layers, because every block adds to the same stream and their sum grows with depth.
 
+<span id="t-pre-post" />
+
 **Pre-LN vs post-LN.** With std 0.25 the difference shows. In the pre-LN model each block _adds_ its output to the stream, so the stream grows with depth: its RMS is <R k="depthScale.1.pre.residualRms.0" d={2} /> entering block 1 and <R k="depthScale.1.pre.residualRms.8" d={2} /> leaving block 8. Post-LN normalises after every addition, so the stream stays at RMS 1, but the gradient pays for it: the gradient reaching a block has passed through every LayerNorm above it, and at initialisation the blocks nearest the output get the largest gradients (post-LN: <R k="depthScale.1.post.gradNorm.0" d={2} /> at block 1, <R k="depthScale.1.post.gradNorm.7" d={2} /> at block 8). [Xiong et al. (2020)](https://arxiv.org/abs/2002.04745) proved this for post-LN at initialisation, and showed it is why post-LN transformers need a learning-rate warmup: a full-size step on those large gradients makes training unstable. In pre-LN the residual path carries the gradient back unchanged (chapter 4's "highway"), so the gradients are of similar size at every depth.
 
 The chart shows what that means for training: a 6-block model at a peak learning rate of <R k="prePost.lr" />, three seeds each. Pre-LN trains with or without warmup (<R k="prePost.rows.0.mean" d={3} /> ± <R k="prePost.rows.0.sd" d={3} /> without, <R k="prePost.rows.1.mean" d={3} /> ± <R k="prePost.rows.1.sd" d={3} /> with 200 warmup steps). Post-LN without warmup ends at <R k="prePost.rows.2.mean" d={3} /> ± <R k="prePost.rows.2.sd" d={3} />: every seed is still on chapter 1's plateau after <R k="prePost.steps" sep /> steps. With warmup it ends at <R k="prePost.rows.3.mean" d={3} /> ± <R k="prePost.rows.3.sd" d={3} /> (seeds: <R k="prePost.rows.3.finals.0" d={3} />, <R k="prePost.rows.3.finals.1" d={3} />, <R k="prePost.rows.3.finals.2" d={3} />): warmup lets some runs start learning, not all. This is why GPT-2 and nearly every large model since put the norm first.
@@ -18,6 +20,8 @@ The chart shows what that means for training: a 6-block model at a peak learning
 <PrePostChart />
 
 **RMSNorm.** LayerNorm subtracts the mean and divides by the standard deviation, then scales and shifts. RMSNorm ([Zhang & Sennrich 2019](https://arxiv.org/abs/1910.07467)) skips the mean and the shift: $y = \gamma \odot x / \operatorname{RMS}(x)$. It is cheaper and, in practice, as good; LLaMA uses it, as pre-normalisation ([Touvron et al. 2023, §2.2](https://arxiv.org/abs/2302.13971)). On the Decoder's model (the default run, three seeds), RMSNorm even ends lower: <R k="normKind.rows.1.mean" d={3} /> ± <R k="normKind.rows.1.sd" d={3} /> against LayerNorm's <R k="normKind.rows.0.mean" d={3} /> ± <R k="normKind.rows.0.sd" d={3} />, with <R k="normKind.rows.1.params" sep /> parameters instead of <R k="normKind.rows.0.params" sep />; LayerNorm's spread over the seeds is wide, so read that as "at least as good".
+
+<span id="t-mup" />
 
 **µP: one learning rate for every width.** Tuning the learning rate of a large model directly costs several large runs. The _maximal update parameterisation_ (µP; [Yang et al. 2022](https://arxiv.org/abs/2203.03466)) rescales the initialisation, the learning rate and a few multipliers with the width so that each step changes every layer's activations by about the same amount whatever the width. Then the best learning rate found on a narrow model carries over to a wide one ("µTransfer"). Under the standard parameterisation it does not: with Adam, each weight moves by about the learning rate per step, and a wider matrix sums more of those moves, so the same learning rate is a bigger effective step for a wider model.
 
@@ -73,3 +77,77 @@ const dx = addInto(du, attentionBackward(params, config, p, b, du, grads));
 ```
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t07-q1"
+  n={1}
+  input="number"
+  k="depthScale.1.pre.residualRms.8"
+  d={2}
+  tol={0.15}
+  q="Eight pre-LN blocks initialised with std 0.25: how large is the residual stream’s RMS leaving block 8?"
+  href="#t-pre-post"
+  more="Pre-LN vs post-LN"
+>
+  <R k="depthScale.1.pre.residualRms.8" d={2} />, from{" "}
+  <R k="depthScale.1.pre.residualRms.0" d={2} /> entering block 1: each pre-LN
+  block adds its output to the stream, so it grows with depth. Post-LN keeps it
+  at RMS 1 and pays in the gradient instead.
+</Check>
+
+<Check
+  id="t07-q2"
+  n={2}
+  choices={[
+    "It trains as well as pre-LN",
+    "It stays on chapter 1’s plateau in every seed",
+    "It diverges to infinity",
+  ]}
+  answer={1}
+  q="A 6-block post-LN model with no warmup, at the chapter’s learning rate:"
+  href="#t-pre-post"
+  more="Pre-LN vs post-LN"
+>
+  It never leaves the plateau: <R k="prePost.rows.2.mean" d={3} /> ±{" "}
+  <R k="prePost.rows.2.sd" d={3} />, against pre-LN's{" "}
+  <R k="prePost.rows.0.mean" d={3} /> ± <R k="prePost.rows.0.sd" d={3} />. The
+  largest gradients sit next to the output at initialisation, and a full-size
+  step on them is unstable.
+</Check>
+
+<Check
+  id="t07-q3"
+  n={3}
+  choices={[
+    "Much further: the same rate is a bigger step for a wider model",
+    "About the same distance",
+    "Much less far",
+  ]}
+  answer={0}
+  q="Standard parameterisation, Adam, the same learning rate: widen the model from 16 to 256. How far do ten steps move the logits?"
+  href="#t-mup"
+  more="µP"
+>
+  Further: <R k="coordCheck.sp.4.logitsDelta" d={2} /> at width 256 against{" "}
+  <R k="coordCheck.sp.0.logitsDelta" d={2} /> at 16, because a wider matrix sums
+  more moves of about $\eta$ each. Under µP:{" "}
+  <R k="coordCheck.mup.4.logitsDelta" d={2} /> and{" "}
+  <R k="coordCheck.mup.0.logitsDelta" d={2} />, the same at every width.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Initial weights near $1/\sqrt d$ keep a signal's size from layer to layer; GPT-2 (and the Decoder) start smaller, at 0.02.
+- Pre-LN lets the stream grow and carries the gradient back unchanged; post-LN keeps the stream small but needs warmup.
+- RMSNorm drops LayerNorm's mean and shift: cheaper, and at least as good here.
+- µP rescales initialisation and learning rates with width, so the best rate found on a narrow model transfers to a wide one.
+
+<Keep>
+  Put the norm first (pre-LN), and use µP if you will tune small and train big.
+</Keep>
+
+</Remember>

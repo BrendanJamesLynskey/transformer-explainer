@@ -93,6 +93,13 @@ export default function HomePage(): JSX.Element {
             >
               Open the playground
             </Link>
+            <Link
+              href="/foundations"
+              data-foundations-link
+              className="focus-ring rounded font-medium underline decoration-neutral-400 underline-offset-4 hover:decoration-current"
+            >
+              New here? Reading order and prerequisites
+            </Link>
           </p>
         </div>
         <figure

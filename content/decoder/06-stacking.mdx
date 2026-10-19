@@ -7,9 +7,13 @@ A decoder is the same block stacked N times, and the residual stream is what run
   />
 </StackingAnimation>
 
+<span id="d-lens" />
+
 With the trained weights (the default), the lens moves: at the "!" of "hello!", the stream read out straight after the embedding guesses one letter, and after each block it settles on a space, the model's answer. Switch to random init and each block's update is only about 1% of the stream, so the lens hardly moves from layer to layer. In large trained models the read-out typically sharpens towards the final prediction as the layers go by; the idea and the name come from ["interpreting GPT: the logit lens"](https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens). This model ties its output head to the embedding table and ends with a single LayerNorm, so the lens is exactly the model's own read-out, applied early.
 
 <Layer kind="concept">
+
+<span id="d-stack" />
 
 A real Transformer doesn't run one block — it runs **N** of them, with
 the output of block `i` becoming the input of block `i + 1`. GPT-3 has
@@ -75,3 +79,67 @@ const logits = matmul(xFinal, transpose(weights.tok_emb));
 A `for` loop and a final tied projection. That's the whole stack.
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="d06-q1"
+  n={1}
+  choices={["Another “!”", "A space", "A letter"]}
+  answer={1}
+  q="With the trained weights, what does the model predict straight after “hello!”?"
+  href="#d-lens"
+  more="The logit lens"
+>
+  <V v="decoder.helloNext" />. Straight after the embedding the lens guesses a
+  letter; each block's update moves the read-out towards a space, the model's
+  final answer. Step through the animation to watch it settle.
+</Check>
+
+<Check
+  id="d06-q2"
+  n={2}
+  input="number"
+  v="decoder.params4over2"
+  d={2}
+  tol={0.1}
+  q="Go from 2 blocks to 4 at the same width. By what factor does the parameter count grow?"
+  href="#d-stack"
+  more="Stacking blocks"
+>
+  <V v="decoder.params4over2" d={2} /> times, not 2: the embedding table (shared
+  with the head) and the final LayerNorm are paid for once, whatever the depth.
+  In this tiny model the embedding is a large share; in a large model the factor
+  would be close to 2.
+</Check>
+
+<Check
+  id="d06-q3"
+  n={3}
+  choices={[
+    "Exactly the model’s output",
+    "An approximation of the output",
+    "Unrelated to the output",
+  ]}
+  answer={0}
+  q="The logit lens applied after the last block is…"
+  href="#d-lens"
+  more="The logit lens"
+>
+  Exactly the output: this model ties its head to the embedding and ends with a
+  single LayerNorm, so the lens is the model's own read-out. Applied after an
+  earlier block, it is the same read-out taken early.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- A decoder is one block stacked $N$ times; each block reads the residual stream and adds to it.
+- Stacking is function composition: $x_{l+1} = x_l + \Delta^{\text{attn}}_l + \Delta^{\text{ffn}}_l$.
+- Higher blocks work on richer features: by then every position has mixed with the earlier ones several times.
+- The logit lens reads the stream early with the final LayerNorm and head; with trained weights it settles on the answer block by block.
+
+<Keep>Depth adds blocks; the embedding and the head are paid for once.</Keep>
+
+</Remember>

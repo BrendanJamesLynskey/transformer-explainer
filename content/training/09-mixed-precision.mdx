@@ -26,6 +26,8 @@ BF16: two bytes per parameter, per worker, per step, before any compression
 shows these formats bit by bit; this chapter's rounding code is vendored from
 it.
 
+<span id="t-mixed-precision" />
+
 **Mixed precision.** [Micikevicius et al. (2018)](https://arxiv.org/abs/1710.03740) made 16-bit training work with three ideas: compute in FP16 but keep an _FP32 master copy_ of the weights that the optimiser updates; accumulate the matrix products in FP32; and _loss scaling_. The master copy matters because an update is often smaller than the spacing between FP16 or BF16 values near the weight, so adding it to a 16-bit weight does nothing. Loss scaling matters because many gradients are smaller than FP16's smallest value: during the FP16 runs without scaling below, <R k="precision.rows.4.gradFlushedToZero" pct d={1} /> of all the gradient values computed were flushed to zero, and a loss scale of $2^{16}$ brings the trained model's gradients in the animation from <R k="gradRounding.2.zero" /> lost to <R k="gradRounding.8.zero" />. Multiplying the loss by $2^k$ before the backward pass shifts every gradient up by $k$ binades, into range; the optimiser divides by $2^k$ again in FP32. _Dynamic_ loss scaling starts high, halves the scale and skips the step whenever a gradient overflows to infinity, and doubles it again after a long run of good steps (PyTorch's `GradScaler`).
 
 **Measured on the Decoder's model.** The chart trains the default run in each recipe, emulated by rounding every weight's compute copy, every activation a matrix product reads or writes, and every gradient to the format (`scripts/training/precision.py`), three seeds each. FP32, BF16 with master weights and FP16 with dynamic loss scaling all end within the seeds' spread of the float64 reference (<R k="precision.rows.0.mean" d={3} /> ± <R k="precision.rows.0.sd" d={3} />): FP32 <R k="precision.rows.1.mean" d={3} />, BF16 <R k="precision.rows.2.mean" d={3} />, FP16 with loss scaling <R k="precision.rows.5.mean" d={3} />. So, at this size, do the two recipes that should hurt: FP16 without loss scaling ends at <R k="precision.rows.4.mean" d={3} /> ± <R k="precision.rows.4.sd" d={3} /> although <R k="precision.rows.4.gradFlushedToZero" pct d={1} /> of its gradient values were flushed to zero, and BF16 with no master copy at <R k="precision.rows.3.mean" d={3} /> ± <R k="precision.rows.3.sd" d={3} /> although <R k="precision.rows.3.updatesLost" pct d={0} /> of all its weight updates were rounded away (smaller than half the BF16 spacing at the weight). A 5,376-parameter model trained for 2,000 steps is forgiving: the lost gradients and updates are the smallest ones, and Adam rescales the rest. At scale, with longer runs and smaller learning rates at the end, the same losses accumulate, which is why the master copy and loss scaling are standard.
@@ -96,3 +98,76 @@ return sign + magnitudeCode(v, f);
 ```
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t09-q1"
+  n={1}
+  choices={["BF16", "FP16", "Neither loses any"]}
+  answer={1}
+  q="Round the trained model’s gradients to each 2-byte format. Which one sends more of them to zero?"
+  href="#t-bf16"
+  more="BF16"
+>
+  FP16: <R k="gradRounding.2.zero" /> of <R k="gradRounding.1.nonzero" sep />,
+  against <R k="gradRounding.1.zero" /> for BF16. BF16 keeps FP32's 8-bit
+  exponent, so it has FP32's range; FP16 has more precision but a narrow range,
+  and small values fall off the bottom.
+</Check>
+
+<Check
+  id="t09-q2"
+  n={2}
+  input="slider"
+  k="precision.rows.3.updatesLost"
+  pct
+  d={0}
+  min={0}
+  max={100}
+  step={5}
+  abs={10}
+  q="BF16 weights with no FP32 master copy: what share of all weight updates were rounded away?"
+  href="#t-mixed-precision"
+  more="Mixed precision"
+>
+  <R k="precision.rows.3.updatesLost" pct d={0} />: an update smaller than half
+  the spacing between BF16 values near the weight does nothing. This forgiving
+  toy still ended at <R k="precision.rows.3.mean" d={3} />; at scale those
+  losses accumulate, which is why the master copy is standard.
+</Check>
+
+<Check
+  id="t09-q3"
+  n={3}
+  choices={[
+    "Shifts every gradient up 16 binades into range, then divides back in FP32",
+    "Makes the loss 16 times more precise",
+    "Rounds the gradients to integers",
+  ]}
+  answer={0}
+  q="What does a loss scale of 2¹⁶ do in FP16 training?"
+  href="#t-mixed-precision"
+  more="Loss scaling"
+>
+  It multiplies the loss, and so every gradient, by $2^{16}$ before the backward
+  pass, lifting small gradients into FP16's range; the optimiser divides by $2^
+  {16}$ again in FP32. On the trained model it brings the gradients lost to zero
+  from <R k="gradRounding.2.zero" /> to <R k="gradRounding.8.zero" />.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Exponent bits set a format's range, mantissa bits its precision; BF16 has FP32's range with 7 mantissa bits.
+- Mixed precision computes in 16 bits but keeps an FP32 master copy of the weights and accumulates in FP32.
+- FP16 needs loss scaling to keep small gradients; BF16 does not.
+- FP8 needs a scale per tensor, so each tensor's largest value lands near the top of the format.
+
+<Keep>
+  Two bytes per value in BF16: what a 16-bit run stores, and sends between
+  workers, per parameter.
+</Keep>
+
+</Remember>

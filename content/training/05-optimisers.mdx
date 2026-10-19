@@ -1,9 +1,9 @@
-The gradient says which way is downhill; the optimiser decides how far to step, and in which direction exactly. Below, four optimisers, the same code that trains the model in chapter 1, start from the same point in a long, narrow valley.
+The gradient says which way is downhill; the optimiser decides how far to step, and in which direction exactly. Below, five optimisers, the same code that trains the model in chapter 1, start from the same point in a long, narrow valley.
 
 <Optim2dAnimation>
   <Eq
-    label="SGD steps by the learning rate times the gradient; momentum keeps a running sum b of past gradients and steps along it; Adam keeps running means m of the gradient and v of its square, corrects their start-up bias and steps by m over the square root of v; AdamW also shrinks the weights by a factor one minus learning rate times lambda"
-    tex="\begin{gathered} \text{SGD: } \theta \leftarrow \theta - \eta\, \htmlClass{hl-grad}{g} \\ \text{momentum: } b \leftarrow \mu b + g,\ \ \theta \leftarrow \theta - \eta b \\ \htmlClass{hl-m}{m \leftarrow \beta_1 m + (1 - \beta_1) g}, \quad \htmlClass{hl-v2}{v \leftarrow \beta_2 v + (1 - \beta_2) g^{2}} \\ \htmlClass{hl-update}{\theta \leftarrow \theta - \eta\, \frac{m / (1 - \beta_1^{t})}{\sqrt{v / (1 - \beta_2^{t})} + \epsilon}} \\ \htmlClass{hl-wd}{\text{AdamW: first } \theta \leftarrow \theta (1 - \eta \lambda)} \end{gathered}"
+    label="SGD steps by the learning rate times the gradient; momentum keeps a running sum b of past gradients and steps along it; Nesterov keeps the same sum but steps along the gradient plus mu times the sum; Adam keeps running means m of the gradient and v of its square, corrects their start-up bias and steps by m over the square root of v; AdamW also shrinks the weights by a factor one minus learning rate times lambda"
+    tex="\begin{gathered} \text{SGD: } \theta \leftarrow \theta - \eta\, \htmlClass{hl-grad}{g} \\ \text{momentum: } b \leftarrow \mu b + g,\ \ \theta \leftarrow \theta - \eta b \\ \text{Nesterov: } b \leftarrow \mu b + g,\ \ \theta \leftarrow \theta - \eta\,(g + \mu b) \\ \htmlClass{hl-m}{m \leftarrow \beta_1 m + (1 - \beta_1) g}, \quad \htmlClass{hl-v2}{v \leftarrow \beta_2 v + (1 - \beta_2) g^{2}} \\ \htmlClass{hl-update}{\theta \leftarrow \theta - \eta\, \frac{m / (1 - \beta_1^{t})}{\sqrt{v / (1 - \beta_2^{t})} + \epsilon}} \\ \htmlClass{hl-wd}{\text{AdamW: first } \theta \leftarrow \theta (1 - \eta \lambda)} \end{gathered}"
   />
 </Optim2dAnimation>
 
@@ -26,6 +26,10 @@ running sum is the *momentum buffer*: one number per weight, kept from step to
 step as part of the optimiser's state (Adam keeps two). Methods that compress
 what workers exchange, such as DeMo (chapter 13), work on this buffer rather
 than on a single step's gradient.
+
+<span id="t-nesterov" />
+
+**Nesterov momentum** changes one thing: where the gradient is measured. Heavy-ball momentum, the kind above, takes the slope where the weights are and adds it to the speed it already has. Nesterov's version (Yurii Nesterov's 1983 method, brought to deep learning by [Sutskever et al. 2013](https://proceedings.mlr.press/v28/sutskever13.html)) first lets momentum carry the weights to where they are about to go, takes the slope _there_, and corrects from it. When momentum is about to carry the weights past the bottom of the valley, the slope at that look-ahead point already points back, so the brake arrives a step early: it damps the swing instead of feeding it. In the race (the dashed line) Nesterov runs at momentum's own learning rate and momentum, so the two differ only in where the gradient is taken. Along the floor it overshoots the minimum by <R k="optim2d.byKind.nesterov.overshootX" d={3} /> against momentum's <R k="optim2d.byKind.momentum.overshootX" d={3} />, and its loss is below 10⁻³ from step <R k="optim2d.byKind.nesterov.stepBelow1e3" /> (momentum: step <R k="optim2d.byKind.momentum.stepBelow1e3" />). Across the steep direction both swing past the floor once, by the same <R k="optim2d.byKind.nesterov.overshootY" d={1} />; Nesterov's swing is its first step, and at step 2 its error across the valley is <R k="optim2d.byKind.nesterov.yErrorStep2" d={1} /> (exactly, because the learning rate times the steep curvature, 0.02 × 50, is 1 here), while momentum's is <R k="optim2d.byKind.momentum.yErrorStep2" d={1} /> and it keeps swinging. In PyTorch Nesterov is one flag, `torch.optim.SGD(params, lr, momentum=0.9, nesterov=True)`, and it is the outer optimiser of DiLoCo (chapter 13).
 
 <span id="t-adam" />
 **Adam** ([Kingma & Ba 2014](https://arxiv.org/abs/1412.6980)) keeps two running
@@ -53,7 +57,9 @@ very high so that you can see it; in the default run it is 0.01, and it is
 applied only to the weight matrices, not to LayerNorm's $\gamma, \beta$ or the
 biases.
 
-**On the real model.** The chart below trains the Decoder's model with each optimiser at the best of three constant learning rates, 1,500 steps, three data seeds each ([results.md §5](https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md#5-optimisers-on-the-real-model-chapter-5)). At their best rates the four end close together: Adam <R k="optimizerCompare.7.final" d={3} /> ± <R k="optimizerCompare.7.sd" d={3} />, momentum <R k="optimizerCompare.4.final" d={3} /> ± <R k="optimizerCompare.4.sd" d={3} />, AdamW <R k="optimizerCompare.10.final" d={3} /> ± <R k="optimizerCompare.10.sd" d={3} />, SGD <R k="optimizerCompare.2.final" d={3} /> ± <R k="optimizerCompare.2.sd" d={3} /> (mean ± standard deviation over the seeds). Those differences are about one standard deviation: at this scale the data say no more than that all four work. The learning rate matters far more: SGD at 0.1 instead of 1.0 ends at <R k="optimizerCompare.0.final" d={3} />, still on the plateau. Single runs are not enough here: at the higher learning rates training is chaotic, and recomputing the same run on another computer moved its final loss by about 0.1. Comparing optimisers fairly means tuning each one's learning rate and repeating over seeds (chapter 6). For large language models AdamW is the usual choice: Llama 3 405B, for example, was pretrained with it ([Grattafiori et al. 2024, §3.4.1](https://arxiv.org/abs/2407.21783)).
+<span id="t-on-the-model" />
+
+**On the real model.** The chart below trains the Decoder's model with each of the four other optimisers (Nesterov is in the race and the PyTorch check, not in this comparison) at the best of three constant learning rates, 1,500 steps, three data seeds each ([results.md §5](https://github.com/BrendanJamesLynskey/transformer-explainer/blob/main/results.md#5-optimisers-on-the-real-model-chapter-5)). At their best rates the four end close together: Adam <R k="optimizerCompare.7.final" d={3} /> ± <R k="optimizerCompare.7.sd" d={3} />, momentum <R k="optimizerCompare.4.final" d={3} /> ± <R k="optimizerCompare.4.sd" d={3} />, AdamW <R k="optimizerCompare.10.final" d={3} /> ± <R k="optimizerCompare.10.sd" d={3} />, SGD <R k="optimizerCompare.2.final" d={3} /> ± <R k="optimizerCompare.2.sd" d={3} /> (mean ± standard deviation over the seeds). Those differences are about one standard deviation: at this scale the data say no more than that all four work. The learning rate matters far more: SGD at 0.1 instead of 1.0 ends at <R k="optimizerCompare.0.final" d={3} />, still on the plateau. Single runs are not enough here: at the higher learning rates training is chaotic, and recomputing the same run on another computer moved its final loss by about 0.1. Comparing optimisers fairly means tuning each one's learning rate and repeating over seeds (chapter 6). For large language models AdamW is the usual choice: Llama 3 405B, for example, was pretrained with it ([Grattafiori et al. 2024, §3.4.1](https://arxiv.org/abs/2407.21783)).
 
 <OptimizerRuns />
 
@@ -69,12 +75,16 @@ $$
 \begin{aligned}
 &\text{SGD:} && \theta_t = \theta_{t-1} - \eta\, g_t \\
 &\text{momentum:} && b_t = \mu\, b_{t-1} + g_t,\ \ b_1 = g_1; \quad \theta_t = \theta_{t-1} - \eta\, b_t \\
+&\text{Nesterov (look-ahead):} && b_t = \mu\, b_{t-1} + \nabla f\big(\theta_{t-1} - \eta\mu\, b_{t-1}\big),\ \ b_0 = 0; \quad \theta_t = \theta_{t-1} - \eta\, b_t \\
+&\text{Nesterov (as PyTorch):} && b_t = \mu\, b_{t-1} + g_t,\ \ b_1 = g_1; \quad \phi_t = \phi_{t-1} - \eta\,(g_t + \mu\, b_t),\ \ g_t = \nabla f(\phi_{t-1}) \\
 &\text{Adam:} && m_t = \beta_1 m_{t-1} + (1-\beta_1) g_t,\quad v_t = \beta_2 v_{t-1} + (1-\beta_2) g_t^2 \\
 & && \theta_t = \theta_{t-1} - \eta\, \hat m_t / (\sqrt{\hat v_t} + \epsilon),\quad \hat m_t = m_t/(1-\beta_1^t),\ \hat v_t = v_t/(1-\beta_2^t) \\
 &\text{Adam + L2:} && g_t \leftarrow g_t + \lambda\, \theta_{t-1} \text{ first (coupled)} \\
 &\text{AdamW:} && \theta_{t-1} \leftarrow (1 - \eta\lambda)\,\theta_{t-1} \text{ first (decoupled)}
 \end{aligned}
 $$
+
+Heavy-ball momentum and Nesterov side by side: both keep $b$, the running sum of gradients, and both step by $\eta b_t$; heavy-ball's gradient $g_t$ is taken at the weights, $\nabla f(\theta_{t-1})$, Nesterov's at the look-ahead point $\theta_{t-1} - \eta\mu\, b_{t-1}$, where momentum alone would carry them. The third line is the "lookahead-free" form that frameworks implement: it stores $\phi = \theta - \eta\mu\, b$, the look-ahead point itself, so every gradient is taken at the stored weights and no second forward pass is needed. Substituting, $\phi_t - \phi_{t-1} = -\eta\, b_t - \eta\mu\,(b_t - b_{t-1}) = -\eta\,(b_t - \mu b_{t-1}) - \eta\mu\, b_t = -\eta\,(g_t + \mu\, b_t)$, using $b_t - \mu b_{t-1} = g_t$. This is `torch.optim.SGD(momentum=μ, nesterov=True)` ([PyTorch docs](https://docs.pytorch.org/docs/stable/generated/torch.optim.SGD.html)). The reference checks both claims over the race's 60 steps: the two Nesterov forms agree to <R k="checks.optimizers.nesterov_valley.lookahead.max_abs_err" sig={2} />, and ours equals PyTorch's, stepping on its own autograd gradient, to <R k="checks.optimizers.nesterov_valley.torch.max_abs_err" sig={2} /> (largest difference); on the model, over 25 steps, to <R k="checks.optimizers.nesterov.max_abs_err" sig={2} />.
 
 Defaults: $\mu = 0.9$, $\beta_1 = 0.9$, $\beta_2 = 0.999$ (0.99 in the default run), $\epsilon = 10^{-8}$. The valley is $f(x, y) = \tfrac12\big((x-2)^2 + 50(y-1)^2\big)$: SGD is stable only for $\eta < 2/50$, and then its error along $x$ shrinks by a factor $1 - \eta$ per step. These are PyTorch's definitions: each optimiser is checked against `torch.optim` over 25 steps on the model (largest difference <R k="checks.optimizers.adamw.max_abs_err" sig={2} /> for AdamW).
 
@@ -98,6 +108,92 @@ for (let j = 0; j < row.length; j++) {
 }
 ```
 
+Momentum and Nesterov, from the same file: one buffer `b`, and Nesterov adds the fresh gradient once more on top of it:
+
+```ts
+b[j] = t === 1 ? g[j]! : o.momentum * b[j]! + g[j]!;
+row[j] =
+  o.kind === "nesterov"
+    ? row[j]! - lr * (g[j]! + o.momentum * b[j]!)
+    : row[j]! - lr * b[j]!;
+```
+
 The two moment buffers are why Adam needs two extra numbers per weight: with FP32 master weights and gradients, this is where the "16 bytes per parameter" of mixed-precision training comes from (chapter 10).
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t05-q1"
+  n={1}
+  choices={[
+    "Heavy-ball momentum",
+    "Nesterov momentum",
+    "They overshoot equally",
+  ]}
+  answer={1}
+  q="In the race, momentum and Nesterov run at the same learning rate and momentum. Which overshoots the minimum less along the valley floor?"
+  href="#t-nesterov"
+  more="Nesterov momentum"
+>
+  Nesterov, by <R k="optim2d.byKind.nesterov.overshootX" d={3} /> against
+  heavy-ball's <R k="optim2d.byKind.momentum.overshootX" d={3} />: it takes the
+  gradient where momentum is about to carry the weights, sees the slope turn
+  before they pass the bottom, and brakes a step early.
+</Check>
+
+<Check
+  id="t05-q2"
+  n={2}
+  input="number"
+  v="training.valleySgdLimit"
+  d={2}
+  abs={0.005}
+  q="Plain SGD in this valley (curvature 1 along it, 50 across it) is stable only below what learning rate?"
+  href="#t-sgd"
+  more="SGD"
+>
+  $2/50 =$ <V v="training.valleySgdLimit" d={2} />: above it, every step across
+  the steep direction overshoots by more than it corrects. The race's SGD runs
+  just under, at <V v="training.raceSgdLr" />, and so crawls along the shallow
+  direction.
+</Check>
+
+<Check
+  id="t05-q3"
+  n={3}
+  choices={[
+    "Adam wins clearly",
+    "They end within about one standard deviation of each other",
+    "SGD cannot train the model",
+  ]}
+  answer={1}
+  q="On the real model, each at its best of three learning rates over three seeds, how do SGD, momentum, Adam and AdamW compare?"
+  href="#t-on-the-model"
+  more="On the real model"
+>
+  Close together: Adam <R k="optimizerCompare.7.final" d={3} /> ±{" "}
+  <R k="optimizerCompare.7.sd" d={3} />, SGD{" "}
+  <R k="optimizerCompare.2.final" d={3} /> ±{" "}
+  <R k="optimizerCompare.2.sd" d={3} />. At this scale the learning rate matters
+  far more than the optimiser, which is why each one must be tuned before
+  comparing.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- SGD steps by $\eta g$; in a narrow valley $\eta$ must suit the steepest direction, so it crawls along the shallow one.
+- Momentum sums past gradients: across the valley they cancel, along it they add up.
+- Nesterov takes the gradient where momentum is about to carry the weights, which damps the overshoot; in PyTorch, `SGD(momentum=0.9, nesterov=True)`.
+- Adam divides each step by a running gradient size, so every weight moves at about $\eta$; AdamW decouples weight decay from that rescaling.
+- Tune each optimiser's learning rate and repeat over seeds before comparing.
+
+<Keep>
+  Adam keeps two extra numbers per weight, $m$ and $v$: 8 of mixed precision's
+  16 bytes per parameter (chapter 10).
+</Keep>
+
+</Remember>

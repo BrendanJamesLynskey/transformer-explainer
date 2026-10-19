@@ -133,7 +133,16 @@ export default async function TrainingIndex(): Promise<JSX.Element> {
           >
             the Decoder site
           </a>
-          . Prefer slides? Every chapter has a deck in the{" "}
+          , or the{" "}
+          <a
+            href={siteHref("/foundations", ctx)}
+            data-foundations-link
+            className="focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300"
+          >
+            Foundations start page
+          </a>{" "}
+          (reading order, prerequisites, glossary). Prefer slides? Every chapter
+          has a deck in the{" "}
           <a
             href={TRAINING_DECK_HUB}
             className="focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300"

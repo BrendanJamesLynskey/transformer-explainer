@@ -11,10 +11,15 @@ checks.py — the trainer's correctness checks (run in CI by
    sample of 24 entries of every parameter tensor. Tolerance:
    |fd - ours| <= 1e-8 + 1e-6 |ours| (1e-8 covers the central difference's
    round-off, about machine epsilon x loss / h).
-4. Optimisers: 25 steps of each optimiser (SGD, momentum, Adam, Adam with
-   L2, AdamW), with gradient clipping and a warmup + cosine schedule, from
-   the same gradients, against torch.optim (float64).
+4. Optimisers: 25 steps of each optimiser (SGD, momentum, Nesterov, Adam,
+   Adam with L2, AdamW), with gradient clipping and a warmup + cosine
+   schedule, from the same gradients, against torch.optim (float64).
    Tolerance: max |ours - torch| <= 1e-12 over every parameter.
+4b. Nesterov on chapter 5's valley (brief 44): ours against
+   torch.optim.SGD(momentum, nesterov=True) stepping on torch autograd's
+   gradient of the same valley, and against the textbook form that takes
+   the gradient at the look-ahead point (whose look-ahead point is the
+   parameter PyTorch stores). Tolerance 1e-12.
 5. Schedule: the cosine decay against torch's CosineAnnealingLR closed form.
 
 Each check returns a dict of measured errors; make_fixtures.py writes them
@@ -177,7 +182,8 @@ def check_optimisers(params: dict, config: dict, batches: list) -> dict:
     results = {}
     steps = len(batches)
     sched = dict(kind="cosine", lr=0.01, total=steps, warmup=5)
-    for kind, wd in (("sgd", 0.0), ("momentum", 0.0), ("adam", 0.0), ("adam_l2", 0.01), ("adamw", 0.1)):
+    for kind, wd in (("sgd", 0.0), ("momentum", 0.0), ("nesterov", 0.0), ("adam", 0.0), ("adam_l2", 0.01),
+                     ("adamw", 0.1)):
         ours = {k: v.copy() for k, v in params.items()}
         okind = "adam" if kind == "adam_l2" else kind
         opt = O.Optimizer(okind, ours, weight_decay=wd)
@@ -187,8 +193,8 @@ def check_optimisers(params: dict, config: dict, batches: list) -> dict:
         groups = [{"params": decay, "weight_decay": wd}, {"params": rest, "weight_decay": 0.0}]
         if okind == "sgd":
             topt = torch.optim.SGD(groups, lr=0.01)
-        elif okind == "momentum":
-            topt = torch.optim.SGD(groups, lr=0.01, momentum=0.9)
+        elif okind in ("momentum", "nesterov"):
+            topt = torch.optim.SGD(groups, lr=0.01, momentum=0.9, nesterov=okind == "nesterov")
         elif okind == "adam":
             topt = torch.optim.Adam(groups, lr=0.01, foreach=False)
         else:
@@ -209,6 +215,45 @@ def check_optimisers(params: dict, config: dict, batches: list) -> dict:
             worst = max(worst, max(float(np.abs(ours[k] - tp[k].numpy()).max()) for k in ours))
         results[kind] = {"steps": steps, "max_abs_err": worst, "ok": worst <= OPT_TOL}
     return results
+
+
+def check_nesterov_valley(valley: dict, lr: float, mu: float) -> dict:
+    """Chapter 5's race, Nesterov's line, three ways for `valley["steps"]` steps:
+      ours       optim.Optimizer("nesterov"): b <- mu b + g; p <- p - lr (g + mu b)
+      torch      torch.optim.SGD(lr, momentum=mu, nesterov=True), stepping on
+                 torch autograd's gradient of the valley at its own parameters
+      look-ahead the textbook form: the gradient is taken at the point momentum
+                 is about to carry theta to, g = grad f(theta - lr mu b); then
+                 b <- mu b + g; theta <- theta - lr b. Its look-ahead point
+                 theta - lr mu b is what the other two store.
+    """
+    a, b_, xs, ys = valley["a"], valley["b"], valley["x_star"], valley["y_star"]
+
+    def grad(th):
+        return np.array([[a * (th[0] - xs), b_ * (th[1] - ys)]])
+
+    ours = {"theta": np.array([valley["start"]], dtype=np.float64)}
+    opt = O.Optimizer("nesterov", ours, momentum=mu)
+    tp = torch.nn.Parameter(torch.tensor([valley["start"]], dtype=torch.float64))
+    topt = torch.optim.SGD([tp], lr=lr, momentum=mu, nesterov=True)
+    theta = np.array(valley["start"], dtype=np.float64)
+    buf = np.zeros(2)
+    worst_torch = worst_look = 0.0
+    for _ in range(valley["steps"]):
+        opt.step(ours, {"theta": grad(ours["theta"][0])}, lr)
+        topt.zero_grad()
+        loss = 0.5 * (a * (tp[0, 0] - xs) ** 2 + b_ * (tp[0, 1] - ys) ** 2)
+        loss.backward()
+        topt.step()
+        g = grad(theta - lr * mu * buf)[0]
+        buf = mu * buf + g
+        theta = theta - lr * buf
+        p = ours["theta"][0]
+        worst_torch = max(worst_torch, float(np.abs(p - tp.detach().numpy()[0]).max()))
+        worst_look = max(worst_look, float(np.abs(p - (theta - lr * mu * buf)).max()))
+    return {"steps": valley["steps"], "lr": lr, "momentum": mu,
+            "torch": {"max_abs_err": worst_torch}, "lookahead": {"max_abs_err": worst_look},
+            "ok": max(worst_torch, worst_look) <= OPT_TOL}
 
 
 def check_cosine_schedule(total=200, warmup=0, lr=0.01, min_ratio=0.1) -> dict:

@@ -1,8 +1,8 @@
 /*
  * src/lib/training/optimizers.ts
  *
- * Operation: the optimisers (SGD, momentum, Adam, AdamW) and gradient
- *            clipping by global norm.
+ * Operation: the optimisers (SGD, momentum, Nesterov momentum, Adam, AdamW)
+ *            and gradient clipping by global norm.
  * Shapes:    every function walks a ParamMap; state tensors have the
  *            parameters' shapes.
  * Intuition: an optimiser turns a gradient into a step. Plain SGD steps
@@ -14,6 +14,10 @@
  *            gradient (which Adam would then rescale).
  *              SGD       p ← p − η g
  *              momentum  b ← μ b + g (b = g at the first step); p ← p − η b
+ *              Nesterov  b as momentum; p ← p − η (g + μ b): PyTorch's
+ *                        "lookahead-free" form (SGD(nesterov=True)), whose
+ *                        stored p is the point momentum is about to carry
+ *                        the weights to, so g is the gradient there
  *              Adam      m ← β₁ m + (1 − β₁) g;  v ← β₂ v + (1 − β₂) g²
  *                        p ← p − η m̂ / (√v̂ + ε),  m̂ = m/(1 − β₁ᵗ), v̂ = v/(1 − β₂ᵗ)
  *                        (L2: g ← g + λ p first, "coupled" decay)
@@ -29,7 +33,7 @@ import type { Matrix, Vector } from "@/lib/transformer/types";
 
 import { isMatrix, sumSquares, zerosLike, type ParamMap } from "./params";
 
-export type OptimizerKind = "sgd" | "momentum" | "adam" | "adamw";
+export type OptimizerKind = "sgd" | "momentum" | "nesterov" | "adam" | "adamw";
 
 export type OptimizerOptions = {
   kind: OptimizerKind;
@@ -43,7 +47,7 @@ export type OptimizerOptions = {
 export type OptimizerState = {
   opts: Required<OptimizerOptions>;
   t: number;
-  /** momentum buffer (momentum) */
+  /** momentum buffer (momentum, Nesterov) */
   buf: ParamMap | null;
   /** first moment m (Adam/AdamW) */
   m: ParamMap;
@@ -92,8 +96,8 @@ export function optimizerStep(
   const o = state.opts;
   state.t += 1;
   const t = state.t;
-  if (o.kind === "momentum" && state.buf === null)
-    state.buf = zerosLike(params);
+  const heavy = o.kind === "momentum" || o.kind === "nesterov";
+  if (heavy && state.buf === null) state.buf = zerosLike(params);
   const bc1 = 1 - Math.pow(o.beta1, t);
   const bc2 = 1 - Math.pow(o.beta2, t);
   for (const k of Object.keys(params)) {
@@ -103,11 +107,16 @@ export function optimizerStep(
       const g = rowOf(grads[k]!, i);
       if (o.kind === "sgd") {
         for (let j = 0; j < row.length; j++) row[j] = row[j]! - lr * g[j]!;
-      } else if (o.kind === "momentum") {
+      } else if (heavy) {
         const b = rowOf(state.buf![k]!, i);
         for (let j = 0; j < row.length; j++) {
           b[j] = t === 1 ? g[j]! : o.momentum * b[j]! + g[j]!;
-          row[j] = row[j]! - lr * b[j]!;
+          // Nesterov steps along g + μ b: the gradient's own push plus
+          // momentum's, as if the gradient were taken one step ahead
+          row[j] =
+            o.kind === "nesterov"
+              ? row[j]! - lr * (g[j]! + o.momentum * b[j]!)
+              : row[j]! - lr * b[j]!;
         }
       } else {
         const m = rowOf(state.m[k]!, i);

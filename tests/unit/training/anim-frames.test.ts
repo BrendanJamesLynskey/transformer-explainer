@@ -166,7 +166,7 @@ describe("chapter 4: the gradient on its way back", () => {
   }
 });
 
-describe("chapter 5: four optimisers on a 2-D valley", () => {
+describe("chapter 5: five optimisers on a 2-D valley", () => {
   const states = optim2dStates();
   it("every trajectory and Adam's moments = Python's", () => {
     expect(qx.valley.steps).toBe(VALLEY.steps);
@@ -184,6 +184,20 @@ describe("chapter 5: four optimisers on a 2-D valley", () => {
     const last = states.at(-1)!;
     expect(last.losses[1]!).toBeLessThan(last.losses[0]!);
     const r = (p: [number, number]) => Math.hypot(p[0], p[1]);
-    expect(r(last.points[3]!)).toBeLessThan(r(last.points[2]!));
+    const at = (k: string) => OPTIM2D.findIndex((o) => o.kind === k);
+    expect(r(last.points[at("adamw")]!)).toBeLessThan(
+      r(last.points[at("adam")]!),
+    );
+  });
+  it("Nesterov, at momentum's settings, overshoots less along the floor and ends lower", () => {
+    const at = (k: string) => OPTIM2D.findIndex((o) => o.kind === k);
+    const m = at("momentum");
+    const n = at("nesterov");
+    expect(OPTIM2D[n]!.lr).toBe(OPTIM2D[m]!.lr);
+    expect(OPTIM2D[n]!.momentum).toBe(OPTIM2D[m]!.momentum);
+    const over = (i: number) =>
+      Math.max(...states.map((s) => s.points[i]![0] - VALLEY.xStar));
+    expect(over(n)).toBeLessThan(over(m));
+    expect(states.at(-1)!.losses[n]!).toBeLessThan(states.at(-1)!.losses[m]!);
   });
 });

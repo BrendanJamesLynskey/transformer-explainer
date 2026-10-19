@@ -19,6 +19,8 @@ The decoder doesn't know about characters or words — it knows about
    the things the model learns. Each token gets the same vector every time
    it appears — that vector _is_ what the model knows about that token.
 
+<span id="d-positions" />
+
 There's still a problem: a single attention layer is blind to order. It
 treats the positions it can see as an unordered set, so the last position
 of "ab" and of "ba" would come out the same. The causal mask leaks some
@@ -48,6 +50,8 @@ position:
 $$
 \operatorname{Emb}(x)_i = E[x_i] \in \mathbb{R}^{d}
 $$
+
+<span id="d-pe" />
 
 The sinusoidal positional encoding (Vaswani et al. 2017, §3.5) is the
 matrix $PE \in \mathbb{R}^{S \times d}$ with entries
@@ -97,3 +101,55 @@ The token-embedding lookup is one line; the positional encoding is twelve.
 That's the whole "input layer" of the Transformer.
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="d02-q1"
+  n={1}
+  choices={[
+    "Yes: the same character has the same embedding row",
+    "No: a different positional vector is added at each position",
+    "Only once the model is trained",
+  ]}
+  answer={1}
+  q="Type “aa” into the widget. Are the two rows of block 1’s input the same?"
+  href="#d-positions"
+  more="Why positions are added"
+>
+  No. Both a's pick the same embedding row, but $x_p = E_{t_p} + P_p$ adds a
+  different positional vector at each position, so the rows differ. Without
+  that, a single attention layer could not tell “ab” from “ba”.
+</Check>
+
+<Check
+  id="d02-q2"
+  n={2}
+  input="number"
+  v="decoder.pe0Sum"
+  tol={0}
+  q="Add up the numbers of the positional vector at position 0 (the model is 16 wide). What do you get?"
+  href="#d-pe"
+  more="The sinusoidal encoding"
+>
+  <V v="decoder.pe0Sum" />. At $p = 0$ every even element is $\sin 0 = 0$ and
+  every odd one is $\cos 0 = 1$, so half the elements are 1. Position 0 is a
+  position like any other, not "no position".
+</Check>
+
+<Check id="d02-q3" n={3} choices={["The output head: the logits are the final stream times Eᵀ", "The attention value projection", "Nothing: it is used only at the input"]} answer={0} q="Which other part of the model reuses the embedding table E?" href="/training/04-backprop#t-backprop" more="Training, chapter 4: E gets two gradients">
+The output head is tied to the embedding: the logits are $\operatorname{LN}_f(x)\,E^{\top}$, so a token's row is both how it is read in and how it is scored on the way out. That is why $E$ receives its gradient twice in training.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Tokenise, then look up one learned row per token: that row is everything the model knows about the token on its own.
+- A single attention layer is blind to order; a positional vector added to each row says where the token sits.
+- The sinusoidal encoding depends on the position only, never on what you typed.
+- Block 1 reads $X = E[\text{ids}] + PE$, one row per position.
+
+<Keep>$x_p = E_{t_p} + P_p$: what the token is, plus where it is.</Keep>
+
+</Remember>

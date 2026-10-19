@@ -32,6 +32,7 @@ export function sitemapUrls(
   }
   return [
     `${DECODER_ORIGIN}/`,
+    `${DECODER_ORIGIN}/foundations`,
     `${DECODER_ORIGIN}/learn`,
     ...learnSlugs.map((s) => `${DECODER_ORIGIN}/learn/${s}`),
     `${DECODER_ORIGIN}/playground`,

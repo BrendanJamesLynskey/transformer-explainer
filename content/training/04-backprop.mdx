@@ -87,3 +87,61 @@ const dh = addInto(dx, n2.dX);
 The `record` calls are what the animation draws. The NumPy twin is `scripts/training/model.py:backward`; `checks.py` compares it with `torch.autograd` on the same forward pass (agreement <R k="checks.gradients.autograd_perturbed.max_scaled_err" sig={2} />, relative) and with central differences on <R k="checks.gradients.fd_perturbed.entries" /> sampled weights (largest error <R k="checks.gradients.fd_perturbed.max_abs_err" sig={2} />).
 
 </Layer>
+
+<CheckYourself>
+
+<Check id="t04-q1" n={1} choices={["Once, at the end", "Twice: as the output head and as the input lookup", "Once per block"]} answer={1} q="How many times does the embedding table E receive gradient in one backward pass?" href="#t-backprop" more="The order of the backward pass">
+Twice. $E$ is also the output head, so it gets $\delta_z^{\top} x_f$ at the first stop of the backward pass, and the lookup's gradient at the very last; the two are added.
+</Check>
+
+<Check
+  id="t04-q2"
+  n={2}
+  choices={[
+    "Yes, it shrinks through every layer it crosses",
+    "No: the residual path copies it straight through",
+    "It is reset by each LayerNorm",
+  ]}
+  answer={1}
+  q="As the gradient passes from block 2 back to block 1, does it shrink?"
+  href="#t-backprop"
+  more="The residual highway"
+>
+  No. At each $x + \operatorname{Sublayer}(\operatorname{LN}(x))$ the gradient
+  is copied into both paths, so there is always a path from the loss to every
+  block along which it is not multiplied by anything. That is why deep residual
+  networks train at all.
+</Check>
+
+<Check
+  id="t04-q3"
+  n={3}
+  choices={[
+    "Zero",
+    "The same as the visible positions",
+    "A large negative push",
+  ]}
+  answer={0}
+  q="What gradient do the masked (future) positions of an attention pattern receive?"
+  href="#t-gradient"
+  more="What a gradient is"
+>
+  Zero. Their attention weight is exactly 0, and the softmax's backward pass
+  multiplies each score's gradient by its weight, so the causal mask holds on
+  the way back too.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Backpropagation is the chain rule, one operation at a time, from the loss back to the embedding.
+- A gradient has exactly the shape of the parameters: one number per weight, fresh on every batch.
+- Through $Y = XW$, the weight's gradient is $X^{\top}\delta_Y$ and $\delta_Y W^{\top}$ goes on back: two products per layer, so the backward pass costs about twice the forward.
+- The forward pass must keep what each backward step needs: activation memory (chapter 10).
+
+<Keep>
+  Backward ≈ 2 × forward; together, about $6N$ FLOPs per token (chapter 14).
+</Keep>
+
+</Remember>

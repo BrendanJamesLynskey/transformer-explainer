@@ -114,3 +114,67 @@ for (let b = 0; b < B; b++) {
 ```
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t02-q1"
+  n={1}
+  input="number"
+  k="model.config.seq_len"
+  tol={0}
+  q="A training window is 9 consecutive characters. How many training signals (next-character predictions) does it give?"
+  href="#t-context-length"
+  more="Windows and teacher forcing"
+>
+  <R k="model.config.seq_len" />: the first 8 characters are the input, and the
+  target at each position is the character after it. The model always predicts
+  from the true text so far (teacher forcing).
+</Check>
+
+<Check
+  id="t02-q2"
+  n={2}
+  input="number"
+  k="derived.charsPerBpeToken"
+  d={2}
+  tol={0.15}
+  q="BPE with 64 merges, on this book: how many characters does one token cover on average?"
+  href="#t-bpe"
+  more="Byte-pair encoding"
+>
+  <R k="derived.charsPerBpeToken" d={2} />: the commonest fragments (" t", "he",
+  " the") become single tokens, so the same 8-token context sees that much more
+  text.
+</Check>
+
+<Check
+  id="t02-q3"
+  n={3}
+  input="number"
+  k="derived.trainTokensPerParam"
+  d={1}
+  tol={0.25}
+  q="How many training characters are there per parameter of the model? (Chinchilla’s compute-optimal rule is about 20 tokens per parameter.)"
+  href="#t-dataset"
+  more="Data at scale"
+>
+  <R k="derived.trainTokensPerParam" d={1} />, by coincidence in the same range.
+  Real runs count tokens of fresh text, and decide most of their quality by what
+  they keep: deduplication, filtering and the mixture of sources.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Hold out validation text the model never trains on: only unseen text shows what carries over.
+- A window of $S + 1$ tokens gives $S$ predictions at once, made honest by the causal mask.
+- BPE merges the most frequent adjacent pair, again and again; real models read tokens, not characters.
+- Pretraining at scale is mostly data work: deduplication, quality filters and the mixture.
+
+<Keep>
+  About 20 tokens per parameter is compute-optimal (Chinchilla; chapter 14).
+</Keep>
+
+</Remember>

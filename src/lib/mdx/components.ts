@@ -24,6 +24,9 @@ import {
 import { LayerNormWidget } from "@/components/interactive/LayerNormWidget";
 import { SamplingWidget } from "@/components/interactive/SamplingWidget";
 import { StackingWidget } from "@/components/interactive/StackingWidget";
+import { CheckYourself } from "@/components/learn/CheckYourself";
+import { Keep, Remember } from "@/components/learn/Remember";
+import { Check, V } from "@/components/mdx/Check";
 import { Eq } from "@/components/mdx/Eq";
 import { AttentionGrowthPanel } from "@/components/training/AttentionGrowthPanel";
 import { BadBatchChart } from "@/components/training/BadBatchChart";
@@ -123,4 +126,12 @@ export const mdxComponents: NonNullable<MDXRemoteProps["components"]> = {
   ResumeChart,
   GoodputChart,
   SftAnimation,
+  // Brief 44, the learning layer: three self-checks and "What to remember"
+  // at the foot of every chapter (src/components/learn/ is shared with the
+  // other *-explained sites; Check and V resolve this site's numbers).
+  CheckYourself,
+  Check,
+  V,
+  Remember,
+  Keep,
 };
