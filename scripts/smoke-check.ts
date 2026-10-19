@@ -243,13 +243,30 @@ const CREDIT = [
   ">Brendan Lynskey</a>",
 ];
 
-/** `url` (followed through redirects when `follow`) shows the author credit. */
-async function checkCredit(url: string, follow = false): Promise<Result> {
-  const path = `${url} (author credit)`;
+/**
+ * The shared definitions link (brief 44D), on /about and in /foundations'
+ * glossary.
+ */
+const DEFINITIONS = [
+  "data-definitions-link",
+  'href="https://agent-harnesses-explained.vercel.app/definitions"',
+];
+
+/**
+ * `url` (followed through redirects when `follow`) shows the author credit,
+ * or the other `markers` given.
+ */
+async function checkCredit(
+  url: string,
+  follow = false,
+  markers: readonly string[] = CREDIT,
+  what = "author credit",
+): Promise<Result> {
+  const path = `${url} (${what})`;
   try {
     const res = await fetch(url, { redirect: follow ? "follow" : "manual" });
     const html = await res.text();
-    const missing = CREDIT.filter((m) => !html.includes(m));
+    const missing = markers.filter((m) => !html.includes(m));
     const ok = res.status === 200 && missing.length === 0;
     return {
       path,
@@ -351,6 +368,15 @@ async function main(): Promise<void> {
     await checkHeader(`${base}/learn`, "decoder", "Foundations › Decoder"),
   );
   results.push(await checkCredit(`${base}/about`));
+  for (const path of ["/about", "/foundations"])
+    results.push(
+      await checkCredit(
+        `${base}${path}`,
+        false,
+        DEFINITIONS,
+        "shared definitions",
+      ),
+    );
   const chapter = `/training/${TRAINING_SECTIONS[12]!.slug}`;
   if (training) {
     // Training on its own host; the old address redirects there
@@ -378,6 +404,14 @@ async function main(): Promise<void> {
       await checkRedirect(`${training}/about`, 308, `${base}/about`),
     );
     results.push(await checkCredit(`${training}/about`, true));
+    results.push(
+      await checkCredit(
+        `${training}/about`,
+        true,
+        DEFINITIONS,
+        "shared definitions",
+      ),
+    );
     for (const path of ["/training", chapter])
       results.push(
         await checkRedirect(`${base}${path}`, 308, `${training}${path}`),

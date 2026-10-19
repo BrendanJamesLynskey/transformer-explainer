@@ -172,4 +172,9 @@ test("the Foundations start page: reading order, prerequisites, glossary", async
       '[data-foundations-glossary] a[href$="/training/05-optimisers#t-nesterov"]',
     ),
   ).toHaveCount(1);
+  // the shared definitions (brief 44D)
+  await expect(page.locator("a[data-definitions-link]")).toHaveAttribute(
+    "href",
+    "https://agent-harnesses-explained.vercel.app/definitions",
+  );
 });

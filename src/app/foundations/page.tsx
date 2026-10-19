@@ -136,7 +136,17 @@ export default function FoundationsPage(): JSX.Element {
           <a href={`${TRAINING_DECK_HUB}#glossary`} className={LINK}>
             Transformer Training slide series&rsquo; glossary
           </a>{" "}
-          has more.
+          has more. Some terms mean different things on different sites
+          (goodput, ρ, the pipeline bubble); the{" "}
+          <a
+            href="https://agent-harnesses-explained.vercel.app/definitions"
+            className={LINK}
+            data-definitions-link
+          >
+            shared definitions
+          </a>{" "}
+          give each one definition and one formula, and say where a site
+          differs.
         </p>
         <dl
           data-foundations-glossary
