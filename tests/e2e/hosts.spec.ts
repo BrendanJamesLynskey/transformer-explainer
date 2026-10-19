@@ -221,7 +221,7 @@ test.describe("the author credit", () => {
       await expect(credit).toHaveText("Built by Brendan Lynskey");
       await expect(
         credit.getByRole("link", { name: "Brendan Lynskey" }),
-      ).toHaveAttribute("href", "https://github.com/BrendanJamesLynskey");
+      ).toHaveAttribute("href", "https://brendanjameslynskey.github.io/");
     });
   }
 });

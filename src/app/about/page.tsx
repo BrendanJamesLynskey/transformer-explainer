@@ -13,10 +13,10 @@ export const metadata = withShare("/about", {
     "How a decoder-only transformer runs, and how it is trained: why this project exists, the references it draws on, and the licence.",
 });
 
-/** The author, credited in one quiet line at the foot of the page (brief 35). */
+/** The author, credited in one quiet line at the foot of the page (brief 35), linking the portfolio home (brief 44). */
 const AUTHOR = {
   name: "Brendan Lynskey",
-  url: "https://github.com/BrendanJamesLynskey",
+  url: "https://brendanjameslynskey.github.io/",
 } as const;
 
 /**
