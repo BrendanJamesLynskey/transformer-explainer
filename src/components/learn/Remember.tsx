@@ -28,17 +28,21 @@ export function Remember({ children }: { children: ReactNode }): JSX.Element {
   );
 }
 
-/** The one number or rule of thumb worth keeping, inside `Remember`. */
+/**
+ * The one number or rule of thumb worth keeping, inside `Remember`. A `div`,
+ * not a `p`: MDX wraps multi-line children in their own paragraph, and a
+ * `p` inside a `p` breaks hydration.
+ */
 export function Keep({ children }: { children: ReactNode }): JSX.Element {
   return (
-    <p
+    <div
       data-keep
-      className="mt-4 border-t border-neutral-200 pt-3 dark:border-neutral-700"
+      className="mt-4 flex flex-wrap items-baseline gap-x-2 border-t border-neutral-200 pt-3 dark:border-neutral-700 [&_p]:m-0"
     >
-      <span className="mr-2 font-mono text-xs uppercase tracking-widest text-neutral-600 dark:text-neutral-400">
+      <span className="font-mono text-xs uppercase tracking-widest text-neutral-600 dark:text-neutral-400">
         Keep
       </span>
-      {children}
-    </p>
+      <div className="min-w-0">{children}</div>
+    </div>
   );
 }
