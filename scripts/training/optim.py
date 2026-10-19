@@ -7,6 +7,10 @@ with torch.optim on the same gradients):
 
   SGD          p <- p - lr g
   momentum     b <- mu b + g  (b = g on the first step);  p <- p - lr b
+  nesterov     b as momentum;  p <- p - lr (g + mu b)   (torch.optim.SGD(nesterov=True):
+               the "lookahead-free" form of Nesterov momentum, whose stored p is the
+               look-ahead point; checks.py shows it equals the gradient-at-the-look-ahead
+               form step for step)
   Adam         m <- b1 m + (1 - b1) g;  v <- b2 v + (1 - b2) g^2
                m^ = m / (1 - b1^t);  v^ = v / (1 - b2^t)
                p <- p - lr m^ / (sqrt(v^) + eps)
@@ -54,7 +58,7 @@ class Optimizer:
 
     def __init__(self, kind: str, params: dict, momentum=0.9, beta1=0.9, beta2=0.999,
                  eps=1e-8, weight_decay=0.0, lr_mult=None):
-        assert kind in ("sgd", "momentum", "adam", "adamw")
+        assert kind in ("sgd", "momentum", "nesterov", "adam", "adamw")
         self.kind = kind
         self.mu, self.b1, self.b2, self.eps, self.wd = momentum, beta1, beta2, eps, weight_decay
         self.t = 0
@@ -73,10 +77,13 @@ class Optimizer:
             wd = self.wd if decays(p) else 0.0
             if self.kind == "sgd":
                 params[k] = p - lr * g
-            elif self.kind == "momentum":
+            elif self.kind in ("momentum", "nesterov"):
                 b = g.copy() if self.buf[k] is None else self.mu * self.buf[k] + g
                 self.buf[k] = b
-                params[k] = p - lr * b
+                if self.kind == "nesterov":
+                    params[k] = p - lr * (g + self.mu * b)
+                else:
+                    params[k] = p - lr * b
             else:
                 if self.kind == "adamw":
                     p = p * (1 - lr * wd)

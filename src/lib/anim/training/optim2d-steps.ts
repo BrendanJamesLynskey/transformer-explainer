@@ -1,10 +1,12 @@
 /**
- * Chapter 5: four optimisers on a 2-D valley,
+ * Chapter 5: five optimisers on a 2-D valley,
  *   f(x, y) = ½ (a (x − x*)² + b (y − y*)²),  a = 1, b = 50,
  * steep across (y) and shallow along (x), the shape that makes plain SGD
  * zig-zag. Each optimiser is the trainer's own (optimizers.ts), stepping a
  * 1×2 matrix θ = [x, y] (a matrix, so AdamW's weight decay applies).
  * scripts/training/anim.py:optim2d_states builds the same trajectories.
+ * Nesterov (brief 44) runs at momentum's learning rate and momentum, so the
+ * two differ only in where the gradient is taken.
  */
 import {
   createOptimizer,
@@ -35,6 +37,8 @@ export const OPTIM2D: Optim2dSpec[] = [
   { kind: "momentum", lr: 0.02, momentum: 0.8, label: "Momentum" },
   { kind: "adam", lr: 0.1, label: "Adam" },
   { kind: "adamw", lr: 0.1, weightDecay: 0.3, label: "AdamW" },
+  // brief 44: appended, so the first four keep their places in the fixture
+  { kind: "nesterov", lr: 0.02, momentum: 0.8, label: "Nesterov" },
 ];
 
 export type Optim2dState = {
@@ -97,7 +101,7 @@ export function optim2dCaption(
   specs: Optim2dSpec[] = OPTIM2D,
 ): string {
   if (s.t === 0)
-    return `Step 0: all four start at (−2.5, −1.5). The valley is 50× steeper across (y) than along (x); the minimum is at (2, 1).`;
+    return `Step 0: all five start at (−2.5, −1.5). The valley is 50× steeper across (y) than along (x); the minimum is at (2, 1).`;
   const parts = specs.map(
     (sp, i) =>
       `${sp.label} ${s.losses[i]! < 1e-3 ? s.losses[i]!.toExponential(1) : s.losses[i]!.toFixed(3)}`,

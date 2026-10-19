@@ -17,6 +17,7 @@ import type { ComponentPropsWithoutRef } from "react";
 import { MDXRemote } from "next-mdx-remote/rsc";
 
 import { CommentSection } from "@/components/interactive/CommentSection";
+import { CHECK_YOURSELF_ID } from "@/components/learn/CheckYourself";
 import { EventTracker } from "@/components/interactive/EventTracker";
 import { LayerToggle } from "@/components/interactive/LayerToggle";
 import { ProgressTracker } from "@/components/interactive/ProgressTracker";
@@ -91,6 +92,21 @@ export async function ChapterArticle({
           <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
             {summary}
           </p>
+          {mdx.includes("<CheckYourself") && (
+            <p className="mt-2 text-sm">
+              <a
+                href={`#${CHECK_YOURSELF_ID}`}
+                data-check-yourself-link
+                className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
+              >
+                Check yourself ↓
+              </a>
+              <span className="text-neutral-500 dark:text-neutral-400">
+                {" "}
+                three questions and what to remember, at the end
+              </span>
+            </p>
+          )}
         </div>
         <LayerToggle />
       </div>

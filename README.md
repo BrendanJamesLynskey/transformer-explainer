@@ -88,13 +88,22 @@ defences that keep agents safe.
 - Train it at `/training` (Training): watch three real training steps, then
   run 2,000 in a Web Worker and see the loss curve land on the recorded
   run; BPE learnt live on the corpus; cross-entropy and `p − y` position by
-  position; the gradient's way back through every op; four optimisers in a
-  valley and on the real model; a ring all-reduce of real gradients, a
+  position; the gradient's way back through every op; five optimisers in a
+  valley (Nesterov momentum among them) and four on the real model; a ring all-reduce of real gradients, a
   pipeline schedule's bubble, DeMo compressing four workers' momenta, a toy
   IsoFLOP sweep and a week of failures and checkpoints; and a systems model
   checked against published Megatron-LM and Llama 3 runs.
 - Toggle three layers — **Concept / Maths / Code** — inside any section to
   control how deep the explanation goes.
+- Test yourself: every chapter ends with **Check yourself**, three
+  predict-then-reveal questions whose numeric answers come from the same
+  tested model or recorded runs as the prose, and **What to remember**
+  (brief 44; `src/components/learn/`, shared byte-identical with the other
+  `*-explained` sites, and [`src/components/mdx/Check.tsx`](src/components/mdx/Check.tsx),
+  which resolves this site's numbers).
+- Start at [`/foundations`](https://transformer-decoder-explained.vercel.app/foundations),
+  the Foundations track's start page: the reading order, the prerequisites
+  and a glossary linking each term to the section that defines it.
 - Run the full pipeline end-to-end on `/playground` with named-seed presets,
   or step through generation one token at a time.
 - Read the Maths layer as typeset equations (KaTeX), in light or dark
@@ -186,8 +195,8 @@ the numbers are made:
 - **A reference trainer** in `scripts/training/` (NumPy float64): the Decoder's
   model with a hand-written backward pass for every operation. Its
   gradients match PyTorch autograd and central finite differences, its
-  optimisers (SGD, momentum, Adam, Adam + L2, AdamW, global-norm clipping)
-  match `torch.optim`, and its cosine schedule matches `CosineAnnealingLR`
+  optimisers (SGD, momentum, Nesterov, Adam, Adam + L2, AdamW, global-norm
+  clipping) match `torch.optim`, and its cosine schedule matches `CosineAnnealingLR`
   ([results.md §3](results.md#3-correctness-checks)).
 - **The browser's trainer** in `src/lib/training/` is the same algorithm in
   TypeScript, matched to the reference's fixtures step for step (the first
@@ -248,7 +257,7 @@ The sixteen Training chapters' heroes, each frame a state of the TS model
 | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | ![The training loop: forward, loss, backward, update](docs/media/training-hero.gif) | ![BPE merges learnt on the corpus](docs/media/bpe.gif)                 |
 | ![Cross-entropy and p − y, position by position](docs/media/objective.gif)          | ![The gradient's way back, op by op](docs/media/backprop.gif)          |
-| ![SGD, momentum, Adam and AdamW in a valley](docs/media/optimisers.gif)             | ![Learning-rate schedules and their runs](docs/media/schedules.gif)    |
+| ![SGD, momentum, Nesterov, Adam and AdamW in a valley](docs/media/optimisers.gif)   | ![Learning-rate schedules and their runs](docs/media/schedules.gif)    |
 | ![Scale through depth: pre-LN vs post-LN](docs/media/depth.gif)                     | ![Attention-logit growth and QK-norm](docs/media/attention-growth.gif) |
 | ![Gradients rounded to BF16, FP16 and FP8](docs/media/rounding.gif)                 | ![Memory through one training step](docs/media/memory.gif)             |
 | ![A ring all-reduce of real gradients](docs/media/ring-all-reduce.gif)              | ![A pipeline schedule and its bubble](docs/media/pipeline.gif)         |
@@ -473,6 +482,8 @@ content/training/         MDX chapters (Training, /training)
 src/app/                  App Router routes (learn, playground, admin, api/*)
 src/components/viz/       D3 charts (one file per concept)
 src/components/interactive/  Widgets used inside MDX + on /playground
+src/components/learn/     SelfCheck, CheckYourself, Remember, ReadingOrder (shared across the family)
+src/lib/learn/            The self-checks' model-computed values; the /foundations glossary
 src/lib/transformer/      Pure-TS maths — file per operation
 src/lib/training/         Backward passes, loss, optimisers, schedules, BPE, the trainer
 src/workers/              The in-browser trainer (Web Worker)

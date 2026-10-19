@@ -50,6 +50,8 @@ a validation loss of 2.8 at step <R k="monitor.stepsTo.t28" sep />, 2.6 at step
 (evaluated every 50 steps). Chapter 13 compares ways of training over a slow
 link exactly this way, and so does the Compute in Transit results site.
 
+<span id="t-failures" />
+
 **Failures.** Over a 54-day period of Llama 3 405B's pre-training, the job was
 interrupted 466 times: 47 planned (maintenance) and 419 unexpected, about 78%
 of those hardware (faulty GPUs and their memory above all); only three needed
@@ -81,6 +83,8 @@ and its storage fabric sustains 2 TB/s with bursty peaks of 7 TB/s, which
 checkpoint writes saturate (§3.3.1).
 
 <ResumeChart />
+
+<span id="t-goodput" />
 
 **Goodput and the checkpoint interval.** Checkpoint often and the saves eat
 time; rarely, and each failure throws away more. With a failure every <R k="systems.reliability.llama.mtbfHours" d={1} /> hours, a checkpoint that
@@ -162,3 +166,76 @@ while (now < horizon) {
 ```
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t15-q1"
+  n={1}
+  input="number"
+  k="systems.reliability.llama.mtbfHours"
+  d={1}
+  unit=" hours"
+  tol={0.3}
+  q="Llama 3 405B’s job on 16,384 GPUs was interrupted 466 times in 54 days. Roughly how many hours between interruptions?"
+  href="#t-failures"
+  more="Failures"
+>
+  About <R k="systems.reliability.llama.mtbfHours" d={1} /> hours, although each
+  GPU fails only about once in{" "}
+  <R k="systems.reliability.llama.gpuMtbfYears" d={0} /> years: a synchronous
+  job stops when any one of its GPUs does.
+</Check>
+
+<Check
+  id="t15-q2"
+  n={2}
+  input="number"
+  k="systems.reliability.young"
+  div={60}
+  d={0}
+  unit=" minutes"
+  tol={0.2}
+  q="Young’s rule τ* = √(2δM): with that failure rate and the chapter’s checkpoint cost, how often should the job save?"
+  href="#t-goodput"
+  more="Goodput and the checkpoint interval"
+>
+  Every <R k="systems.reliability.young" div={60} d={0} /> minutes or so. The
+  simulation's best interval is{" "}
+  <R k="systems.reliability.bestTau" div={60} d={0} /> minutes, where goodput
+  peaks near <R k="systems.reliability.bestGoodput" pct d={0} />.
+</Check>
+
+<Check
+  id="t15-q3"
+  n={3}
+  choices={[
+    "The run carries on bit for bit",
+    "It restarts Adam’s moments from zero, and here ends within the seed spread",
+    "It diverges",
+  ]}
+  answer={1}
+  q="Resume from a checkpoint that kept the weights but not the optimiser state. What happens?"
+  href="#t-checkpoint"
+  more="Checkpoints"
+>
+  It continues from fresh moments: <R k="resume.weights.mean" d={3} /> ±{" "}
+  <R k="resume.weights.sd" d={3} /> against{" "}
+  <R k="resume.uninterrupted.mean" d={3} /> ±{" "}
+  <R k="resume.uninterrupted.sd" d={3} />, a gap inside the spread. Only a full
+  checkpoint (weights, optimiser state, data position, schedule step) resumes
+  bit for bit.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Report throughput and MFU; watch the validation loss, the gradient norm and the update-to-weight ratio.
+- Compare runs by the steps, or hours, to a target loss fixed in advance.
+- At scale something fails every few hours; a checkpoint holds the weights, optimiser state, data position and schedule step.
+- Young's rule sets the checkpoint interval; goodput is the share of time spent on useful training.
+
+<Keep>$\tau^* = \sqrt{2\delta M}$</Keep>
+
+</Remember>

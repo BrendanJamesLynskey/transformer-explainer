@@ -126,3 +126,71 @@ The same four lines are the heart of every training loop, from this toy to a mod
 **How it is checked.** `scripts/training/` is a NumPy reference of this trainer with a hand-written backward pass. Its gradients match PyTorch autograd to <R k="checks.gradients.autograd_perturbed.max_scaled_err" sig={2} /> (relative) and central finite differences to <R k="checks.gradients.fd_perturbed.max_abs_err" sig={2} />; its AdamW steps match `torch.optim.AdamW` to <R k="checks.optimizers.adamw.max_abs_err" sig={2} />. The TypeScript trainer matches the reference step for step: the unit tests replay the first 200 steps of the default run to 1e-9, and the whole 2,000-step run to within 1e-7 of the recorded weights.
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t01-q1"
+  n={1}
+  input="number"
+  k="model.lnV"
+  d={2}
+  tol={0.05}
+  q="Before any training, every one of the 64 characters is about equally likely. What loss, in nats, should the first step show?"
+  href="#t-training-step"
+  more="The training step"
+>
+  $\ln 64 =$ <R k="model.lnV" d={2} />, the cost of a uniform guess over 64
+  characters; the recorded run starts at <R k="defaultRun.evals.0.val" d={3} />.
+  A first loss far above $\ln V$ means the initial weights are too large.
+</Check>
+
+<Check
+  id="t01-q2"
+  n={2}
+  input="number"
+  k="derived.predictionsPerStep"
+  tol={0}
+  q="One step trains on 16 windows of 8 characters. How many next-character predictions does it score?"
+  href="#t-training-step"
+  more="The training step"
+>
+  <R k="derived.predictionsPerStep" />: every position of every window is a
+  prediction of the character after it, and the causal mask keeps each one
+  honest ([chapter 3](/training/03-objective#t-next-token)).
+</Check>
+
+<Check
+  id="t01-q3"
+  n={3}
+  choices={[
+    "How common each letter is, and little else",
+    "Nothing yet: it is still guessing uniformly",
+    "Most of the book’s common words",
+  ]}
+  answer={0}
+  q="The validation loss stalls on a plateau for several hundred steps. What has the model learnt by then?"
+  href="#t-loss-curve"
+  more="The loss curve"
+>
+  The letter frequencies: the plateau sits at about{" "}
+  <R k="corpus.unigramEntropy" d={2} />, the loss of a model that knows only how
+  common each letter is (the unigram entropy). Using the previous characters,
+  routed by attention, comes later, and then the loss falls again.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- A training step is batch, forward, loss, backward, clip, update; the loop repeats it thousands of times.
+- Training changes the parameters and nothing else: <R k="model.params" sep /> of them here.
+- Compare runs on held-out validation loss, repeated over seeds: a difference smaller than the seed-to-seed spread is not a difference.
+- Perplexity $e^{L}$ is the loss as a number of equally likely choices.
+
+<Keep>
+  A uniform guess over $V$ tokens costs $\ln V$: <R k="model.lnV" d={2} /> nats
+  here.
+</Keep>
+
+</Remember>

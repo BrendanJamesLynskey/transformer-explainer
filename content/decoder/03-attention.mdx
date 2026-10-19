@@ -25,6 +25,8 @@ score (dot product). Apply a softmax across the row, and you have a
 probability distribution over which positions to read from. Take the
 weighted average of their **values**, and that's the attention output.
 
+<span id="d-mask" />
+
 To keep the decoder _causal_ — so position `i` can only see positions
 `≤ i` — we add a "mask" that pushes future scores to `−∞` before the
 softmax. Future weights end up at zero.
@@ -38,6 +40,8 @@ highlight the keys it pays attention to.
 <AttentionWidget />
 
 <Layer kind="maths">
+
+<span id="d-scale" />
 
 For a single head with head dimension $d_{\text{head}} = d_{\text{model}} / n_{\text{heads}}$:
 
@@ -63,6 +67,8 @@ $$
 \text{output} &= \left[\text{head}_0 \,\|\, \text{head}_1 \,\|\, \cdots \,\|\, \text{head}_{H-1}\right] W_o && [S, d_{\text{model}}]
 \end{aligned}
 $$
+
+<span id="d-heads" />
 
 Each head can specialise in a different relationship — one might track
 which token came right before, another which token shares an opening
@@ -103,3 +109,71 @@ Multi-head simply slices the model dimension into `n_heads` groups, runs
 exact function `verify-maths` checks against the PyTorch fixtures.
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="d03-q1"
+  n={1}
+  input="number"
+  v="decoder.maskedPerHead"
+  tol={0}
+  q="An 8-character window: in one head’s 8 × 8 attention pattern, how many weights does the causal mask force to exactly zero?"
+  href="#d-mask"
+  more="The causal mask"
+>
+  <V v="decoder.maskedPerHead" />: every entry above the diagonal, $S(S-1)/2$ of
+  them. Row $i$ may look at positions 1 to $i$ only, so the mask adds $-\infty$
+  to the later scores and the softmax turns them into exact zeros.
+</Check>
+
+<Check
+  id="d03-q2"
+  n={2}
+  input="number"
+  v="decoder.scoreScale"
+  d={3}
+  tol={0.05}
+  q="Each head here is 8 numbers wide. What does the code multiply every score by before the softmax?"
+  href="#d-scale"
+  more="Scaled dot-product attention"
+>
+  $1/\sqrt{d_k} = 1/\sqrt{8} \approx$ <V v="decoder.scoreScale" d={3} />. Dot
+  products of wider vectors are larger, and without the scale the softmax would
+  saturate onto one position and stop passing gradient back ([Training, chapter
+  8](/training/08-stability) shows that happening).
+</Check>
+
+<Check
+  id="d03-q3"
+  n={3}
+  input="slider"
+  v="decoder.b1h1CurrentPrev"
+  pct
+  d={0}
+  min={0}
+  max={100}
+  step={5}
+  abs={10}
+  q="With the trained weights, block 1’s second head: what share of each row’s attention lands on the current character and the one before it?"
+  href="#d-heads"
+  more="What the trained heads do"
+>
+  <V v="decoder.b1h1CurrentPrev" pct d={0} /> on average, over{" "}
+  <V v="decoder.headWindows" sep /> windows of the book: the head has learnt to
+  read the last two characters, the strongest clue to the next one. Switch the
+  widget to random init and its rows spread almost evenly.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Each position asks with a query, answers with a key and offers a value; a score is $q \cdot k / \sqrt{d_k}$.
+- The causal mask sets future scores to $-\infty$, so a position sees only itself and what came before.
+- A softmax turns each row of scores into weights that sum to 1; the output is the weighted sum of the values.
+- Multi-head attention runs several heads on slices of $d_{\text{model}}$, joins them and projects with $W_o$.
+
+<Keep>$\operatorname{softmax}(QK^{\top}/\sqrt{d_k} + M)\,V$</Keep>
+
+</Remember>

@@ -9,6 +9,8 @@ Data parallelism gives every device the whole model. When the model is too big f
 
 <Layer kind="concept">
 
+<span id="t-pipeline" />
+
 **Pipeline parallelism.** Give each of $p$ devices a contiguous block of
 layers, chapter 4's stack cut into stages: device 1 holds the first quarter of
 the layers, device 4 the last. A sequence's activations flow forward from
@@ -35,6 +37,8 @@ bubble to $(p - 1)/(v\,m)$: <R k="pipeline.rows.2.bubble" pct d={1} /> with
 $v = 2$, <R k="pipeline.rows.3.bubble" pct d={1} /> with $v = 4$, at the price
 of $v$ times as many sends between devices. Pick a schedule above and watch
 where the idle time goes.
+
+<span id="t-tensor-parallel" />
 
 **Tensor parallelism.** Cut each layer's matrices instead
 ([Shoeybi et al. 2019](https://arxiv.org/abs/1909.08053), Megatron-LM). The
@@ -170,3 +174,76 @@ if (kind === "1f1b") {
 ```
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t12-q1"
+  n={1}
+  input="slider"
+  k="pipeline.rows.0.bubble"
+  pct
+  d={1}
+  min={0}
+  max={100}
+  step={2.5}
+  abs={5}
+  q="GPipe with 4 devices and 8 micro-batches: how big is the bubble, as a share of the useful work?"
+  href="#t-pipeline"
+  more="Pipeline parallelism"
+>
+  $(p-1)/m =$ <R k="pipeline.rows.0.bubble" pct d={1} />, the simulation and the
+  formula agreeing exactly. As a share of the whole step it is{" "}
+  <V v="training.gpipeIdleOfStep" pct d={0} />, the form the Serving and
+  Trade-offs sites use.
+</Check>
+
+<Check
+  id="t12-q2"
+  n={2}
+  input="number"
+  k="pipeline.rows.3.bubble"
+  pct
+  d={1}
+  tol={0.15}
+  q="Interleave the schedule, giving each device 4 smaller chunks of layers. What does the bubble become?"
+  href="#t-pipeline"
+  more="Interleaved schedules"
+>
+  <R k="pipeline.rows.3.bubble" pct d={1} />: $(p-1)/(v\,m)$ with $v = 4$, paid
+  for with four times as many sends between devices.
+</Check>
+
+<Check
+  id="t12-q3"
+  n={3}
+  choices={[
+    "It needs all-reduces of the activations in every layer, for every micro-batch",
+    "It needs more memory than a pipeline",
+    "Its maths only works on exactly 8 GPUs",
+  ]}
+  answer={0}
+  q="Why does tensor parallelism usually stay inside one server?"
+  href="#t-tensor-parallel"
+  more="Tensor parallelism"
+>
+  Its communication: two all-reduces of the activations per layer forward and
+  two backward, every micro-batch, far more than data parallelism's once-a-step
+  sync. Megatron's 18.4-billion-parameter run spends{" "}
+  <R k="systems.validation.rows.3.breakdown.tensor" d={2} /> s of its{" "}
+  <R k="systems.validation.rows.3.breakdown.time" d={2} /> s step in them, even
+  on NVLink.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Pipeline parallelism cuts the stack into stages; micro-batches keep the stages busy, apart from the bubble.
+- Tensor parallelism splits each layer's matrices; it communicates every layer, so it stays on NVLink.
+- Sequence and context parallelism split along the sequence; expert parallelism sends tokens to their experts with all-to-alls.
+- Real runs combine them: tensor inside a server, pipeline across servers, data parallelism outermost.
+
+<Keep>Pipeline bubble = $(p-1)/m$ of the useful work.</Keep>
+
+</Remember>

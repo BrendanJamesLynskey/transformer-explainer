@@ -221,6 +221,7 @@ OPT_SPECS = [
     dict(kind="adam"),
     dict(kind="adam_l2", weight_decay=0.01),
     dict(kind="adamw", weight_decay=0.1),
+    dict(kind="nesterov", momentum=0.9),  # brief 44, appended
 ]
 
 
@@ -770,6 +771,8 @@ def build(ids, text, groups, check: bool) -> tuple[dict, dict]:
         grads_fix, checks_g = gradients_fixture(ids)
         opt_fix, checks_o = optimizers_fixture(ids)
         checks_o["rounding"] = C.check_rounding()
+        nag = next(o for o in anim.OPTIM2D if o["kind"] == "nesterov")
+        checks_o["nesterov_valley"] = C.check_nesterov_valley(anim.VALLEY, nag["lr"], nag["momentum"])
         bpe = bpe_fixture(text)
         files.update({
             FIX / "gradients.json": grads_fix,
@@ -781,6 +784,7 @@ def build(ids, text, groups, check: bool) -> tuple[dict, dict]:
         for name, payload in anim.fixtures(ids, text).items():
             files[FIX / name] = payload
         res = results(ids, checks_g, checks_o, bpe)
+        res["optim2d"] = anim.optim2d_summary(anim.optim2d_states())
         trained = res.pop("defaultRunParams")
         files[CHECKPOINT] = {
             "note": "Part 1's model after the default training run (results.md), trained by "

@@ -34,9 +34,11 @@ The Decoder site's model: seq_len 8, d_model 16, 2 heads, d_ff 32, 2 blocks, voc
 | Backward = central differences (h = 1e-6), perturbed weights, 552 entries | max abs err 7.6e-10 | 1e-8 + 1e-6 abs grad |
 | `sgd` = torch.optim over 25 steps | max abs err 0.0e+00 | 1e-12 |
 | `momentum` = torch.optim over 25 steps | max abs err 0.0e+00 | 1e-12 |
+| `nesterov` = torch.optim over 25 steps | max abs err 0.0e+00 | 1e-12 |
 | `adam` = torch.optim over 25 steps | max abs err 2.2e-16 | 1e-12 |
 | `adam_l2` = torch.optim over 25 steps | max abs err 2.2e-16 | 1e-12 |
 | `adamw` = torch.optim over 25 steps | max abs err 1.1e-16 | 1e-12 |
+| Nesterov on chapter 5's valley (60 steps, lr 0.02, momentum 0.8) = `torch.optim.SGD(nesterov=True)` on autograd's gradient; = the gradient-at-the-look-ahead form | max abs err 0.0e+00; 4.4e-16 | 1e-12 |
 | Cosine schedule = CosineAnnealingLR | max abs err 3.5e-18 | 1e-15 |
 | Vectorised rounding (`precision.round_array`) = the Numerics site's scalar code, bf16, e4m3, e5m2, fp16, fp32, 202,090 values | mismatches 0 | exact |
 
@@ -98,6 +100,19 @@ so only differences well beyond the spread mean anything.
 | adamw | 0.003 | 2.311 ± 0.038 | 2.334, 2.331, 2.267 |  |
 | adamw | 0.01 | 2.230 ± 0.041 | 2.192, 2.225, 2.273 | yes |
 | adamw | 0.03 | 2.357 ± 0.029 | 2.344, 2.337, 2.390 |  |
+
+### Chapter 5's valley race (60 steps)
+
+f(x, y) = ½((x − 2)² + 50 (y − 1)²) from (−2.5, −1.5); Nesterov at momentum's learning rate
+and momentum. Overshoot = the furthest past the minimum, along the floor (x) and across (y).
+
+| Optimiser | Final loss | Overshoot along x | Overshoot across y | First step with loss < 1e-3 |
+|---|---:|---:|---:|---:|
+| sgd | 1.24e-01 | 0.000 | 2.000 | never |
+| momentum | 1.17e-04 | 0.133 | 2.000 | 49 |
+| adam | 1.63e-01 | 0.000 | 0.222 | never |
+| adamw | 1.40e+00 | 0.000 | 0.000 | never |
+| nesterov | 5.24e-07 | 0.060 | 2.000 | 26 |
 
 ## Chapters 6-10: how to read these numbers
 

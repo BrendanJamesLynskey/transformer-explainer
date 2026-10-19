@@ -9,7 +9,7 @@ The learning rate sets how far every step moves the weights, and it is the singl
 
 <Layer kind="concept">
 
-**Why the learning rate matters most.** The gradient gives a direction; the learning rate $\eta$ decides the step. Too small and the model crawls: the Decoder's model at a peak of <R k="lrSweep.rows.0.lr" /> ends <R k="lrSweep.steps" sep /> steps at <R k="lrSweep.rows.0.mean" d={3} />, still on the plateau of chapter 1. Too large and the steps overshoot: at <R k="lrSweep.rows.6.lr" /> it ends at <R k="lrSweep.rows.6.mean" d={3} />. In between is a band where it trains well: the best mean here is at <R k="lrSweep.bestLr" /> (<R k="lrSweep.rows.2.mean" d={3} /> ± <R k="lrSweep.rows.2.sd" d={3} />), with 0.03 indistinguishable (<R k="lrSweep.rows.3.mean" d={3} /> ± <R k="lrSweep.rows.3.sd" d={3} />). None of these runs diverged outright, though 1.0 is on the edge: recomputed on another computer, one of its three seeds blew up (results.md §6). Gradient clipping and Adam's normalised step (chapter 5) usually keep such a run finite; it just learns little. Plain SGD and momentum have no such safety net: chapter 8 shows one bad batch blowing a momentum run up.
+**Why the learning rate matters most.** The gradient gives a direction; the learning rate $\eta$ decides the step. Too small and the model crawls: the Decoder's model at a peak of <R k="lrSweep.rows.0.lr" /> ends <R k="lrSweep.steps" sep /> steps at <R k="lrSweep.rows.0.mean" d={3} />, still on the plateau of chapter 1. Too large and the steps overshoot: at <R k="lrSweep.rows.6.lr" /> it ends at <R k="lrSweep.rows.6.mean" d={3} />. In between is a band where it trains well: the best mean here is at <R k="lrSweep.bestLr" /> (<R k="lrSweep.rows.2.mean" d={3} /> ± <R k="lrSweep.rows.2.sd" d={3} />), with 0.03 indistinguishable (<R k="lrSweep.rows.3.mean" d={3} /> ± <R k="lrSweep.rows.3.sd" d={3} />). None of these runs diverged outright, though 1.0 is on the edge: recomputed on another computer, one of its three seeds blew up (results.md §6). Gradient clipping and Adam's normalised step (chapter 5) usually keep such a run finite; it just learns little. Plain SGD and momentum, heavy-ball or Nesterov (chapter 5), have no such safety net: chapter 8 shows one bad batch blowing a momentum run up.
 
 <span id="t-lr-sweep" />
 **A learning-rate sweep** is how that band is found: train the same model, for
@@ -30,9 +30,13 @@ You can run this sweep yourself: the trainer below is chapter 1's, with four pea
 
 <LrTrainerPanel />
 
+<span id="t-warmup" />
+
 **Warmup.** Most runs start with a few hundred to a few thousand steps of linearly rising learning rate. Early on, the gradients are large and change fast, and Adam's running averages (chapter 5) are built from only a few steps, so a full-size first step can throw the weights somewhere bad. Warmup was popularised for large-batch training by [Goyal et al. (2017)](https://arxiv.org/abs/1706.02677) and is essential for post-LN transformers ([Xiong et al. 2020](https://arxiv.org/abs/2002.04745); chapter 7). This tiny pre-LN model at a peak of 0.01 does not need it: the run that starts at the full rate leaves chapter 1's plateau sooner (validation loss <R k="schedules.rows.0.meanEvals.20" d={3} /> at step 1,000, against <R k="schedules.rows.1.meanEvals.20" d={3} /> with 50 warmup steps) and keeps the lead: <R k="schedules.rows.0.mean" d={3} /> ± <R k="schedules.rows.0.sd" d={3} /> at the end, against <R k="schedules.rows.1.mean" d={3} /> ± <R k="schedules.rows.1.sd" d={3} />. Warmup is insurance that this model happens not to need.
 
 **Decay: cosine and WSD.** At the end of a run, a smaller learning rate lets the weights settle into a valley instead of bouncing across it (the jitter of chapter 5's valley). The _cosine_ schedule ([Loshchilov & Hutter 2016](https://arxiv.org/abs/1608.03983)) decays smoothly from the start; LLaMA, for example, used it down to 10% of the peak ([Touvron et al. 2023, §2.3](https://arxiv.org/abs/2302.13971)). Its drawback is that the length of the run must be fixed in advance. _Warmup–stable–decay_ (WSD; [Hu et al. 2024](https://arxiv.org/abs/2404.06395), studied by [Hägele et al. 2024](https://arxiv.org/abs/2405.18392)) holds the peak and decays only over the last part, so a run can be extended from any checkpoint of the stable phase. In the animation, WSD is the same run as warmup + constant until step 1,600; then its decay pulls it below: <R k="schedules.rows.3.mean" d={3} /> ± <R k="schedules.rows.3.sd" d={3} /> at the end, against <R k="schedules.rows.1.mean" d={3} /> ± <R k="schedules.rows.1.sd" d={3} />. The cosine run ends at <R k="schedules.rows.2.mean" d={3} /> ± <R k="schedules.rows.2.sd" d={3} />: a 2,000-step run that is still improving at its end gains little from spending its last steps at a small learning rate. The decay pays off in long runs that are close to converged.
+
+<span id="t-critical-batch" />
 
 **Batch size and gradient noise.** Each step's gradient is an average over the batch: a noisy estimate of the gradient over all the text. A bigger batch gives a better estimate, so the same progress needs fewer steps, but each step costs more. [McCandlish et al. (2018)](https://arxiv.org/abs/1812.06162) model the trade-off: doubling the batch halves the steps while the batch is well below a _critical batch size_, and barely helps above it, where the extra examples only polish an already good gradient. The chart measures it on the Decoder's model, whose examples are windows of 8 characters (its whole context, [Decoder, chapter 2](/learn/02-embeddings)): the steps to reach a validation loss of <R k="batchSize.target" /> at five batch sizes, each at the better of two learning rates, three seeds. Fitting their law $S = S_{\min}(1 + B_{\text{crit}}/B)$ gives a critical batch of about <R k="batchSize.fit.bCrit" d={0} /> windows here: from <R k="batchSize.rows.0.batch" /> to <R k="batchSize.rows.4.batch" /> windows the steps fall from <R k="batchSize.rows.0.steps" d={0} /> to <R k="batchSize.rows.4.steps" d={0} />, far less than the 16-fold the batch grew. Their quick estimate of the critical batch, the _gradient noise scale_ $B_{\text{simple}} = \operatorname{tr}(\Sigma)/|G|^2$ (the gradient's variance over its squared size, measured here from <R k="noiseScale.windows" /> single-window gradients), grows as training goes on: <R k="noiseScale.points.0.bSimple" d={1} /> windows at initialisation, <R k="noiseScale.points.3.bSimple" d={0} /> at step 1,000 and <R k="noiseScale.points.5.bSimple" d={0} /> at the end of the default run. The two estimates agree only to within about an order of magnitude here, which is the precision McCandlish et al. claim for it. The trend is the useful part: as the loss falls, the signal in the gradient shrinks relative to its noise, so later in training a bigger batch is worth more, which is why some large runs grow their batch during training.
 
@@ -76,3 +80,75 @@ export function lrAt(t: number, s: Schedule): number {
 ```
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t06-q1"
+  n={1}
+  choices={[
+    "Yes, it ends clearly lower",
+    "No: the run without warmup leaves the plateau sooner and ends lower",
+    "Without warmup the run diverges",
+  ]}
+  answer={1}
+  q="This small pre-LN model at a peak learning rate of 0.01: do 50 steps of warmup help?"
+  href="#t-warmup"
+  more="Warmup"
+>
+  No: <R k="schedules.rows.0.mean" d={3} /> without warmup against{" "}
+  <R k="schedules.rows.1.mean" d={3} /> with it. Warmup is insurance this model
+  happens not to need; post-LN models and large runs do need it (chapter 7).
+</Check>
+
+<Check
+  id="t06-q2"
+  n={2}
+  choices={[
+    "They fall about 16-fold",
+    "They fall far less than 16-fold",
+    "They do not change",
+  ]}
+  answer={1}
+  q="Grow the batch 16-fold, from 4 windows to 64. The steps needed to reach the target loss…"
+  href="#t-critical-batch"
+  more="Batch size and gradient noise"
+>
+  Far less: from <R k="batchSize.rows.0.steps" d={0} /> to{" "}
+  <R k="batchSize.rows.4.steps" d={0} />. Above the critical batch size, about{" "}
+  <R k="batchSize.fit.bCrit" d={0} /> windows here, extra examples only polish
+  an already good gradient.
+</Check>
+
+<Check
+  id="t06-q3"
+  n={3}
+  input="number"
+  k="lrSweep.bestLr"
+  tol={0}
+  abs={0.000001}
+  q="In the learning-rate sweep (rates about a factor of 3 apart, three seeds each), which peak rate gave the lowest mean final loss?"
+  href="#t-lr-sweep"
+  more="The learning-rate sweep"
+>
+  <R k="lrSweep.bestLr" /> (<R k="lrSweep.rows.2.mean" d={3} /> ±{" "}
+  <R k="lrSweep.rows.2.sd" d={3} />
+  ), with <R k="lrSweep.rows.3.lr" /> indistinguishable within the seeds'
+  spread. Every optimiser and method has its own best rate, so a fair comparison
+  sweeps each one.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- The learning rate is the most important number to tune: sweep it, a factor of about 3 apart, over seeds.
+- Warmup protects the first steps; a decay at the end (cosine or WSD) lets the weights settle.
+- WSD holds the peak and decays only at the end, so a run can be extended from any checkpoint of its stable phase.
+- A bigger batch helps until the critical batch size, then barely; the gradient noise scale estimates it, to within an order of magnitude.
+
+<Keep>
+  Tune the learning rate separately for every optimiser or method you compare.
+</Keep>
+
+</Remember>

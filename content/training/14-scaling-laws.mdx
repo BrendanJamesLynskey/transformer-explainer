@@ -9,6 +9,8 @@ Given a fixed amount of compute, should you train a bigger model on less data or
 
 <Layer kind="concept">
 
+<span id="t-compute" />
+
 **Compute is parameters times tokens.** Training costs about $6ND$ FLOPs for
 $N$ parameters and $D$ training tokens (chapter 11's $6N$ per token: 2 for the
 forward pass, 4 for the backward). A budget fixes the product, so every choice
@@ -31,6 +33,8 @@ IsoFLOP profiles, a parabola through each, and a straight line through the
 minima on log–log axes. Llama 3 did the same to choose its flagship's size
 ([Grattafiori et al. 2024](https://arxiv.org/abs/2407.21783), §3.2.1), fitting
 $\alpha = 0.53$ for the optimal number of tokens.
+
+<span id="t-toy-sweep" />
 
 **The toy sweep.** Widths 6 to 64 (1,056 to 70,656 parameters, counting the
 embedding, which is most of a model this small), budgets from <R k="isoflop.budgets.0" /> to <R k="isoflop.budgets.3" /> FLOPs, AdamW at a
@@ -72,6 +76,8 @@ predicted: a toy fit over one decade, like the one above, says nothing about a
 model a million times larger. When the Compute in Transit results site scales
 its measurements to bigger models or rarer syncs, it labels those numbers as
 extrapolations for the same reason.
+
+<span id="t-overtraining" />
 
 **Overtraining for cheaper inference.** Compute-optimal minimises training
 cost for a given loss; it ignores the cost of using the model. A smaller model
@@ -156,3 +162,66 @@ export function fitParabola(
 ```
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t14-q1"
+  n={1}
+  choices={["2", "6", "12"]}
+  answer={1}
+  q="Training costs about how many FLOPs per parameter per token?"
+  href="#t-compute"
+  more="Compute is parameters times tokens"
+>
+  About 6: 2 for the forward pass and 4 for the backward, so a run of $N$
+  parameters on $D$ tokens costs about $6ND$. A compute budget fixes the product
+  $ND$.
+</Check>
+
+<Check
+  id="t14-q2"
+  n={2}
+  input="number"
+  k="isoflop.a"
+  d={2}
+  tol={0.15}
+  q="The toy’s IsoFLOP fit gives N_opt ∝ C^a. What is a?"
+  href="#t-toy-sweep"
+  more="The toy sweep"
+>
+  <R k="isoflop.a" d={2} /> (so $b =$ <R k="isoflop.b" d={2} /> for the tokens),
+  near Chinchilla's 0.5, but from three budgets over one decade of compute: do
+  not over-read it.
+</Check>
+
+<Check
+  id="t14-q3"
+  n={3}
+  choices={[
+    "Yes: compute-optimal is always best",
+    "Often not: a smaller model trained on more tokens costs less per token served",
+    "No: train the largest model you can afford",
+  ]}
+  answer={1}
+  q="The model will serve many users. Should you train it compute-optimally?"
+  href="#t-overtraining"
+  more="Overtraining for cheaper inference"
+>
+  Often not. Compute-optimal minimises the cost of training to a given loss and
+  ignores the cost of using the model; Llama 3 trained its smaller models far
+  past compute-optimal because every served token is then cheaper.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Training compute is about $6ND$: a budget fixes parameters times tokens.
+- At each budget there is a best model size, and it grows with the budget (IsoFLOP profiles).
+- Chinchilla: grow parameters and tokens about equally, about 20 tokens per parameter.
+- Extrapolate a scaling law with care, and overtrain smaller models when inference cost matters.
+
+<Keep>$C \approx 6ND$</Keep>
+
+</Remember>

@@ -55,7 +55,20 @@ export default async function LearnIndex(): Promise<JSX.Element> {
       <p className="mt-4 text-neutral-600 dark:text-neutral-300">
         Read in order — each section builds on the one before it. Toggle layers
         (Concept / Maths / Code) inside any section to control how deep the
-        explanation goes.
+        explanation goes. Each one ends with three self-checks and what to
+        remember.
+      </p>
+      <p className="mt-3 text-sm">
+        <Link
+          href="/foundations"
+          data-foundations-link
+          className="focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300"
+        >
+          The Foundations start page
+        </Link>
+        <span className="text-neutral-600 dark:text-neutral-400">
+          : reading order, prerequisites and a glossary.
+        </span>
       </p>
 
       <ol className="mt-10 divide-y divide-neutral-200 dark:divide-neutral-800">

@@ -9,9 +9,13 @@ Large training runs fail in two ways that small ones rarely show: the loss sudde
 
 <Layer kind="concept">
 
+<span id="t-logit-growth" />
+
 **Attention-logit growth.** At a high learning rate, the query and key weights grow, the scores $q^\top k/\sqrt{d_k}$ grow with their product, and the softmax turns into a hard maximum: each position attends to exactly one other, the attention entropy falls towards zero, and the gradient through the softmax vanishes, so attention stops learning ([Decoder, chapter 3](/learn/03-attention) shows the healthy version). [Dehghani et al. (2023)](https://arxiv.org/abs/2302.05442) saw exactly this diverge an 8-billion-parameter vision transformer; [Wortsman et al. (2023)](https://arxiv.org/abs/2309.14322) showed the same instability appears in small models at high learning rates. Here, at a peak learning rate of 0.1 (warmup, cosine, clip 1.0, three seeds), the largest attention score reaches <R k="attnGrowth.rows.3.meanStats.-1.maxScore" d={0} sep /> on average and the mean attention entropy falls to <R k="attnGrowth.rows.3.meanStats.-1.attnEntropy" d={2} /> nats (at the default 0.01: <R k="attnGrowth.rows.0.meanStats.-1.maxScore" d={0} /> and <R k="attnGrowth.rows.0.meanStats.-1.attnEntropy" d={2} />). The run does not blow up; it just learns less: <R k="attnGrowth.rows.3.mean" d={3} /> ± <R k="attnGrowth.rows.3.sd" d={3} /> against <R k="attnGrowth.rows.0.mean" d={3} /> ± <R k="attnGrowth.rows.0.sd" d={3} /> at 0.01.
 
 **The cures.** _QK-norm_ applies a LayerNorm to each head's queries and keys before the dot product, so the scores cannot grow just because the weights do (only the norm's gain can scale them). With it, the run at 0.1 keeps its largest score at <R k="attnGrowth.rows.4.meanStats.-1.maxScore" d={0} /> and reaches <R k="attnGrowth.rows.4.mean" d={3} /> ± <R k="attnGrowth.rows.4.sd" d={3} />: the best of every run in this chapter, because the higher learning rate is now usable. _z-loss_ ([Chowdhery et al. 2022](https://arxiv.org/abs/2204.02311): PaLM added $10^{-4}\log^2 Z$ to the loss; here the coefficient is $10^{-3}$) pulls the output softmax's normaliser $\log Z$ towards 0; it targets a different instability, the output logits drifting, and does nothing for attention: with it the largest score still reaches <R k="attnGrowth.rows.5.meanStats.-1.maxScore" d={0} sep /> and the loss <R k="attnGrowth.rows.5.mean" d={3} /> ± <R k="attnGrowth.rows.5.sd" d={3} />. The plainest cure is a lower learning rate, which costs speed.
+
+<span id="t-bad-batch" />
 
 **A loss spike: one bad batch.** The second experiment trains with momentum (no adaptive scaling) at a learning rate of <R k="badBatch.rows.0.lr" />, and at step <R k="badBatch.at" sep /> feeds one batch that is nothing like the book: every window the character "@" repeated. Its gradient is huge. Without protection the step throws the weights far off: the validation loss jumps from <R k="badBatch.rows.0.before.0" d={2} /> to <R k="badBatch.rows.0.after.0" d={1} /> and the run then diverges (seed 1; all three seeds do the same, results.md §8a). _Gradient clipping_ ([Pascanu et al. 2013](https://arxiv.org/abs/1211.5063)) rescales any gradient whose norm exceeds a threshold (1.0 here, and in the default run): the same bad batch now moves the loss from <R k="badBatch.rows.1.before.0" d={3} /> to <R k="badBatch.rows.1.after.0" d={3} />, and the run carries on. _Skipping_ a batch whose gradient norm is far above the recent average (here 4×) avoids even that. AdamW at its usual learning rate barely notices the batch even unclipped (<R k="badBatch.rows.3.before.0" d={3} /> → <R k="badBatch.rows.3.after.0" d={3} />): Adam divides each step by the running size of past gradients, so one large gradient cannot make one large step.
 
@@ -31,7 +35,7 @@ QK-norm: $\hat q = \gamma_q \odot (q - \mu_q)/\sigma_q + \beta_q$ per head (and 
 
 z-loss: $L = L_{\text{CE}} + c\,\overline{(\log Z)^2}$ with $\log Z = \operatorname{logsumexp}(z)$; $\partial/\partial z = 2c \log Z \cdot \operatorname{softmax}(z)$ per position, added to $p - y$.
 
-Clipping by global norm: $g \leftarrow g \cdot \min\big(1, \tfrac{c}{\|g\| + 10^{-6}}\big)$ (PyTorch's `clip_grad_norm_`). Momentum's step is $\eta$ times a running sum of gradients, so one gradient $k$ times too large moves the weights $k$ times too far; Adam's is $\eta\, \hat m/\sqrt{\hat v}$, bounded by about $\eta$ per coordinate.
+Clipping by global norm: $g \leftarrow g \cdot \min\big(1, \tfrac{c}{\|g\| + 10^{-6}}\big)$ (PyTorch's `clip_grad_norm_`). Momentum's step is $\eta$ times a running sum of gradients, so one gradient $k$ times too large moves the weights $k$ times too far (Nesterov's step, $\eta(g + \mu b)$, adds that gradient once more, so it is no safer); Adam's is $\eta\, \hat m/\sqrt{\hat v}$, bounded by about $\eta$ per coordinate.
 
 </Layer>
 
@@ -58,3 +62,74 @@ def z_loss_terms(logits, probs, coeff):
 ```
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t08-q1"
+  n={1}
+  input="number"
+  k="attnGrowth.rows.3.meanStats.-1.maxScore"
+  d={0}
+  sep
+  tol={0.5}
+  q="At a peak learning rate of 0.1, how large does the largest attention score grow by the end (mean over three seeds)?"
+  href="#t-logit-growth"
+  more="Attention-logit growth"
+>
+  About <R k="attnGrowth.rows.3.meanStats.-1.maxScore" d={0} sep />, against{" "}
+  <R k="attnGrowth.rows.0.meanStats.-1.maxScore" d={0} /> at the default 0.01:
+  the softmax becomes a hard maximum and attention stops learning. Here an
+  order-of-magnitude guess counts, within 50%.
+</Check>
+
+<Check
+  id="t08-q2"
+  n={2}
+  choices={["z-loss", "QK-norm", "Both, equally"]}
+  answer={1}
+  q="Which cure stops the attention scores growing at that learning rate?"
+  href="#t-logit-growth"
+  more="The cures"
+>
+  QK-norm: its largest score stays at{" "}
+  <R k="attnGrowth.rows.4.meanStats.-1.maxScore" d={0} /> and the run ends
+  lowest of all (<R k="attnGrowth.rows.4.mean" d={3} />
+  ). z-loss targets the output logits instead; with it the largest score still
+  reaches <R k="attnGrowth.rows.5.meanStats.-1.maxScore" d={0} sep />.
+</Check>
+
+<Check
+  id="t08-q3"
+  n={3}
+  choices={[
+    "Momentum at its learning rate",
+    "AdamW at its usual learning rate",
+    "Both blow up",
+  ]}
+  answer={1}
+  q="One batch of “@@@@…” arrives, unclipped. Which run barely notices it?"
+  href="#t-bad-batch"
+  more="A loss spike"
+>
+  AdamW: <R k="badBatch.rows.3.before.0" d={3} /> before,{" "}
+  <R k="badBatch.rows.3.after.0" d={3} /> after, because Adam divides each step
+  by the running size of past gradients. Momentum jumps from{" "}
+  <R k="badBatch.rows.0.before.0" d={2} /> to{" "}
+  <R k="badBatch.rows.0.after.0" d={1} /> and diverges.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- At a high learning rate the attention scores grow, the softmax saturates and attention stops learning.
+- QK-norm normalises queries and keys, so scores cannot grow with the weights; z-loss steadies the output logits instead.
+- Clip the global gradient norm: one bad batch then moves the loss a little instead of off a cliff.
+- Large runs stack guards (warmup, clipping, QK-norm, a lower $\beta_2$) and keep checkpoints to restart from.
+
+<Keep>
+  Adam's step is bounded by about $\eta$ per weight; momentum's is not.
+</Keep>
+
+</Remember>

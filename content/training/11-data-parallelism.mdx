@@ -74,6 +74,8 @@ for an all-gather of compressed payloads $(p - 1)$ times the payload. Link time
 follows the wire bytes, not the payload; the Compute in Transit results site
 quotes both, and so does chapter 13.
 
+<span id="t-zero" />
+
 **ZeRO and FSDP: stop every worker holding everything.** Chapter 10 counted 16
 bytes per parameter for mixed-precision Adam: weights, gradients, two moments
 and an FP32 master copy, all replicated on every data-parallel worker. ZeRO
@@ -195,3 +197,72 @@ export function collective(
 ```
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t11-q1"
+  n={1}
+  choices={[
+    "The same, up to rounding",
+    "Noisier, because each worker sees fewer windows",
+    "Four times larger",
+  ]}
+  answer={0}
+  q="Four workers each average the gradient over 4 windows, then the four averages are averaged. Compared with one worker on all 16 windows, the gradient is…"
+  href="#t-data-parallel"
+  more="Data parallelism"
+>
+  The same: the mean of four means of four is the mean of sixteen. Checked on
+  the model: four simulated workers end the default run at{" "}
+  <R k="slowLinks.rows.0.perLr.1.finals.0" d={6} />, one worker at{" "}
+  <R k="defaultRun.evals.-1.val" d={6} />, differing only in the last bits.
+</Check>
+
+<Check
+  id="t11-q2"
+  n={2}
+  input="number"
+  v="training.ringWireOverPayload64"
+  d={2}
+  tol={0.1}
+  q="A ring all-reduce among 64 GPUs: how many times its own gradient does each GPU send?"
+  href="#t-all-reduce"
+  more="The ring all-reduce"
+>
+  $2(p-1)/p =$ <V v="training.ringWireOverPayload64" d={2} />: never more than
+  twice the vector, however many workers. What grows with the ring is the number
+  of steps, $2(p-1)$, each paying a link's latency.
+</Check>
+
+<Check
+  id="t11-q3"
+  n={3}
+  input="number"
+  k="systems.zero.rows.7.total"
+  div={1e9}
+  d={1}
+  unit=" GB"
+  tol={0.25}
+  q="LLaMA 7B over 64 GPUs with ZeRO stage 3 (FSDP): how many GB of model states does each GPU hold?"
+  href="#t-zero"
+  more="ZeRO and FSDP"
+>
+  <R k="systems.zero.rows.7.total" div={1e9} d={1} /> GB, against{" "}
+  <R k="systems.zero.rows.4.total" div={1e9} d={1} /> GB unsharded: every one of
+  the 16 bytes per parameter is cut 64 ways. The price is half as much traffic
+  again, since the weights are all-gathered once more in the backward pass.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Data parallelism: every worker holds the whole model and a slice of the batch; averaging the gradients gives exactly the big batch's gradient.
+- A ring all-reduce sends at most twice the vector per worker; its number of steps grows with the ring.
+- ZeRO and FSDP shard optimiser states, gradients and finally the weights across the workers.
+- Overlap the gradient sync with the backward pass; MFU says how much of the hardware's peak does useful work.
+
+<Keep>Ring all-reduce: each worker sends $2(p-1)/p$ times its payload.</Keep>
+
+</Remember>

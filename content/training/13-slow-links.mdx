@@ -95,9 +95,10 @@ values, $k =$ 4 of them, values in BF16 and positions in one byte:
 often. In DiLoCo ([Douillard et al. 2023](https://arxiv.org/abs/2311.08105),
 Algorithm 1) each worker trains alone with AdamW for $H$ steps; then the workers
 average how far they moved (the "pseudo-gradient") and an outer optimiser,
-Nesterov momentum (learning rate 0.7, momentum 0.9, the paper's setting), moves
-the shared weights; then everyone starts the next $H$ steps from them. It sends
-the dense vector, but only once per $H$ steps:
+Nesterov momentum ([chapter 5](/training/05-optimisers#t-nesterov); learning
+rate 0.7, momentum 0.9, the paper's setting), moves the shared weights; then
+everyone starts the next $H$ steps from them. It sends the dense vector, but
+only once per $H$ steps:
 <R k="slowLinks.rows.3.bytes.wire" d={0} /> bytes a step on average at $H = 10$,
 <R k="slowLinks.rows.4.bytes.wire" d={0} /> at $H = 50$. Local SGD, its
 ancestor, is analysed by [Stich (2018)](https://arxiv.org/abs/1805.09767).
@@ -213,3 +214,68 @@ for (let i = 0; i < m; i++) resid[c * m + i] = ch[i]! - back[i]!;
 ```
 
 </Layer>
+
+<CheckYourself>
+
+<Check
+  id="t13-q1"
+  n={1}
+  input="number"
+  v="training.topkPayloadRatio"
+  d={3}
+  tol={0.1}
+  q="Top-k sends 1 value in 16, each with its position. What fraction of the dense gradient’s bytes is that?"
+  href="#t-top-k"
+  more="Top-k sparsification"
+>
+  <V v="training.topkPayloadRatio" d={3} />, not 1/16: each 2-byte value travels
+  with a 2-byte position, so 1 value in 16 costs 4/32 of the dense bytes.
+</Check>
+
+<Check
+  id="t13-q2"
+  n={2}
+  choices={[
+    "Stay below twice the payload, as in an all-reduce",
+    "Grow in proportion to the number of workers",
+    "Shrink as the work is shared",
+  ]}
+  answer={1}
+  q="Compressed vectors are all-gathered, not all-reduced. As workers are added, each worker’s bytes on the wire…"
+  href="#t-compressed-allgather"
+  more="Why compressed vectors are all-gathered"
+>
+  Grow with the workers: each forwards everyone else's piece. With four workers
+  DeMo's <R k="slowLinks.rows.2.bytes.payload" sep /> bytes of payload become{" "}
+  <R k="slowLinks.rows.2.bytes.wire" sep /> on the wire, against the dense
+  all-reduce's <R k="slowLinks.rows.0.bytes.wire" sep />.
+</Check>
+
+<Check
+  id="t13-q3"
+  n={3}
+  input="number"
+  k="systems.queue.2.formula"
+  d={1}
+  tol={0.15}
+  q="A shared link is busy 90% of the time. On average, how many transfer-times does a new sync wait (an M/D/1 queue)?"
+  href="#t-queueing"
+  more="Queueing on a shared link"
+>
+  $\rho/(2(1-\rho)) =$ <R k="systems.queue.2.formula" d={1} />, against{" "}
+  <R k="systems.queue.0.formula" d={2} /> at 30% load. The wait grows without
+  bound as the link fills, and it hurts most the methods that send most.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Over slow links, send less (top-k, DeMo), less often (DiLoCo), or both.
+- Error feedback keeps what was not sent and adds it to the next step, so every update arrives eventually.
+- Compressed vectors are all-gathered, so their wire bytes grow with the number of workers.
+- Compare methods at their own best learning rates, by the steps or time to a target loss.
+
+<Keep>Payload is not wire bytes: quote both.</Keep>
+
+</Remember>

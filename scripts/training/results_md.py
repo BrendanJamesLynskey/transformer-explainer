@@ -68,9 +68,16 @@ def render(r: dict) -> str:
         a = cg[key]
         w(f"| Backward = central differences (h = 1e-6), {label}, {a['entries']} entries | "
           f"max abs err {e(a['max_abs_err'])} | 1e-8 + 1e-6 abs grad |")
-    for key in ("sgd", "momentum", "adam", "adam_l2", "adamw"):
+    for key in ("sgd", "momentum", "nesterov", "adam", "adam_l2", "adamw"):
+        if key not in co:
+            continue
         a = co[key]
         w(f"| `{key}` = torch.optim over {a['steps']} steps | max abs err {e(a['max_abs_err'])} | 1e-12 |")
+    if "nesterov_valley" in co:
+        a = co["nesterov_valley"]
+        w(f"| Nesterov on chapter 5's valley ({a['steps']} steps, lr {a['lr']}, momentum {a['momentum']}) "
+          f"= `torch.optim.SGD(nesterov=True)` on autograd's gradient; = the gradient-at-the-look-ahead form | "
+          f"max abs err {e(a['torch']['max_abs_err'])}; {e(a['lookahead']['max_abs_err'])} | 1e-12 |")
     a = co["cosine_schedule"]
     w(f"| Cosine schedule = CosineAnnealingLR | max abs err {e(a['max_abs_err'])} | 1e-15 |")
     if "rounding" in co:
@@ -120,6 +127,19 @@ def render(r: dict) -> str:
         seeds = ", ".join(f(x["final"], 3) for x in row["runs"])
         w(f"| {row['kind']} | {row['lr']} | {f(row['final'], 3)} ± {f(row['sd'], 3)} | {seeds} | {mark} |")
     w("")
+    if "optim2d" in r:
+        q = r["optim2d"]
+        w(f"### Chapter 5's valley race ({q['steps']} steps)")
+        w("")
+        w("f(x, y) = ½((x − 2)² + 50 (y − 1)²) from (−2.5, −1.5); Nesterov at momentum's learning rate")
+        w("and momentum. Overshoot = the furthest past the minimum, along the floor (x) and across (y).")
+        w("")
+        w("| Optimiser | Final loss | Overshoot along x | Overshoot across y | First step with loss < 1e-3 |")
+        w("|---|---:|---:|---:|---:|")
+        for o in q["optimisers"]:
+            below = "never" if o["stepBelow1e3"] is None else str(o["stepBelow1e3"])
+            w(f"| {o['kind']} | {o['finalLoss']:.2e} | {f(o['overshootX'], 3)} | {f(o['overshootY'], 3)} | {below} |")
+        w("")
     render_b(r, w)
     render_c(r, w)
     return "\n".join(L)
