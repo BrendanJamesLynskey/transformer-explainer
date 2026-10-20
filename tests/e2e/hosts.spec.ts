@@ -222,6 +222,15 @@ test.describe("the author credit", () => {
       await expect(
         credit.getByRole("link", { name: "Brendan Lynskey" }),
       ).toHaveAttribute("href", "https://brendanjameslynskey.github.io/");
+      // the shared definitions (brief 44D)
+      await expect(
+        page
+          .locator("[data-definitions-link]")
+          .getByRole("link", { name: "shared definitions" }),
+      ).toHaveAttribute(
+        "href",
+        "https://agent-harnesses-explained.vercel.app/definitions",
+      );
     });
   }
 });

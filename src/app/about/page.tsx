@@ -352,6 +352,25 @@ export default function AboutPage(): JSX.Element {
         </p>
       </section>
 
+      <section className="space-y-2">
+        <h2 className="text-lg font-medium">Terms across the sites</h2>
+        <p
+          className="text-sm text-neutral-600 dark:text-neutral-400"
+          data-definitions-link
+        >
+          A few terms (goodput, ρ, the pipeline bubble) mean different things on
+          different companion sites; the{" "}
+          <a
+            href="https://agent-harnesses-explained.vercel.app/definitions"
+            className="focus-ring rounded text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent dark:text-indigo-300"
+          >
+            shared definitions
+          </a>{" "}
+          give each one definition and one formula, and say where a site
+          differs.
+        </p>
+      </section>
+
       <p className="text-sm">
         <Link
           href="/learn"
